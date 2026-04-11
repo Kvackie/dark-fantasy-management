@@ -397,6 +397,17 @@ func get_slot_production_preview(slot_index: int) -> Dictionary:
 	return _calculate_slot_production(get_slot(slot_index))
 
 
+func get_owned_settlement_production_preview() -> Dictionary:
+	var production_delta: Dictionary = {}
+	for settlement_id in owned_settlement_ids:
+		for slot in _get_settlement_slots(String(settlement_id)):
+			var slot_data: Dictionary = slot
+			var slot_delta: Dictionary = _calculate_slot_production(slot_data)
+			for resource_id in slot_delta.keys():
+				production_delta[resource_id] = int(production_delta.get(resource_id, 0)) + int(slot_delta[resource_id])
+	return production_delta
+
+
 func assign_hero_to_slot(hero_uid: int, slot_index: int) -> bool:
 	_sync_active_settlement_slots()
 	if slot_index < 0 or slot_index >= slots.size():
@@ -491,13 +502,7 @@ func debug_recruit_random_hero() -> Dictionary:
 
 func process_tick() -> Dictionary:
 	tick_count += 1
-	var production_delta: Dictionary = {}
-	for settlement_id in settlement_states.keys():
-		for slot in _get_settlement_slots(String(settlement_id)):
-			var slot_data: Dictionary = slot
-			var slot_delta: Dictionary = _calculate_slot_production(slot_data)
-			for resource_id in slot_delta.keys():
-				production_delta[resource_id] = int(production_delta.get(resource_id, 0)) + int(slot_delta[resource_id])
+	var production_delta := get_owned_settlement_production_preview()
 	if not production_delta.is_empty():
 		add_resources(production_delta)
 	var world_result := _process_world_tick()

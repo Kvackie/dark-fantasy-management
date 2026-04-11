@@ -87,6 +87,7 @@ func _ready() -> void:
 		GameManager.emit_state()
 	else:
 		_selected_slot = GameManager.selected_slot
+	_sync_top_bar_yields_after_state_load()
 
 
 func _configure_root_layout() -> void:
@@ -174,6 +175,7 @@ func _connect_game_manager() -> void:
 	GameManager.inventory_changed.connect(_on_inventory_changed)
 	GameManager.selection_changed.connect(_on_selection_changed)
 	GameManager.save_slots_changed.connect(_on_save_slots_changed)
+	GameManager.save_loaded.connect(_on_save_loaded)
 	GameManager.tick_processed.connect(_on_tick_processed)
 
 
@@ -239,6 +241,7 @@ func _on_settlement_changed(slots: Array) -> void:
 
 func _on_active_settlement_changed(_settlement_id: String) -> void:
 	_refresh_settlement_title()
+	_refresh_resource_yields()
 
 
 func _on_heroes_changed(heroes: Array) -> void:
@@ -267,10 +270,9 @@ func _refresh_resource_yields() -> void:
 	_resource_yields.clear()
 	for resource_id in SettlementGameData.RESOURCE_ORDER:
 		_resource_yields[resource_id] = 0
-	for slot_index in range(GameManager.slots.size()):
-		var production: Dictionary = GameManager.get_slot_production_preview(slot_index)
-		for resource_id in production.keys():
-			_resource_yields[resource_id] = int(_resource_yields.get(resource_id, 0)) + int(production[resource_id])
+	var production := GameManager.get_owned_settlement_production_preview()
+	for resource_id in production.keys():
+		_resource_yields[resource_id] = int(_resource_yields.get(resource_id, 0)) + int(production[resource_id])
 	_refresh_resource_badges()
 
 
@@ -297,8 +299,17 @@ func _on_save_slots_changed(_slots: Array) -> void:
 		_refresh_saves_page_state(_slots)
 
 
+func _on_save_loaded(_slot_index: int) -> void:
+	_selected_slot = GameManager.selected_slot
+	_sync_top_bar_yields_after_state_load()
+
+
 func _on_tick_processed(_tick_count: int, _production_delta: Dictionary) -> void:
 	_refresh_resource_yields()
+
+
+func _sync_top_bar_yields_after_state_load() -> void:
+	_refresh_resource_yields.call_deferred()
 
 
 func _refresh_grid() -> void:
@@ -353,7 +364,7 @@ func _refresh_page_content() -> void:
 
 func _apply_mode_layout() -> void:
 	var full_page_mode: bool = _is_full_page_mode()
-	_top_bar.visible = _detail_mode != "heroes" and _detail_mode != "hero_detail" and _detail_mode != "inventory"
+	_top_bar.visible = _detail_mode == "settlement" or full_page_mode
 	_details_panel.visible = _detail_mode == "settlement" and _selected_slot != -1
 	_settlement_title.visible = _detail_mode == "settlement"
 	_settlement_scroll.visible = _detail_mode == "settlement"
