@@ -112,6 +112,7 @@ size_flags_vertical = 3
 theme_override_constants/separation = 12
 
 [node name="DetailsPanel" type="PanelContainer" parent="Shell/MainRow" unique_id=1189235611]
+visible = false
 custom_minimum_size = Vector2(320, 0)
 layout_mode = 2
 size_flags_horizontal = 3

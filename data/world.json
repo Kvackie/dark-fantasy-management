@@ -1,0 +1,73 @@
+{
+	"config": {
+		"adjacency_mode": 8,
+		"reveal_radius": 2,
+		"reveal_from_claimed": true,
+		"reveal_from_cleared": true,
+		"default_clear_duration": 3,
+		"max_clearing_party": 3,
+		"zone_size": 104,
+		"zone_gap": 10,
+		"zone_colors": {
+			"fog": "#66686f",
+			"discovered": "#9b403c",
+			"clearing": "#b65449",
+			"cleared": "#c6a04d",
+			"claimed": "#3f8b4f"
+		},
+		"claim_cost": {
+			"base": {
+				"wood": 35,
+				"stone": 18,
+				"gold": 12
+			},
+			"distance_step": {
+				"wood": 10,
+				"stone": 6,
+				"gold": 4
+			},
+			"variance": {
+				"wood": 6,
+				"stone": 4,
+				"gold": 3
+			}
+		},
+		"name_generation": {
+			"prefixes": [
+				"Ashen",
+				"Gloam",
+				"Hollow",
+				"Dread",
+				"Cinder",
+				"Mourn",
+				"Veil",
+				"Graveshard"
+			],
+			"suffixes": [
+				"March",
+				"Reach",
+				"Hearth",
+				"Watch",
+				"Hollow",
+				"Cross",
+				"Vale",
+				"Hold"
+			],
+			"articles": [
+				"The",
+				""
+			]
+		},
+		"overrides": {
+			"0,0": {
+				"state": "claimed",
+				"settlement_id": "hollow_march",
+				"settlement_name": "The Hollow March",
+				"name": "The Hollow March",
+				"claim_cost": {},
+				"clear_duration": 0,
+				"force_settlement": true
+			}
+		}
+	}
+}

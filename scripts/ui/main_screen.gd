@@ -246,6 +246,8 @@ func _on_heroes_changed(heroes: Array) -> void:
 	_resource_values["heroes"] = heroes.size()
 	_refresh_resource_badges()
 	_refresh_resource_yields()
+	if _detail_mode == "world":
+		return
 	if _detail_mode == "hero_detail" and _hero_detail_tab == "equipment":
 		_refresh_hero_detail_equipment_slots()
 		return
@@ -331,7 +333,7 @@ func _refresh_page_content() -> void:
 		_save_slot_labels.clear()
 		_save_slot_name_inputs.clear()
 		_save_slot_load_buttons.clear()
-	_clear_container(_page_content)
+	_clear_container_immediately(_page_content)
 	match _detail_mode:
 		"overview":
 			_build_overview_page()
@@ -391,14 +393,14 @@ func _build_world_page() -> void:
 	var world_view := WorldViewScene.instantiate()
 	world_view.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	world_view.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	world_view.set_settlements(GameManager.get_owned_settlement_definitions())
+	world_view.set_world_snapshot(GameManager.get_world_snapshot())
 	world_view.settlement_selected.connect(_open_settlement)
 	_page_content.add_child(world_view)
 
 
 
 func _populate_overview_content(target: VBoxContainer) -> void:
-	var owned_settlements := GameManager.get_owned_settlement_definitions()
+	var owned_settlements: Array = GameManager.get_owned_settlement_definitions()
 	if owned_settlements.is_empty():
 		target.add_child(_make_label(_txt("overview.no_settlements"), 16))
 	else:
@@ -483,7 +485,7 @@ func _build_building_panel(slot_index: int, slot_data: Dictionary) -> void:
 	var assigned_any: bool = false
 	for hero_data in _heroes_snapshot:
 		var hero: Dictionary = hero_data
-		if int(hero.get("assigned_slot", -1)) == slot_index:
+		if int(hero.get("assigned_slot", -1)) == slot_index and String(hero.get("assigned_settlement_id", "")) == GameManager.active_settlement_id:
 			assigned_any = true
 			_add_hero_entry(hero, true)
 	if not assigned_any:
@@ -496,7 +498,7 @@ func _build_building_panel(slot_index: int, slot_data: Dictionary) -> void:
 	else:
 		for hero_data in available_heroes:
 			var hero: Dictionary = hero_data
-			if int(hero.get("assigned_slot", -1)) != slot_index:
+			if not (int(hero.get("assigned_slot", -1)) == slot_index and String(hero.get("assigned_settlement_id", "")) == GameManager.active_settlement_id):
 				_add_hero_entry(hero, false)
 
 
@@ -586,11 +588,7 @@ func _make_overview_settlement_tile(settlement_definition: Dictionary) -> PanelC
 
 
 func _get_settlement_plot_counts(settlement_id: String) -> Dictionary:
-	var built_slots := 0
-	if settlement_id == GameManager.active_settlement_id:
-		for slot in GameManager.get_slots_snapshot():
-			if not String((slot as Dictionary).get("building_id", "")).is_empty():
-				built_slots += 1
+	var built_slots: int = GameManager.get_settlement_built_plot_count(settlement_id)
 	return {
 		"built": built_slots,
 		"available": max(SettlementGameData.GRID_SIZE - built_slots, 0),
@@ -1124,19 +1122,23 @@ func _add_hero_entry(hero: Dictionary, assigned: bool) -> void:
 	body.add_theme_constant_override("separation", 6)
 	panel.add_child(body)
 	var assigned_slot: int = int(hero.get("assigned_slot", -1))
+	var assigned_settlement_id: String = String(hero.get("assigned_settlement_id", "")).strip_edges()
 	var work_stats: Dictionary = GameManager.get_hero_effective_work_stats(int(hero.get("uid", -1)))
 	if work_stats.is_empty():
 		work_stats = _as_dictionary(hero.get("work_stats", {}))
 	body.add_child(_make_label(String(hero.get("name", "Unknown Hero")), 17))
 	body.add_child(_make_rich_text_label(_format_work_stats_bbcode(work_stats), 13))
-	if not assigned and assigned_slot >= 0:
-		var current_building: Dictionary = GameManager.get_slot_building_definition(assigned_slot)
-		body.add_child(_make_label(_txt("settlement.current_assignment", {"building": String(current_building.get("name", "another site"))}), 13))
+	if not assigned and assigned_slot >= 0 and not assigned_settlement_id.is_empty():
+		var current_building: Dictionary = GameManager.get_settlement_building_definition(assigned_settlement_id, assigned_slot)
+		var assignment_name := String(current_building.get("name", "another site"))
+		if assigned_settlement_id != GameManager.active_settlement_id:
+			assignment_name = "%s (%s)" % [assignment_name, String(GameManager.get_settlement_display_name(assigned_settlement_id))]
+		body.add_child(_make_label(_txt("settlement.current_assignment", {"building": assignment_name}), 13))
 	if _detail_mode == "settlement" and _selected_slot >= 0:
 		if assigned:
 			body.add_child(_make_small_action_button(_txt("hero.unassign"), Callable(self, "_unassign_hero").bind(int(hero.get("uid", -1)))))
 		else:
-			var button_text := _txt("hero.move_here") if assigned_slot >= 0 else _txt("hero.assign")
+			var button_text := _txt("hero.move_here") if assigned_slot >= 0 and not assigned_settlement_id.is_empty() else _txt("hero.assign")
 			body.add_child(_make_small_action_button(button_text, Callable(self, "_assign_hero").bind(int(hero.get("uid", -1)), _selected_slot)))
 
 

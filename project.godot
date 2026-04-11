@@ -20,9 +20,6 @@ config/icon="res://icon.svg"
 GameManager="*res://scripts/game/game_manager.gd"
 SettlementGame="*res://scripts/game/settlement_game.gd"
 DataLoader="*res://scripts/data/data_loader.gd"
-MCPScreenshot="*res://addons/godot_mcp/mcp_screenshot_service.gd"
-MCPInputService="*res://addons/godot_mcp/mcp_input_service.gd"
-MCPGameInspector="*res://addons/godot_mcp/mcp_game_inspector_service.gd"
 
 [display]
 
