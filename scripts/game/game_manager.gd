@@ -916,7 +916,7 @@ func _calculate_slot_production(slot: Dictionary) -> Dictionary:
 		return {}
 	var production_delta: Dictionary = {}
 	var multiplier: float = 1.0
-	multiplier += float(max(int(slot.get("level", 1)) - 1, 0)) * float(definition.get("level_growth", 0.0))
+	multiplier += float(max(int(slot.get("level", 1)) - 1, 0)) * float(definition.get("upgrade_growth", 0.0))
 	for entry in _as_array(definition.get("base_production", [])):
 		if entry is Dictionary and entry.has("resource"):
 			var base_amount: float = float(entry.get("amount", 0))
