@@ -1,0 +1,34 @@
+{
+  "items": [
+	{
+	  "id": "rations",
+	  "name": "Rations",
+	  "icon_path": "res://assets/resources/food.png",
+	  "max_stack": 100000
+	},
+	{
+	  "id": "timber_bundle",
+	  "name": "Timber Bundle",
+	  "icon_path": "res://assets/resources/wood.png",
+	  "max_stack": 100000
+	},
+	{
+	  "id": "iron_shard",
+	  "name": "Iron Shard",
+	  "icon_path": "res://assets/resources/metal.png",
+	  "max_stack": 100000
+	},
+	{
+	  "id": "grave_coin",
+	  "name": "Grave Coin",
+	  "icon_path": "res://assets/resources/coins.png",
+	  "max_stack": 100000
+	},
+	{
+	  "id": "veil_crystal",
+	  "name": "Veil Crystal",
+	  "icon_path": "res://assets/resources/crystals.png",
+	  "max_stack": 250
+	}
+  ]
+}

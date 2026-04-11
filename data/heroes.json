@@ -1,0 +1,124 @@
+{
+  "heroes": [
+	{
+	  "id": "grave_forager",
+	  "name": "Mara the Grave Forager",
+	  "class": "Supporter",
+	  "description": "Finds value in rot, ruins, and the things others fear to touch.",
+	  "recruitment_weight": 3,
+	  "stats": {
+		"health": 82,
+		"sanity": 108,
+		"attack": 11,
+		"defense": 8,
+		"critical_chance": 9,
+		"critical_damage": 145
+	  },
+	  "work_stats": {
+		"farming": 4,
+		"mining": 1,
+		"lumbering": 2
+	  }
+	},
+	{
+	  "id": "ash_smith",
+	  "name": "Orsik Ash-Smith",
+	  "class": "Defender",
+	  "description": "An exile who tempers iron with funeral embers.",
+	  "recruitment_weight": 2,
+	  "stats": {
+		"health": 118,
+		"sanity": 84,
+		"attack": 13,
+		"defense": 16,
+		"critical_chance": 5,
+		"critical_damage": 135
+	  },
+	  "work_stats": {
+		"farming": 1,
+		"mining": 4,
+		"lumbering": 1
+	  }
+	},
+	{
+	  "id": "briar_ranger",
+	  "name": "Yselle Briar-Ranger",
+	  "class": "Attacker",
+	  "description": "Cuts cursed timber paths through hostile woods.",
+	  "recruitment_weight": 3,
+	  "stats": {
+		"health": 94,
+		"sanity": 90,
+		"attack": 18,
+		"defense": 9,
+		"critical_chance": 14,
+		"critical_damage": 160
+	  },
+	  "work_stats": {
+		"farming": 1,
+		"mining": 1,
+		"lumbering": 4
+	  }
+	},
+	{
+	  "id": "lantern_monk",
+	  "name": "Sister Vael",
+	  "class": "Supporter",
+	  "description": "Keeps famine at bay with ritual discipline and grim patience.",
+	  "recruitment_weight": 2,
+	  "stats": {
+		"health": 88,
+		"sanity": 112,
+		"attack": 10,
+		"defense": 10,
+		"critical_chance": 7,
+		"critical_damage": 140
+	  },
+	  "work_stats": {
+		"farming": 5,
+		"mining": 0,
+		"lumbering": 1
+	  }
+	},
+	{
+	  "id": "pit_delver",
+	  "name": "Hurn Pit-Delver",
+	  "class": "Defender",
+	  "description": "Descends where rope and sanity stop being useful.",
+	  "recruitment_weight": 3,
+	  "stats": {
+		"health": 124,
+		"sanity": 76,
+		"attack": 14,
+		"defense": 18,
+		"critical_chance": 4,
+		"critical_damage": 130
+	  },
+	  "work_stats": {
+		"farming": 0,
+		"mining": 5,
+		"lumbering": 1
+	  }
+	},
+	{
+	  "id": "veil_host",
+	  "name": "Lucan the Veil Host",
+	  "class": "Supporter",
+	  "description": "Turns fear into coin and drifters into labor.",
+	  "recruitment_weight": 2,
+	  "stats": {
+		"health": 86,
+		"sanity": 100,
+		"attack": 12,
+		"defense": 9,
+		"critical_chance": 8,
+		"critical_damage": 150
+	  },
+	  "work_stats": {
+		"farming": 2,
+		"mining": 1,
+		"lumbering": 0
+	  }
+	}
+  ]
+}

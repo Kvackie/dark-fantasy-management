@@ -1,0 +1,1136 @@
+extends Node
+
+signal resources_changed(resource_values)
+signal settlement_changed(slots)
+signal heroes_changed(heroes)
+signal inventory_changed(inventory_state)
+signal active_settlement_changed(settlement_id)
+signal selection_changed(slot_index)
+signal save_slots_changed(slots)
+signal tick_processed(tick_count, production_delta)
+signal save_loaded(slot_index)
+
+const SettlementGameData = preload("res://scripts/game/settlement_game.gd")
+const SAVE_SLOT_MANIFEST_PATH := "user://save_slots_manifest.json"
+
+var resources: Dictionary = {}
+var slots: Array = []
+var heroes: Array = []
+var inventory_items: Array = []
+var inventory_equipment: Array = []
+var owned_settlement_ids: Array = []
+var active_settlement_id: String = ""
+var selected_slot: int = -1
+var active_save_slot: int = 1
+var tick_count: int = 0
+
+var _next_hero_uid: int = 1
+var _next_equipment_uid: int = 1
+var _autosave_elapsed: float = 0.0
+var _tick_timer: Timer
+
+
+func _ready() -> void:
+	randomize()
+	_tick_timer = Timer.new()
+	_tick_timer.wait_time = SettlementGameData.TICK_SECONDS
+	_tick_timer.autostart = true
+	_tick_timer.one_shot = false
+	_tick_timer.timeout.connect(_on_tick_timeout)
+	add_child(_tick_timer)
+	reset_new_game()
+	emit_state()
+
+
+func _process(delta: float) -> void:
+	_autosave_elapsed += delta
+	if _autosave_elapsed >= SettlementGameData.AUTOSAVE_INTERVAL:
+		_autosave_elapsed = 0.0
+		save_game(active_save_slot)
+
+
+func reset_new_game() -> void:
+	resources = SettlementGameData.duplicate_resources(SettlementGameData.STARTING_RESOURCES)
+	slots = SettlementGameData.create_empty_grid()
+	heroes = []
+	inventory_items = []
+	inventory_equipment = []
+	owned_settlement_ids = []
+	var default_settlement_id := DataLoader.get_default_settlement_id()
+	if not default_settlement_id.is_empty():
+		owned_settlement_ids.append(default_settlement_id)
+	active_settlement_id = default_settlement_id
+	selected_slot = -1
+	tick_count = 0
+	_next_hero_uid = 1
+	_next_equipment_uid = 1
+	_seed_starting_inventory()
+
+
+func emit_state() -> void:
+	emit_signal("resources_changed", get_resource_snapshot())
+	emit_signal("settlement_changed", get_slots_snapshot())
+	emit_signal("heroes_changed", get_heroes_snapshot())
+	emit_signal("inventory_changed", get_inventory_snapshot())
+	emit_signal("active_settlement_changed", active_settlement_id)
+	emit_signal("selection_changed", selected_slot)
+	emit_signal("save_slots_changed", get_save_slot_metadata())
+
+
+func get_building_catalog() -> Array:
+	return DataLoader.get_all_buildings()
+
+
+func get_inventory_snapshot() -> Dictionary:
+	return {
+		"items": _duplicate_dict_array(inventory_items),
+		"equipment": _duplicate_dict_array(inventory_equipment),
+	}
+
+
+func get_owned_settlement_ids() -> Array:
+	return owned_settlement_ids.duplicate()
+
+
+func get_owned_settlement_definitions() -> Array:
+	var owned_definitions: Array = []
+	for settlement_id in owned_settlement_ids:
+		var definition := DataLoader.get_settlement_definition(String(settlement_id))
+		if not definition.is_empty():
+			owned_definitions.append(definition)
+	return owned_definitions
+
+
+func is_settlement_owned(settlement_id: String) -> bool:
+	return owned_settlement_ids.has(String(settlement_id).strip_edges())
+
+
+func get_active_settlement_definition() -> Dictionary:
+	return DataLoader.get_settlement_definition(active_settlement_id)
+
+
+func get_active_settlement_name() -> String:
+	var definition := get_active_settlement_definition()
+	if definition.is_empty():
+		return active_settlement_id.capitalize().replace("_", " ")
+	return String(definition.get("name", "Settlement"))
+
+
+func set_active_settlement(settlement_id: String) -> bool:
+	var normalized_id := String(settlement_id).strip_edges()
+	if normalized_id.is_empty():
+		return false
+	var definition := DataLoader.get_settlement_definition(normalized_id)
+	if definition.is_empty():
+		return false
+	if not is_settlement_owned(normalized_id):
+		return false
+	if active_settlement_id == normalized_id:
+		return true
+	active_settlement_id = normalized_id
+	emit_signal("active_settlement_changed", active_settlement_id)
+	save_game(active_save_slot)
+	return true
+
+
+func get_hero_effective_stats(hero_uid: int) -> Dictionary:
+	var hero_index := _find_hero_index(hero_uid)
+	if hero_index == -1:
+		return {}
+	var hero_data: Dictionary = heroes[hero_index]
+	var stats: Dictionary = _as_dictionary(hero_data.get("stats", {})).duplicate(true)
+	var bonuses: Dictionary = _get_hero_equipment_bonuses(hero_data)
+	for stat_key in DataLoader.DEFAULT_HERO_STATS.keys():
+		stats[stat_key] = int(stats.get(stat_key, 0)) + int(_as_dictionary(bonuses.get("stats", {})).get(stat_key, 0))
+	return stats
+
+
+func get_hero_effective_work_stats(hero_uid: int) -> Dictionary:
+	var hero_index := _find_hero_index(hero_uid)
+	if hero_index == -1:
+		return {}
+	var hero_data: Dictionary = heroes[hero_index]
+	var work_stats: Dictionary = _as_dictionary(hero_data.get("work_stats", {})).duplicate(true)
+	var bonuses: Dictionary = _get_hero_equipment_bonuses(hero_data)
+	for stat_key in DataLoader.DEFAULT_HERO_WORK_STATS.keys():
+		work_stats[stat_key] = int(work_stats.get(stat_key, 0)) + int(_as_dictionary(bonuses.get("work_stats", {})).get(stat_key, 0))
+	return work_stats
+
+
+func get_slot(slot_index: int) -> Dictionary:
+	if slot_index < 0 or slot_index >= slots.size():
+		return {}
+	return (slots[slot_index] as Dictionary).duplicate(true)
+
+
+func get_slot_building_definition(slot_index: int) -> Dictionary:
+	var slot: Dictionary = get_slot(slot_index)
+	if String(slot.get("building_id", "")).is_empty():
+		return {}
+	return DataLoader.get_building_definition(String(slot.get("building_id", "")))
+
+
+func get_upgrade_cost(slot_index: int) -> Dictionary:
+	var slot: Dictionary = get_slot(slot_index)
+	if String(slot.get("building_id", "")).is_empty():
+		return {}
+	var definition: Dictionary = get_slot_building_definition(slot_index)
+	var growth: float = float(definition.get("upgrade_growth", 1.0))
+	return SettlementGameData.scaled_cost(_as_array(definition.get("upgrade_cost", [])), int(slot.get("level", 1)), growth)
+
+
+func get_total_investment(slot_index: int) -> Dictionary:
+	var slot: Dictionary = get_slot(slot_index)
+	if String(slot.get("building_id", "")).is_empty():
+		return {}
+	var definition: Dictionary = get_slot_building_definition(slot_index)
+	var investment: Dictionary = SettlementGameData.resource_list_to_dictionary(_as_array(definition.get("build_cost", [])))
+	var current_level: int = int(slot.get("level", 1))
+	var growth: float = float(definition.get("upgrade_growth", 1.0))
+	for paid_level in range(1, current_level):
+		investment = SettlementGameData.merge_resource_delta(
+			investment,
+			SettlementGameData.scaled_cost(_as_array(definition.get("upgrade_cost", [])), paid_level, growth)
+		)
+	return investment
+
+
+func get_dismantle_refund(slot_index: int) -> Dictionary:
+	return SettlementGameData.scale_resource_dictionary(get_total_investment(slot_index), 0.8)
+
+
+func build_on_slot(slot_index: int, building_id: String) -> bool:
+	if slot_index < 0 or slot_index >= slots.size():
+		return false
+	var slot: Dictionary = slots[slot_index]
+	if not String(slot.get("building_id", "")).is_empty():
+		return false
+	var definition: Dictionary = DataLoader.get_building_definition(building_id)
+	if definition.is_empty():
+		return false
+	var build_cost: Dictionary = SettlementGameData.resource_list_to_dictionary(_as_array(definition.get("build_cost", [])))
+	if not apply_cost(build_cost):
+		return false
+	slot["building_id"] = building_id
+	slot["level"] = 1
+	slot["assigned_hero_ids"] = []
+	slots[slot_index] = slot
+	_emit_settlement_state(true)
+	return true
+
+
+func upgrade_building(slot_index: int) -> bool:
+	if slot_index < 0 or slot_index >= slots.size():
+		return false
+	var slot: Dictionary = slots[slot_index]
+	var definition: Dictionary = get_slot_building_definition(slot_index)
+	if definition.is_empty():
+		return false
+	var max_level: int = int(definition.get("max_level", SettlementGameData.MAX_BUILDING_LEVEL))
+	if int(slot.get("level", 1)) >= max_level:
+		return false
+	var upgrade_cost: Dictionary = get_upgrade_cost(slot_index)
+	if not apply_cost(upgrade_cost):
+		return false
+	slot["level"] = int(slot.get("level", 1)) + 1
+	slots[slot_index] = slot
+	_emit_settlement_state(true)
+	return true
+
+
+func dismantle_building(slot_index: int) -> bool:
+	if slot_index < 0 or slot_index >= slots.size():
+		return false
+	var slot: Dictionary = slots[slot_index]
+	if String(slot.get("building_id", "")).is_empty():
+		return false
+	var refund: Dictionary = get_dismantle_refund(slot_index)
+	for hero_uid in _normalize_int_array(slot.get("assigned_hero_ids", [])):
+		var hero_index: int = _find_hero_index(hero_uid)
+		if hero_index == -1:
+			continue
+		var hero_data: Dictionary = heroes[hero_index]
+		hero_data["assigned_slot"] = -1
+		heroes[hero_index] = hero_data
+	slots[slot_index] = SettlementGameData.empty_slot(slot_index)
+	add_resources(refund)
+	_emit_hero_and_settlement_state(true)
+	return true
+
+
+func get_available_heroes_for_slot(_slot_index: int) -> Array:
+	var available: Array = []
+	for hero in heroes:
+		var hero_data: Dictionary = hero
+		available.append(hero_data.duplicate(true))
+	return available
+
+
+func get_slot_production_preview(slot_index: int) -> Dictionary:
+	return _calculate_slot_production(get_slot(slot_index))
+
+
+func assign_hero_to_slot(hero_uid: int, slot_index: int) -> bool:
+	if slot_index < 0 or slot_index >= slots.size():
+		return false
+	var slot: Dictionary = slots[slot_index]
+	var definition: Dictionary = get_slot_building_definition(slot_index)
+	if definition.is_empty():
+		return false
+	var assigned_ids: Array = _normalize_int_array(slot.get("assigned_hero_ids", []))
+	if not assigned_ids.has(hero_uid) and assigned_ids.size() >= int(definition.get("worker_slots", 0)):
+		return false
+	var hero_index: int = _find_hero_index(hero_uid)
+	if hero_index == -1:
+		return false
+	var hero_data: Dictionary = heroes[hero_index]
+	var previous_slot: int = int(hero_data.get("assigned_slot", -1))
+	if previous_slot == slot_index:
+		return true
+	_remove_hero_from_all_slots(hero_uid)
+	slot = slots[slot_index]
+	assigned_ids = _normalize_int_array(slot.get("assigned_hero_ids", []))
+	if not assigned_ids.has(hero_uid):
+		assigned_ids.append(hero_uid)
+	slot["assigned_hero_ids"] = assigned_ids
+	slots[slot_index] = slot
+	hero_data["assigned_slot"] = slot_index
+	heroes[hero_index] = hero_data
+	_emit_hero_and_settlement_state(true)
+	return true
+
+
+func unassign_hero(hero_uid: int) -> bool:
+	var hero_index: int = _find_hero_index(hero_uid)
+	if hero_index == -1:
+		return false
+	var hero_data: Dictionary = heroes[hero_index]
+	var previous_slot: int = int(hero_data.get("assigned_slot", -1))
+	if previous_slot == -1:
+		return false
+	_remove_hero_from_all_slots(hero_uid)
+	hero_data = heroes[hero_index]
+	hero_data["assigned_slot"] = -1
+	heroes[hero_index] = hero_data
+	_emit_hero_and_settlement_state(true)
+	return true
+
+
+func recruit_random_hero(slot_index: int) -> Dictionary:
+	var definition: Dictionary = get_slot_building_definition(slot_index)
+	if String(definition.get("id", "")) != "tavern":
+		return {}
+	var recruit_cost: Dictionary = SettlementGameData.resource_list_to_dictionary(_as_array(definition.get("recruit_cost", [])))
+	if not can_afford(recruit_cost):
+		return {}
+	var hero_definition: Dictionary = _roll_hero_definition()
+	if hero_definition.is_empty():
+		return {}
+	if not apply_cost(recruit_cost):
+		return {}
+	var hero_instance: Dictionary = _create_hero_instance(hero_definition)
+	heroes.append(hero_instance)
+	emit_signal("heroes_changed", get_heroes_snapshot())
+	emit_signal("resources_changed", get_resource_snapshot())
+	save_game(active_save_slot)
+	return hero_instance.duplicate(true)
+
+
+func debug_grant_all_resources() -> void:
+	var delta: Dictionary = {}
+	for resource_id in SettlementGameData.TRACKED_RESOURCES:
+		delta[resource_id] = 100000
+	add_resources(delta)
+	save_game(active_save_slot)
+
+
+func debug_recruit_random_hero() -> Dictionary:
+	var hero_definition: Dictionary = _roll_hero_definition()
+	if hero_definition.is_empty():
+		return {}
+	var hero_instance: Dictionary = _create_hero_instance(hero_definition)
+	heroes.append(hero_instance)
+	emit_signal("heroes_changed", get_heroes_snapshot())
+	emit_signal("resources_changed", get_resource_snapshot())
+	save_game(active_save_slot)
+	return hero_instance.duplicate(true)
+
+
+func process_tick() -> Dictionary:
+	tick_count += 1
+	var production_delta: Dictionary = {}
+	for slot in slots:
+		var slot_data: Dictionary = slot
+		var slot_delta: Dictionary = _calculate_slot_production(slot_data)
+		for resource_id in slot_delta.keys():
+			production_delta[resource_id] = int(production_delta.get(resource_id, 0)) + int(slot_delta[resource_id])
+	if not production_delta.is_empty():
+		add_resources(production_delta)
+	emit_signal("tick_processed", tick_count, production_delta)
+	if tick_count > 0:
+		save_game(active_save_slot)
+	return production_delta
+
+
+func get_resource_snapshot() -> Dictionary:
+	var snapshot := SettlementGameData.duplicate_resources(resources)
+	snapshot["heroes"] = heroes.size()
+	return snapshot
+
+
+func get_slots_snapshot() -> Array:
+	var copy: Array = []
+	for slot in slots:
+		copy.append((slot as Dictionary).duplicate(true))
+	return copy
+
+
+func get_heroes_snapshot() -> Array:
+	var copy: Array = []
+	for hero in heroes:
+		copy.append((hero as Dictionary).duplicate(true))
+	return copy
+
+
+func add_item_to_inventory(definition_id: String, quantity: int) -> void:
+	if quantity <= 0:
+		return
+	var item_definition: Dictionary = DataLoader.get_item_definition(definition_id)
+	if item_definition.is_empty():
+		return
+	var max_stack: int = max(1, int(item_definition.get("max_stack", DataLoader.DEFAULT_ITEM_MAX_STACK)))
+	var remaining: int = quantity
+	for stack_index in range(inventory_items.size()):
+		if remaining <= 0:
+			break
+		var stack: Dictionary = inventory_items[stack_index]
+		if String(stack.get("definition_id", "")) != definition_id:
+			continue
+		var current_quantity := int(stack.get("quantity", 0))
+		if current_quantity >= max_stack:
+			continue
+		var added: int = min(max_stack - current_quantity, remaining)
+		stack["quantity"] = current_quantity + added
+		inventory_items[stack_index] = stack
+		remaining -= added
+	while remaining > 0:
+		var stack_quantity: int = min(max_stack, remaining)
+		inventory_items.append({
+			"definition_id": definition_id,
+			"quantity": stack_quantity,
+		})
+		remaining -= stack_quantity
+
+
+func add_equipment_to_inventory(definition_id: String) -> Dictionary:
+	var equipment_definition: Dictionary = DataLoader.get_equipment_definition(definition_id)
+	if equipment_definition.is_empty():
+		return {}
+	var instance := _create_equipment_instance(equipment_definition)
+	inventory_equipment.append(instance)
+	return instance.duplicate(true)
+
+
+func get_inventory_equipment_instance(equipment_uid: int) -> Dictionary:
+	return _get_inventory_equipment_instance(equipment_uid)
+
+
+func equip_equipment_to_hero(hero_uid: int, slot_key: String, equipment_uid: int) -> bool:
+	if not DataLoader.HERO_EQUIPMENT_KEYS.has(slot_key):
+		return false
+	var hero_index := _find_hero_index(hero_uid)
+	if hero_index == -1:
+		return false
+	var equipment_index := _find_inventory_equipment_index(equipment_uid)
+	if equipment_index == -1:
+		return false
+	var equipment_instance: Dictionary = inventory_equipment[equipment_index]
+	var equipment_definition := DataLoader.get_equipment_definition(String(equipment_instance.get("definition_id", "")))
+	if equipment_definition.is_empty():
+		return false
+	if String(equipment_definition.get("slot", "")) != slot_key:
+		return false
+	_unequip_hero_slot_internal(hero_index, slot_key)
+	_detach_equipment_instance(equipment_uid)
+	var hero_data: Dictionary = heroes[hero_index]
+	var hero_equipment := _as_dictionary(hero_data.get("equipment", {})).duplicate(true)
+	if hero_equipment.is_empty():
+		hero_equipment = DataLoader.create_empty_hero_equipment()
+		hero_data["equipment"] = hero_equipment
+	hero_equipment[slot_key] = str(equipment_uid)
+	hero_data["equipment"] = hero_equipment
+	heroes[hero_index] = hero_data
+	equipment_instance["equipped_hero_uid"] = hero_uid
+	equipment_instance["equipped_slot"] = slot_key
+	inventory_equipment[equipment_index] = equipment_instance
+	_emit_hero_and_inventory_state(true)
+	return true
+
+
+func unequip_hero_slot(hero_uid: int, slot_key: String) -> bool:
+	if not DataLoader.HERO_EQUIPMENT_KEYS.has(slot_key):
+		return false
+	var hero_index := _find_hero_index(hero_uid)
+	if hero_index == -1:
+		return false
+	if _unequip_hero_slot_internal(hero_index, slot_key) <= 0:
+		return false
+	_emit_hero_and_inventory_state(true)
+	return true
+
+
+func select_slot(slot_index: int) -> void:
+	selected_slot = clamp(slot_index, -1, slots.size() - 1)
+	emit_signal("selection_changed", selected_slot)
+
+
+func can_afford(costs: Dictionary) -> bool:
+	for resource_id in costs.keys():
+		if int(resources.get(resource_id, 0)) < int(costs[resource_id]):
+			return false
+	return true
+
+
+func apply_cost(costs: Dictionary) -> bool:
+	if not can_afford(costs):
+		return false
+	for resource_id in costs.keys():
+		resources[resource_id] = SettlementGameData.clamp_resource(int(resources.get(resource_id, 0)) - int(costs[resource_id]))
+	emit_signal("resources_changed", get_resource_snapshot())
+	return true
+
+
+func add_resources(delta: Dictionary) -> void:
+	for resource_id in delta.keys():
+		resources[resource_id] = SettlementGameData.clamp_resource(int(resources.get(resource_id, 0)) + int(delta[resource_id]))
+	emit_signal("resources_changed", get_resource_snapshot())
+
+
+func get_save_slot_metadata() -> Array:
+	var manifest := _load_save_slot_manifest()
+	var manifest_slots := _as_dictionary(manifest.get("slots", {}))
+	var slot_info: Array = []
+	for slot_index in range(1, SettlementGameData.SAVE_SLOT_COUNT + 1):
+		var path := _save_path(slot_index)
+		var metadata := _as_dictionary(manifest_slots.get(str(slot_index), {}))
+		slot_info.append({
+			"slot": slot_index,
+			"exists": FileAccess.file_exists(path),
+			"active": slot_index == active_save_slot,
+			"name": _resolve_save_slot_name(slot_index, metadata),
+		})
+	return slot_info
+
+
+func set_save_slot_name(slot_index: int, slot_name: String) -> void:
+	if slot_index < 1 or slot_index > SettlementGameData.SAVE_SLOT_COUNT:
+		return
+	var manifest := _load_save_slot_manifest()
+	var manifest_slots := _as_dictionary(manifest.get("slots", {}))
+	var slot_key := str(slot_index)
+	var metadata := _as_dictionary(manifest_slots.get(slot_key, {}))
+	var normalized_name := String(slot_name).strip_edges()
+	if normalized_name.is_empty():
+		metadata.erase("name")
+	else:
+		metadata["name"] = normalized_name
+	if metadata.is_empty():
+		manifest_slots.erase(slot_key)
+	else:
+		manifest_slots[slot_key] = metadata
+	manifest["slots"] = manifest_slots
+	_save_save_slot_manifest(manifest)
+	emit_signal("save_slots_changed", get_save_slot_metadata())
+
+
+func reset_save_slot(slot_index: int) -> bool:
+	if slot_index < 1 or slot_index > SettlementGameData.SAVE_SLOT_COUNT:
+		return false
+	var absolute_path := ProjectSettings.globalize_path(_save_path(slot_index))
+	if FileAccess.file_exists(_save_path(slot_index)):
+		var error := DirAccess.remove_absolute(absolute_path)
+		if error != OK and error != ERR_DOES_NOT_EXIST:
+			return false
+	if slot_index == active_save_slot:
+		reset_new_game()
+		active_save_slot = slot_index
+		emit_state()
+	else:
+		emit_signal("save_slots_changed", get_save_slot_metadata())
+	return true
+
+
+func save_game(slot_index: int = active_save_slot) -> bool:
+	active_save_slot = slot_index
+	var file := FileAccess.open(_save_path(slot_index), FileAccess.WRITE)
+	if file == null:
+		return false
+	file.store_string(JSON.stringify(_serialize_state()))
+	file.close()
+	emit_signal("save_slots_changed", get_save_slot_metadata())
+	return true
+
+
+func load_game(slot_index: int) -> bool:
+	var path := _save_path(slot_index)
+	if not FileAccess.file_exists(path):
+		return false
+	var raw_text := FileAccess.get_file_as_string(path)
+	var parsed = JSON.parse_string(raw_text)
+	if parsed is not Dictionary:
+		return false
+	_apply_loaded_state(parsed)
+	active_save_slot = slot_index
+	_autosave_elapsed = 0.0
+	emit_state()
+	emit_signal("save_loaded", slot_index)
+	return true
+
+
+func _serialize_state() -> Dictionary:
+	return {
+		"resources": SettlementGameData.duplicate_resources(resources),
+		"slots": get_slots_snapshot(),
+		"heroes": get_heroes_snapshot(),
+		"inventory_items": _duplicate_dict_array(inventory_items),
+		"inventory_equipment": _duplicate_dict_array(inventory_equipment),
+		"owned_settlement_ids": owned_settlement_ids.duplicate(),
+		"active_settlement_id": active_settlement_id,
+		"selected_slot": selected_slot,
+		"tick_count": tick_count,
+		"next_hero_uid": _next_hero_uid,
+		"next_equipment_uid": _next_equipment_uid,
+	}
+
+
+func _apply_loaded_state(data: Dictionary) -> void:
+	resources = SettlementGameData.duplicate_resources(data.get("resources", {}))
+	slots = SettlementGameData.create_empty_grid()
+	for loaded_slot in data.get("slots", []):
+		if loaded_slot is Dictionary:
+			var index := int(loaded_slot.get("index", -1))
+			if index >= 0 and index < slots.size():
+				var slot_data: Dictionary = (loaded_slot as Dictionary).duplicate(true)
+				slot_data["assigned_hero_ids"] = _normalize_int_array(slot_data.get("assigned_hero_ids", []))
+				slots[index] = slot_data
+	heroes = []
+	for hero in data.get("heroes", []):
+		if hero is Dictionary:
+			heroes.append(_normalize_loaded_hero((hero as Dictionary).duplicate(true)))
+	inventory_items = _normalize_loaded_item_stacks(data.get("inventory_items", []))
+	inventory_equipment = _normalize_loaded_equipment_instances(data.get("inventory_equipment", []))
+	_reconcile_loaded_equipment_links()
+	owned_settlement_ids = _normalize_owned_settlement_ids(data.get("owned_settlement_ids", []))
+	if owned_settlement_ids.is_empty():
+		var default_settlement_id := DataLoader.get_default_settlement_id()
+		if not default_settlement_id.is_empty():
+			owned_settlement_ids.append(default_settlement_id)
+	active_settlement_id = String(data.get("active_settlement_id", DataLoader.get_default_settlement_id())).strip_edges()
+	if DataLoader.get_settlement_definition(active_settlement_id).is_empty() or not is_settlement_owned(active_settlement_id):
+		active_settlement_id = DataLoader.get_default_settlement_id()
+		if not active_settlement_id.is_empty() and not is_settlement_owned(active_settlement_id):
+			owned_settlement_ids.append(active_settlement_id)
+	if not data.has("inventory_items") and not data.has("inventory_equipment"):
+		_seed_starting_inventory()
+	for slot_index in range(slots.size()):
+		var slot_data: Dictionary = slots[slot_index]
+		slot_data["assigned_hero_ids"] = []
+		slots[slot_index] = slot_data
+	for hero_index in range(heroes.size()):
+		var hero_data: Dictionary = heroes[hero_index]
+		var assigned_slot: int = int(hero_data.get("assigned_slot", -1))
+		if assigned_slot >= 0 and assigned_slot < slots.size() and not String((slots[assigned_slot] as Dictionary).get("building_id", "")).is_empty():
+			var slot_data: Dictionary = slots[assigned_slot]
+			var assigned_ids: Array = _normalize_int_array(slot_data.get("assigned_hero_ids", []))
+			assigned_ids.append(int(hero_data.get("uid", -1)))
+			slot_data["assigned_hero_ids"] = assigned_ids
+			slots[assigned_slot] = slot_data
+		else:
+			hero_data["assigned_slot"] = -1
+			heroes[hero_index] = hero_data
+	selected_slot = int(data.get("selected_slot", -1))
+	tick_count = int(data.get("tick_count", 0))
+	_next_hero_uid = max(int(data.get("next_hero_uid", heroes.size() + 1)), _get_max_hero_uid() + 1)
+	_next_equipment_uid = max(int(data.get("next_equipment_uid", inventory_equipment.size() + 1)), _get_max_equipment_uid() + 1)
+
+
+func _emit_settlement_state(should_save: bool) -> void:
+	emit_signal("settlement_changed", get_slots_snapshot())
+	if should_save:
+		save_game(active_save_slot)
+
+
+func _emit_hero_and_settlement_state(should_save: bool) -> void:
+	emit_signal("heroes_changed", get_heroes_snapshot())
+	emit_signal("settlement_changed", get_slots_snapshot())
+	if should_save:
+		save_game(active_save_slot)
+
+
+func _emit_hero_and_inventory_state(should_save: bool) -> void:
+	emit_signal("heroes_changed", get_heroes_snapshot())
+	emit_signal("inventory_changed", get_inventory_snapshot())
+	if should_save:
+		save_game(active_save_slot)
+
+
+func _seed_starting_inventory() -> void:
+	for entry in [
+		{"definition_id": "rations", "quantity": 24},
+		{"definition_id": "timber_bundle", "quantity": 48},
+		{"definition_id": "grave_coin", "quantity": 135},
+		{"definition_id": "veil_crystal", "quantity": 7},
+	]:
+		add_item_to_inventory(String((entry as Dictionary).get("definition_id", "")), int((entry as Dictionary).get("quantity", 0)))
+	for equipment_id in [
+		"grave_hood",
+		"watcher_cowl",
+		"ashen_mask",
+		"thorn_circlet",
+		"veil_cap",
+		"iron_brow",
+		"bone_visor",
+		"lantern_veil",
+		"mire_hat",
+		"gilded_band",
+		"crypt_wreath",
+		"pit_gloves",
+		"ember_amulet",
+	]:
+		add_equipment_to_inventory(equipment_id)
+
+
+func _find_hero_index(hero_uid: int) -> int:
+	for index in heroes.size():
+		var hero_data: Dictionary = heroes[index]
+		if int(hero_data.get("uid", -1)) == hero_uid:
+			return index
+	return -1
+
+
+func _find_inventory_equipment_index(equipment_uid: int) -> int:
+	for index in inventory_equipment.size():
+		var equipment_instance: Dictionary = inventory_equipment[index]
+		if int(equipment_instance.get("uid", -1)) == equipment_uid:
+			return index
+	return -1
+
+
+func _remove_hero_from_slot(hero_uid: int, slot_index: int) -> void:
+	if slot_index < 0 or slot_index >= slots.size():
+		return
+	var slot: Dictionary = slots[slot_index]
+	var assigned_ids: Array = []
+	for assigned_id in _normalize_int_array(slot.get("assigned_hero_ids", [])):
+		if int(assigned_id) != hero_uid:
+			assigned_ids.append(int(assigned_id))
+	slot["assigned_hero_ids"] = assigned_ids
+	slots[slot_index] = slot
+
+
+func _remove_hero_from_all_slots(hero_uid: int) -> void:
+	for slot_index in range(slots.size()):
+		_remove_hero_from_slot(hero_uid, slot_index)
+
+
+func _calculate_slot_production(slot: Dictionary) -> Dictionary:
+	var building_id: String = String(slot.get("building_id", ""))
+	if building_id.is_empty():
+		return {}
+	var definition: Dictionary = DataLoader.get_building_definition(building_id)
+	if definition.is_empty():
+		return {}
+	var production_delta: Dictionary = {}
+	var multiplier: float = 1.0
+	multiplier += float(max(int(slot.get("level", 1)) - 1, 0)) * float(definition.get("level_growth", 0.0))
+	for entry in _as_array(definition.get("base_production", [])):
+		if entry is Dictionary and entry.has("resource"):
+			var base_amount: float = float(entry.get("amount", 0))
+			var total_amount: int = int(round(base_amount * multiplier))
+			production_delta[String(entry.resource)] = total_amount
+	return production_delta
+
+
+func _roll_hero_definition() -> Dictionary:
+	var roster: Array = DataLoader.get_all_heroes()
+	if roster.is_empty():
+		return {}
+	var total_weight: int = 0
+	for hero_definition in roster:
+		var hero_data: Dictionary = hero_definition
+		total_weight += max(1, int(hero_data.get("recruitment_weight", 1)))
+	var roll: int = randi_range(1, total_weight)
+	var cursor: int = 0
+	for hero_definition in roster:
+		var hero_data: Dictionary = hero_definition
+		cursor += max(1, int(hero_data.get("recruitment_weight", 1)))
+		if roll <= cursor:
+			return hero_data.duplicate(true)
+	return (roster[0] as Dictionary).duplicate(true)
+
+
+func _create_hero_instance(hero_definition: Dictionary) -> Dictionary:
+	var hero_instance: Dictionary = {
+		"uid": _next_hero_uid,
+		"definition_id": String(hero_definition.get("id", "")),
+		"name": String(hero_definition.get("name", "Unknown Hero")),
+		"class": String(hero_definition.get("class", "Supporter")),
+		"assigned_slot": -1,
+		"level": clampi(int(hero_definition.get("level", 1)), 1, 9999),
+		"stats": _normalize_runtime_stats(hero_definition.get("stats", {}), DataLoader.DEFAULT_HERO_STATS),
+		"work_stats": _normalize_runtime_stats(hero_definition.get("work_stats", {}), DataLoader.DEFAULT_HERO_WORK_STATS),
+		"equipment": DataLoader.create_empty_hero_equipment(),
+		"source": String(hero_definition.get("source", "core")),
+		"mod_id": String(hero_definition.get("mod_id", "")),
+	}
+	_next_hero_uid += 1
+	return hero_instance
+
+
+func _create_equipment_instance(equipment_definition: Dictionary) -> Dictionary:
+	var equipment_instance: Dictionary = {
+		"uid": _next_equipment_uid,
+		"definition_id": String(equipment_definition.get("id", "")),
+		"equipped_hero_uid": -1,
+		"equipped_slot": "",
+	}
+	_next_equipment_uid += 1
+	return equipment_instance
+
+
+func _normalize_loaded_hero(hero_data: Dictionary) -> Dictionary:
+	var definition_id := String(hero_data.get("definition_id", ""))
+	var hero_definition: Dictionary = DataLoader.get_hero_definition(definition_id)
+	var normalized: Dictionary = {
+		"uid": int(hero_data.get("uid", _next_hero_uid)),
+		"definition_id": definition_id,
+		"name": String(hero_data.get("name", hero_definition.get("name", "Unknown Hero"))),
+		"class": String(hero_definition.get("class", DataLoader.normalize_hero_class(String(hero_data.get("class", "Supporter"))))),
+		"level": clampi(int(hero_data.get("level", 1)), 1, 9999),
+		"assigned_slot": int(hero_data.get("assigned_slot", -1)),
+		"stats": _normalize_runtime_stats(hero_data.get("stats", {}), hero_definition.get("stats", DataLoader.DEFAULT_HERO_STATS)),
+		"work_stats": _normalize_runtime_stats(hero_data.get("work_stats", {}), hero_definition.get("work_stats", DataLoader.DEFAULT_HERO_WORK_STATS)),
+		"equipment": _normalize_runtime_equipment(hero_data.get("equipment", {})),
+		"source": String(hero_data.get("source", hero_definition.get("source", "core"))),
+		"mod_id": String(hero_data.get("mod_id", hero_definition.get("mod_id", ""))),
+	}
+	if normalized["name"] == "Unknown Hero" and not hero_definition.is_empty():
+		normalized["name"] = String(hero_definition.get("name", "Unknown Hero"))
+	return normalized
+
+
+func _normalize_runtime_stats(value: Variant, fallback_value: Variant) -> Dictionary:
+	var source_data: Dictionary = _as_dictionary(value)
+	var fallback: Dictionary = _as_dictionary(fallback_value)
+	if fallback.is_empty():
+		fallback = DataLoader.DEFAULT_HERO_STATS
+	var normalized: Dictionary = {}
+	for stat_key in fallback.keys():
+		normalized[stat_key] = int(source_data.get(stat_key, fallback[stat_key]))
+	return normalized
+
+
+func _normalize_runtime_equipment(value: Variant) -> Dictionary:
+	var source_data: Dictionary = _as_dictionary(value)
+	var equipment: Dictionary = DataLoader.create_empty_hero_equipment()
+	for slot_key in equipment.keys():
+		equipment[slot_key] = String(source_data.get(slot_key, "")).strip_edges()
+	return equipment
+
+
+func _normalize_loaded_item_stacks(value: Variant) -> Array:
+	var normalized: Array = []
+	if value is not Array:
+		return normalized
+	for entry in value:
+		if entry is not Dictionary:
+			continue
+		var definition_id := String((entry as Dictionary).get("definition_id", "")).strip_edges()
+		var quantity := int((entry as Dictionary).get("quantity", 0))
+		var item_definition: Dictionary = DataLoader.get_item_definition(definition_id)
+		if item_definition.is_empty() or quantity <= 0:
+			continue
+		_append_item_stacks(normalized, definition_id, quantity, max(1, int(item_definition.get("max_stack", DataLoader.DEFAULT_ITEM_MAX_STACK))))
+	return normalized
+
+
+func _normalize_loaded_equipment_instances(value: Variant) -> Array:
+	var normalized: Array = []
+	if value is not Array:
+		return normalized
+	for entry in value:
+		if entry is not Dictionary:
+			continue
+		var definition_id := String((entry as Dictionary).get("definition_id", "")).strip_edges()
+		var equipment_definition: Dictionary = DataLoader.get_equipment_definition(definition_id)
+		if equipment_definition.is_empty():
+			continue
+		var equipped_slot := String((entry as Dictionary).get("equipped_slot", "")).strip_edges()
+		if not DataLoader.HERO_EQUIPMENT_KEYS.has(equipped_slot):
+			equipped_slot = ""
+		var normalized_entry: Dictionary = {
+			"uid": int((entry as Dictionary).get("uid", 0)),
+			"definition_id": definition_id,
+			"equipped_hero_uid": int((entry as Dictionary).get("equipped_hero_uid", -1)),
+			"equipped_slot": equipped_slot,
+		}
+		if int(normalized_entry.get("uid", 0)) <= 0:
+			normalized_entry["uid"] = _next_equipment_uid + normalized.size()
+		if int(normalized_entry.get("equipped_hero_uid", -1)) <= 0:
+			normalized_entry["equipped_hero_uid"] = -1
+			normalized_entry["equipped_slot"] = ""
+		normalized.append(normalized_entry)
+	return normalized
+
+
+func _reconcile_loaded_equipment_links() -> void:
+	var equipment_by_uid: Dictionary = {}
+	for equipment_index in range(inventory_equipment.size()):
+		var equipment_instance: Dictionary = inventory_equipment[equipment_index]
+		equipment_by_uid[int(equipment_instance.get("uid", -1))] = equipment_index
+
+	var linked_equipment_uids: Dictionary = {}
+	for hero_index in range(heroes.size()):
+		var hero_data: Dictionary = heroes[hero_index]
+		var hero_uid := int(hero_data.get("uid", -1))
+		var hero_equipment := _as_dictionary(hero_data.get("equipment", {})).duplicate(true)
+		if hero_equipment.is_empty():
+			hero_equipment = DataLoader.create_empty_hero_equipment()
+		var changed := false
+		for slot_key in DataLoader.HERO_EQUIPMENT_KEYS:
+			var equipment_uid := int(String(hero_equipment.get(slot_key, "")).strip_edges())
+			if equipment_uid <= 0:
+				hero_equipment[slot_key] = ""
+				continue
+			var equipment_index = equipment_by_uid.get(equipment_uid, -1)
+			if equipment_index == -1:
+				hero_equipment[slot_key] = ""
+				changed = true
+				continue
+			var equipment_instance: Dictionary = inventory_equipment[equipment_index]
+			var equipment_definition := DataLoader.get_equipment_definition(String(equipment_instance.get("definition_id", "")))
+			if equipment_definition.is_empty() or String(equipment_definition.get("slot", "")) != slot_key:
+				hero_equipment[slot_key] = ""
+				changed = true
+				continue
+			if int(equipment_instance.get("equipped_hero_uid", -1)) != hero_uid or String(equipment_instance.get("equipped_slot", "")) != slot_key:
+				equipment_instance["equipped_hero_uid"] = hero_uid
+				equipment_instance["equipped_slot"] = slot_key
+				inventory_equipment[equipment_index] = equipment_instance
+			linked_equipment_uids[equipment_uid] = true
+		if changed:
+			hero_data["equipment"] = hero_equipment
+			heroes[hero_index] = hero_data
+
+	for equipment_index in range(inventory_equipment.size()):
+		var equipment_instance: Dictionary = inventory_equipment[equipment_index]
+		var equipment_uid := int(equipment_instance.get("uid", -1))
+		if equipment_uid <= 0:
+			continue
+		if linked_equipment_uids.has(equipment_uid):
+			continue
+		if int(equipment_instance.get("equipped_hero_uid", -1)) > 0 or not String(equipment_instance.get("equipped_slot", "")).is_empty():
+			equipment_instance["equipped_hero_uid"] = -1
+			equipment_instance["equipped_slot"] = ""
+			inventory_equipment[equipment_index] = equipment_instance
+
+
+func _normalize_owned_settlement_ids(value: Variant) -> Array:
+	var normalized: Array = []
+	if value is not Array:
+		return normalized
+	for entry in value:
+		var settlement_id := String(entry).strip_edges()
+		if settlement_id.is_empty():
+			continue
+		if DataLoader.get_settlement_definition(settlement_id).is_empty():
+			continue
+		if normalized.has(settlement_id):
+			continue
+		normalized.append(settlement_id)
+	return normalized
+
+
+func _append_item_stacks(target: Array, definition_id: String, quantity: int, max_stack: int) -> void:
+	var remaining: int = quantity
+	for stack_index in range(target.size()):
+		if remaining <= 0:
+			break
+		var stack: Dictionary = target[stack_index]
+		if String(stack.get("definition_id", "")) != definition_id:
+			continue
+		var current_quantity := int(stack.get("quantity", 0))
+		if current_quantity >= max_stack:
+			continue
+		var added: int = min(max_stack - current_quantity, remaining)
+		stack["quantity"] = current_quantity + added
+		target[stack_index] = stack
+		remaining -= added
+	while remaining > 0:
+		var stack_quantity: int = min(max_stack, remaining)
+		target.append({
+			"definition_id": definition_id,
+			"quantity": stack_quantity,
+		})
+		remaining -= stack_quantity
+
+
+func _unequip_hero_slot_internal(hero_index: int, slot_key: String) -> int:
+	if hero_index < 0 or hero_index >= heroes.size():
+		return -1
+	var hero_data: Dictionary = heroes[hero_index]
+	var hero_equipment := _as_dictionary(hero_data.get("equipment", {})).duplicate(true)
+	if hero_equipment.is_empty():
+		hero_equipment = DataLoader.create_empty_hero_equipment()
+	var equipment_uid := int(String(hero_equipment.get(slot_key, "")).strip_edges())
+	hero_equipment[slot_key] = ""
+	hero_data["equipment"] = hero_equipment
+	heroes[hero_index] = hero_data
+	if equipment_uid > 0:
+		var equipment_index := _find_inventory_equipment_index(equipment_uid)
+		if equipment_index != -1:
+			var equipment_instance: Dictionary = inventory_equipment[equipment_index]
+			equipment_instance["equipped_hero_uid"] = -1
+			equipment_instance["equipped_slot"] = ""
+			inventory_equipment[equipment_index] = equipment_instance
+	return equipment_uid
+
+
+func _detach_equipment_instance(equipment_uid: int) -> void:
+	if equipment_uid <= 0:
+		return
+	for hero_index in range(heroes.size()):
+		var hero_data: Dictionary = heroes[hero_index]
+		var hero_equipment := _as_dictionary(hero_data.get("equipment", {})).duplicate(true)
+		if hero_equipment.is_empty():
+			continue
+		var changed := false
+		for slot_key in hero_equipment.keys():
+			if int(String(hero_equipment.get(slot_key, "")).strip_edges()) == equipment_uid:
+				hero_equipment[slot_key] = ""
+				changed = true
+		if changed:
+			hero_data["equipment"] = hero_equipment
+			heroes[hero_index] = hero_data
+	var equipment_index := _find_inventory_equipment_index(equipment_uid)
+	if equipment_index != -1:
+		var equipment_instance: Dictionary = inventory_equipment[equipment_index]
+		equipment_instance["equipped_hero_uid"] = -1
+		equipment_instance["equipped_slot"] = ""
+		inventory_equipment[equipment_index] = equipment_instance
+
+
+func _get_hero_equipment_bonuses(hero_data: Dictionary) -> Dictionary:
+	var bonuses := {
+		"stats": {},
+		"work_stats": {},
+	}
+	var hero_equipment := _as_dictionary(hero_data.get("equipment", {}))
+	for slot_key in DataLoader.HERO_EQUIPMENT_KEYS:
+		var equipment_uid := int(String(hero_equipment.get(slot_key, "")).strip_edges())
+		if equipment_uid <= 0:
+			continue
+		var equipment_instance := _get_inventory_equipment_instance(equipment_uid)
+		if equipment_instance.is_empty():
+			continue
+		if int(equipment_instance.get("equipped_hero_uid", -1)) != int(hero_data.get("uid", -1)):
+			continue
+		var equipment_definition := DataLoader.get_equipment_definition(String(equipment_instance.get("definition_id", "")))
+		var definition_bonuses := _as_dictionary(equipment_definition.get("bonuses", {}))
+		for stat_key in DataLoader.DEFAULT_HERO_STATS.keys():
+			var current_stat := int(_as_dictionary(bonuses.get("stats", {})).get(stat_key, 0))
+			var added_stat := int(_as_dictionary(definition_bonuses.get("stats", {})).get(stat_key, 0))
+			if added_stat != 0:
+				bonuses["stats"][stat_key] = current_stat + added_stat
+		for stat_key in DataLoader.DEFAULT_HERO_WORK_STATS.keys():
+			var current_work := int(_as_dictionary(bonuses.get("work_stats", {})).get(stat_key, 0))
+			var added_work := int(_as_dictionary(definition_bonuses.get("work_stats", {})).get(stat_key, 0))
+			if added_work != 0:
+				bonuses["work_stats"][stat_key] = current_work + added_work
+	return bonuses
+
+
+func _get_inventory_equipment_instance(equipment_uid: int) -> Dictionary:
+	for entry in inventory_equipment:
+		var equipment_instance: Dictionary = entry
+		if int(equipment_instance.get("uid", -1)) == equipment_uid:
+			return equipment_instance.duplicate(true)
+	return {}
+
+
+func _get_max_hero_uid() -> int:
+	var max_uid := 0
+	for hero_data in heroes:
+		max_uid = max(max_uid, int((hero_data as Dictionary).get("uid", 0)))
+	return max_uid
+
+
+func _get_max_equipment_uid() -> int:
+	var max_uid := 0
+	for equipment_data in inventory_equipment:
+		max_uid = max(max_uid, int((equipment_data as Dictionary).get("uid", 0)))
+	return max_uid
+
+
+func _as_array(value: Variant) -> Array:
+	if value is Array:
+		return value
+	return []
+
+
+func _as_dictionary(value: Variant) -> Dictionary:
+	if value is Dictionary:
+		return value
+	return {}
+
+
+func _duplicate_dict_array(source: Variant) -> Array:
+	var copy: Array = []
+	if source is Array:
+		for entry in source:
+			if entry is Dictionary:
+				copy.append((entry as Dictionary).duplicate(true))
+	return copy
+
+
+func _normalize_int_array(value: Variant) -> Array:
+	var normalized: Array = []
+	if value is Array:
+		for entry in value:
+			normalized.append(int(entry))
+	return normalized
+
+
+func _save_path(slot_index: int) -> String:
+	return "user://save_slot_%d.json" % slot_index
+
+
+func _resolve_save_slot_name(slot_index: int, metadata: Dictionary) -> String:
+	var custom_name := String(metadata.get("name", "")).strip_edges()
+	if not custom_name.is_empty():
+		return custom_name
+	return DataLoader.get_ui_text("save.slot_default_name", {"slot": slot_index}, "Slot %d" % slot_index)
+
+
+func _load_save_slot_manifest() -> Dictionary:
+	if not FileAccess.file_exists(SAVE_SLOT_MANIFEST_PATH):
+		return {}
+	var raw_text := FileAccess.get_file_as_string(SAVE_SLOT_MANIFEST_PATH)
+	if raw_text.is_empty():
+		return {}
+	var parsed = JSON.parse_string(raw_text)
+	if parsed is Dictionary:
+		return (parsed as Dictionary).duplicate(true)
+	return {}
+
+
+func _save_save_slot_manifest(manifest: Dictionary) -> void:
+	var file := FileAccess.open(SAVE_SLOT_MANIFEST_PATH, FileAccess.WRITE)
+	if file == null:
+		return
+	file.store_string(JSON.stringify(manifest, "\t"))
+	file.close()
+
+
+func _on_tick_timeout() -> void:
+	process_tick()

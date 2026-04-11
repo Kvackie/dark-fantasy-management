@@ -1,0 +1,245 @@
+{
+  "equipment": [
+	{
+	  "id": "grave_hood",
+	  "name": "Grave Hood",
+	  "slot": "head",
+	  "icon_path": "res://icon.svg",
+	  "bonuses": {
+		"stats": {
+		  "sanity": 6,
+		  "defense": 2
+		},
+		"work_stats": {
+		"farming": 1
+		}
+	  }
+	},
+	{
+	  "id": "watcher_cowl",
+	  "name": "Watcher Cowl",
+	  "slot": "head",
+	  "icon_path": "res://icon.svg",
+	  "bonuses": {
+		"stats": {
+		  "sanity": 3,
+		  "critical_chance": 2
+		},
+		"work_stats": {
+		  "lumbering": 1
+		}
+	  }
+	},
+	{
+	  "id": "ashen_mask",
+	  "name": "Ashen Mask",
+	  "slot": "head",
+	  "icon_path": "res://icon.svg",
+	  "bonuses": {
+		"stats": {
+		  "defense": 1,
+		  "health": 8
+		},
+		"work_stats": {
+		  "mining": 1
+		}
+	  }
+	},
+	{
+	  "id": "thorn_circlet",
+	  "name": "Thorn Circlet",
+	  "slot": "head",
+	  "icon_path": "res://icon.svg",
+	  "bonuses": {
+		"stats": {
+		  "critical_damage": 10,
+		  "attack": 1
+		},
+		"work_stats": {
+		  "farming": 1
+		}
+	  }
+	},
+	{
+	  "id": "veil_cap",
+	  "name": "Veil Cap",
+	  "slot": "head",
+	  "icon_path": "res://icon.svg",
+	  "bonuses": {
+		"stats": {
+		  "sanity": 5
+		},
+		"work_stats": {
+		  "farming": 1,
+		  "mining": 1
+		}
+	  }
+	},
+	{
+	  "id": "iron_brow",
+	  "name": "Iron Brow",
+	  "slot": "head",
+	  "icon_path": "res://icon.svg",
+	  "bonuses": {
+		"stats": {
+		  "defense": 4,
+		  "health": 6
+		},
+		"work_stats": {
+		  "mining": 1
+		}
+	  }
+	},
+	{
+	  "id": "bone_visor",
+	  "name": "Bone Visor",
+	  "slot": "head",
+	  "icon_path": "res://icon.svg",
+	  "bonuses": {
+		"stats": {
+		  "attack": 2,
+		  "defense": 1
+		},
+		"work_stats": {
+		  "lumbering": 1
+		}
+	  }
+	},
+	{
+	  "id": "lantern_veil",
+	  "name": "Lantern Veil",
+	  "slot": "head",
+	  "icon_path": "res://icon.svg",
+	  "bonuses": {
+		"stats": {
+		  "sanity": 4,
+		  "critical_chance": 1
+		},
+		"work_stats": {
+		  "farming": 2
+		}
+	  }
+	},
+	{
+	  "id": "mire_hat",
+	  "name": "Mire Hat",
+	  "slot": "head",
+	  "icon_path": "res://icon.svg",
+	  "bonuses": {
+		"stats": {
+		  "health": 5,
+		  "sanity": 2
+		},
+		"work_stats": {
+		  "farming": 1,
+		  "lumbering": 1
+		}
+	  }
+	},
+	{
+	  "id": "gilded_band",
+	  "name": "Gilded Band",
+	  "slot": "head",
+	  "icon_path": "res://icon.svg",
+	  "bonuses": {
+		"stats": {
+		  "critical_chance": 3,
+		  "critical_damage": 8
+		},
+		"work_stats": {
+		  "mining": 1
+		}
+	  }
+	},
+	{
+	  "id": "crypt_wreath",
+	  "name": "Crypt Wreath",
+	  "slot": "head",
+	  "icon_path": "res://icon.svg",
+	  "bonuses": {
+		"stats": {
+		  "sanity": 7,
+		  "defense": 1
+		},
+		"work_stats": {
+		  "farming": 1
+		}
+	  }
+	},
+	{
+	  "id": "marcher_coat",
+	  "name": "Marcher Coat",
+	  "slot": "chest",
+	  "icon_path": "res://icon.svg",
+	  "bonuses": {
+		"stats": {
+		  "health": 12,
+		  "defense": 3
+		},
+		"work_stats": {
+		  "lumbering": 1
+		}
+	  }
+	},
+	{
+	  "id": "pit_gloves",
+	  "name": "Pit Gloves",
+	  "slot": "gloves",
+	  "icon_path": "res://icon.svg",
+	  "bonuses": {
+		"stats": {
+		  "attack": 2
+		},
+		"work_stats": {
+		  "mining": 2
+		}
+	  }
+	},
+	{
+	  "id": "bog_boots",
+	  "name": "Bog Boots",
+	  "slot": "boots",
+	  "icon_path": "res://icon.svg",
+	  "bonuses": {
+		"stats": {
+		  "defense": 1,
+		  "sanity": 2
+		},
+		"work_stats": {
+		  "farming": 1,
+		  "lumbering": 1
+		}
+	  }
+	},
+	{
+	  "id": "ember_amulet",
+	  "name": "Ember Amulet",
+	  "slot": "amulet",
+	  "icon_path": "res://icon.svg",
+	  "bonuses": {
+		"stats": {
+		  "critical_chance": 3,
+		  "critical_damage": 12
+		},
+		"work_stats": {
+		  "mining": 1
+		}
+	  }
+	},
+	{
+	  "id": "bone_ring",
+	  "name": "Bone Ring",
+	  "slot": "ring_1",
+	  "icon_path": "res://icon.svg",
+	  "bonuses": {
+		"stats": {
+		  "attack": 1,
+		  "sanity": 4
+		},
+		"work_stats": {
+		  "farming": 1
+		}
+	  }
+	}
+  ]
+}
