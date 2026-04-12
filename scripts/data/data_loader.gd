@@ -79,8 +79,6 @@ func reload_data() -> void:
 	_load_recruitment_config()
 	_load_settlements()
 	_load_buildings()
-	_ensure_mod_roots()
-	_seed_template_mods()
 	_load_core_heroes()
 	_load_mod_heroes()
 	_load_core_items()
@@ -170,21 +168,17 @@ func create_empty_hero_equipment() -> Dictionary:
 
 func normalize_hero_class(hero_class: String) -> String:
 	var normalized_input := hero_class.strip_edges().to_lower()
-	if normalized_input.is_empty():
-		return "Supporter"
-	if normalized_input == "attacker":
-		return "Attacker"
-	if normalized_input == "defender":
-		return "Defender"
-	if normalized_input == "supporter":
-		return "Supporter"
-	if normalized_input in ["ranger", "hunter", "warrior", "rogue", "assassin", "duelist"]:
-		return "Attacker"
-	if normalized_input in ["smith", "delver", "guardian", "protector", "tank", "warden"]:
-		return "Defender"
-	if normalized_input in ["forager", "monk", "host", "support", "healer", "scholar", "mystic", "cleric"]:
-		return "Supporter"
-	return "Supporter"
+	match normalized_input:
+		"":
+			return "Supporter"
+		"attacker":
+			return "Attacker"
+		"defender":
+			return "Defender"
+		"supporter":
+			return "Supporter"
+		_:
+			return "Supporter"
 
 
 func normalize_hero_definition(entry: Dictionary, source: String = "core", mod_id: String = "", mod_folder_path: String = "") -> Dictionary:
@@ -238,6 +232,34 @@ func normalize_settlement_definition(entry: Dictionary) -> Dictionary:
 		"name": settlement_name,
 		"icon_path": _resolve_catalog_image_path(entry, "", "icon_path", "icon.png", DEFAULT_CATALOG_ICON),
 	}
+	if entry.has("schema_version"):
+		normalized["schema_version"] = entry["schema_version"]
+	return normalized
+
+
+func normalize_building_definition(entry: Dictionary) -> Dictionary:
+	if entry.is_empty():
+		return {}
+	var building_id := _sanitize_identifier(String(entry.get("id", "")))
+	if building_id.is_empty():
+		return {}
+	var building_name := String(entry.get("name", "")).strip_edges()
+	if building_name.is_empty():
+		return {}
+	var normalized: Dictionary = {
+		"id": building_id,
+		"name": building_name,
+		"description": String(entry.get("description", "")).strip_edges(),
+		"icon_path": _resolve_catalog_image_path(entry, "", "icon_path", "icon.png", DEFAULT_CATALOG_ICON),
+		"build_cost": _duplicate_dictionary_array(entry.get("build_cost", [])),
+		"upgrade_cost": _duplicate_dictionary_array(entry.get("upgrade_cost", [])),
+		"upgrade_growth": float(entry.get("upgrade_growth", 1.0)),
+		"base_production": _duplicate_dictionary_array(entry.get("base_production", [])),
+		"worker_slots": max(0, int(entry.get("worker_slots", 0))),
+		"max_level": max(1, int(entry.get("max_level", 1))),
+	}
+	if entry.has("recruit_cost"):
+		normalized["recruit_cost"] = _duplicate_dictionary_array(entry.get("recruit_cost", []))
 	if entry.has("schema_version"):
 		normalized["schema_version"] = entry["schema_version"]
 	return normalized
@@ -316,12 +338,7 @@ func _load_recruitment_config() -> void:
 
 func _load_buildings() -> void:
 	var buildings_payload: Dictionary = _load_json(BUILDINGS_PATH)
-	var building_data: Array = []
-	if buildings_payload.get("buildings", null) is Array:
-		building_data = buildings_payload["buildings"]
-	for entry in building_data:
-		if entry is Dictionary and entry.has("id"):
-			building_definitions[String(entry.id)] = entry
+	_load_catalog_entries(buildings_payload.get("buildings", []), Callable(self, "normalize_building_definition"), Callable(self, "_register_building_definition"))
 
 
 func _load_settlements() -> void:
@@ -397,6 +414,10 @@ func _register_hero_definition(hero_definition: Dictionary) -> void:
 	_register_definition(hero_definition, hero_definitions, hero_pool, "hero")
 
 
+func _register_building_definition(building_definition: Dictionary) -> void:
+	_register_definition(building_definition, building_definitions, [], "building")
+
+
 func _register_settlement_definition(settlement_definition: Dictionary) -> void:
 	_register_definition(settlement_definition, settlement_definitions, settlement_pool, "settlement")
 
@@ -422,173 +443,6 @@ func _register_definition(definition: Dictionary, target_map: Dictionary, target
 	target_pool.append(definition.duplicate(true))
 
 
-func _ensure_mod_roots() -> void:
-	for root_path in [HERO_MODS_ROOT, ITEM_MODS_ROOT, EQUIPMENT_MODS_ROOT]:
-		var error := DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(root_path))
-		if error != OK and error != ERR_ALREADY_EXISTS:
-			push_warning("Failed to create mod directory: %s" % root_path)
-
-
-func _seed_template_mods() -> void:
-	_seed_template_hero_mod()
-	_seed_template_item_mod()
-	_seed_template_equipment_mod()
-
-
-func _seed_template_hero_mod() -> void:
-	var template_folder := HERO_MODS_ROOT.path_join(TEMPLATE_HERO_MOD_ID)
-	var error := DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(template_folder))
-	if error != OK and error != ERR_ALREADY_EXISTS:
-		push_warning("Failed to create template hero directory: %s" % template_folder)
-		return
-	var template_hero: Dictionary = {
-		"schema_version": 1,
-		"id": "template_hero",
-		"name": "Template Hero",
-		"class": "Supporter",
-		"description": "Example mod hero definition. Copy this folder, edit hero.json, and optionally add portrait.png or icon.png.",
-		"recruitment_weight": 1,
-		"stats": {
-			"health": 96,
-			"sanity": 102,
-			"attack": 11,
-			"defense": 10,
-			"critical_chance": 6,
-			"critical_damage": 145,
-		},
-		"work_stats": {
-			"farming": 2,
-			"mining": 1,
-			"lumbering": 3,
-		},
-	}
-	_write_text_file_if_missing(template_folder.path_join("hero.json"), JSON.stringify(template_hero, "\t"))
-	_write_text_file_if_missing(template_folder.path_join("README.txt"), _template_hero_mod_readme())
-
-
-func _seed_template_item_mod() -> void:
-	var template_folder := ITEM_MODS_ROOT.path_join(TEMPLATE_ITEM_MOD_ID)
-	var error := DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(template_folder))
-	if error != OK and error != ERR_ALREADY_EXISTS:
-		push_warning("Failed to create template item directory: %s" % template_folder)
-		return
-	var template_item: Dictionary = {
-		"items": [
-			{
-				"schema_version": 1,
-				"id": "template_item_rations",
-				"name": "Template Rations",
-				"max_stack": 100000,
-			},
-			{
-				"schema_version": 1,
-				"id": "template_item_tonic",
-				"name": "Template Tonic",
-				"max_stack": 25,
-			},
-		],
-	}
-	_write_text_file_if_missing(template_folder.path_join("item.json"), JSON.stringify(template_item, "\t"))
-	_write_text_file_if_missing(template_folder.path_join("README.txt"), _template_item_mod_readme())
-
-
-func _seed_template_equipment_mod() -> void:
-	var template_folder := EQUIPMENT_MODS_ROOT.path_join(TEMPLATE_EQUIPMENT_MOD_ID)
-	var error := DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(template_folder))
-	if error != OK and error != ERR_ALREADY_EXISTS:
-		push_warning("Failed to create template equipment directory: %s" % template_folder)
-		return
-	var template_equipment: Dictionary = {
-		"schema_version": 1,
-		"id": "template_equipment",
-		"name": "Template Equipment",
-		"slot": "amulet",
-		"bonuses": {
-			"stats": {
-				"sanity": 4,
-			},
-			"work_stats": {
-				"farming": 1,
-			},
-		},
-	}
-	_write_text_file_if_missing(template_folder.path_join("equipment.json"), JSON.stringify(template_equipment, "\t"))
-	_write_text_file_if_missing(template_folder.path_join("README.txt"), _template_equipment_mod_readme())
-
-
-func _template_hero_mod_readme() -> String:
-	return "Hero Mod Folder\n\n" + \
-		"Required:\n" + \
-		"- hero.json\n\n" + \
-		"Optional:\n" + \
-		"- portrait.png\n" + \
-		"- icon.png\n\n" + \
-		"Valid classes:\n" + \
-		"- Attacker\n" + \
-		"- Defender\n" + \
-		"- Supporter\n\n" + \
-		"Folder structure:\n" + \
-		"user://mods/heroes/your_hero_mod/\n" + \
-		"  hero.json\n" + \
-		"  portrait.png   (optional)\n" + \
-		"  icon.png       (optional)\n"
-
-
-func _template_item_mod_readme() -> String:
-	return "Item Mod Folder\n\n" + \
-		"Required:\n" + \
-		"- item.json\n\n" + \
-		"Optional:\n" + \
-		"- icon.png\n\n" + \
-		"item.json can contain either one item object or an items array.\n\n" + \
-		"Item fields:\n" + \
-		"- id (optional; generated per entry if omitted)\n" + \
-		"- name\n" + \
-		"- max_stack (optional, defaults to 100000)\n" + \
-		"- icon_path (optional)\n\n" + \
-		"Folder structure:\n" + \
-		"user://mods/items/your_item_mod/\n" + \
-		"  item.json\n" + \
-		"  icon.png   (optional)\n"
-
-
-func _template_equipment_mod_readme() -> String:
-	return "Equipment Mod Folder\n\n" + \
-		"Required:\n" + \
-		"- equipment.json\n\n" + \
-		"Optional:\n" + \
-		"- icon.png\n\n" + \
-		"equipment.json can contain either one equipment object or an equipment array.\n\n" + \
-		"Valid slots:\n" + \
-		"- head\n" + \
-		"- chest\n" + \
-		"- gloves\n" + \
-		"- boots\n" + \
-		"- amulet\n" + \
-		"- ring_1\n\n" + \
-		"Equipment fields:\n" + \
-		"- id (optional; generated per entry if omitted)\n" + \
-		"- name\n" + \
-		"- slot\n" + \
-		"- icon_path (optional)\n\n" + \
-		"Bonuses format:\n" + \
-		"- bonuses.stats.<combat_stat>\n" + \
-		"- bonuses.work_stats.<work_stat>\n\n" + \
-		"Folder structure:\n" + \
-		"user://mods/equipment/your_equipment_mod/\n" + \
-		"  equipment.json\n" + \
-		"  icon.png   (optional)\n"
-
-
-func _write_text_file_if_missing(path: String, content: String) -> void:
-	if FileAccess.file_exists(path):
-		return
-	var file := FileAccess.open(path, FileAccess.WRITE)
-	if file == null:
-		push_warning("Failed to create file: %s" % path)
-		return
-	file.store_string(content)
-	file.close()
 
 
 func _get_mod_folders(root_path: String) -> Array[String]:

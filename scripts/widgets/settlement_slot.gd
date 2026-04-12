@@ -56,7 +56,7 @@ func set_view(slot_data: Dictionary, building_definition: Dictionary, is_selecte
 			_as_array(slot_data.get("assigned_hero_ids", [])).size(),
 			int(building_definition.get("worker_slots", 0)),
 		]
-		var icon_path: String = String(building_definition.get("icon", ""))
+		var icon_path: String = String(building_definition.get("icon_path", ""))
 		if ResourceLoader.exists(icon_path):
 			_icon_rect.texture = load(icon_path)
 		else:
