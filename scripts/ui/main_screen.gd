@@ -691,7 +691,8 @@ func _build_recruit_page() -> void:
 	grid.add_theme_constant_override("v_separation", 14)
 	_page_content.add_child(grid)
 	for offer_entry in offers:
-		grid.add_child(_make_recruit_offer_card(_as_dictionary(offer_entry), _as_dictionary(market_state.get("recruit_cost", {}))))
+		var offer_data := _as_dictionary(offer_entry)
+		grid.add_child(_make_recruit_offer_card(offer_data, _as_dictionary(offer_data.get("recruit_cost", {}))))
 
 
 func _make_recruit_offer_card(offer_data: Dictionary, recruit_cost: Dictionary) -> PanelContainer:

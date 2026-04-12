@@ -22,9 +22,6 @@ SettlementGame="*res://scripts/game/settlement_game.gd"
 DataLoader="*res://scripts/data/data_loader.gd"
 GameSession="*res://scripts/game/game_session.gd"
 ModBootstrap="*res://scripts/data/mod_bootstrap.gd"
-MCPScreenshot="*res://addons/godot_mcp/mcp_screenshot_service.gd"
-MCPInputService="*res://addons/godot_mcp/mcp_input_service.gd"
-MCPGameInspector="*res://addons/godot_mcp/mcp_game_inspector_service.gd"
 
 [display]
 

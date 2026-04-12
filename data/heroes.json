@@ -6,6 +6,11 @@
 	  "class": "Supporter",
 	  "description": "Finds value in rot, ruins, and the things others fear to touch.",
 	  "recruitment_weight": 3,
+	  "recruit_cost": [
+		{ "resource": "food", "amount": 18, "per_level": 2 },
+		{ "resource": "gold", "min_amount": 20, "max_amount": 28, "per_level": 3 },
+		{ "resource": "gems", "amount": 1 }
+	  ],
 	  "stats": {
 		"health": 82,
 		"sanity": 108,
@@ -26,6 +31,11 @@
 	  "class": "Defender",
 	  "description": "An exile who tempers iron with funeral embers.",
 	  "recruitment_weight": 2,
+	  "recruit_cost": [
+		{ "resource": "food", "amount": 16, "per_level": 2 },
+		{ "resource": "gold", "amount": 30, "per_level": 4 },
+		{ "resource": "stone", "min_amount": 8, "max_amount": 14, "per_level": 2 }
+	  ],
 	  "stats": {
 		"health": 118,
 		"sanity": 84,
@@ -46,6 +56,11 @@
 	  "class": "Attacker",
 	  "description": "Cuts cursed timber paths through hostile woods.",
 	  "recruitment_weight": 3,
+	  "recruit_cost": [
+		{ "resource": "food", "min_amount": 14, "max_amount": 20, "per_level": 2 },
+		{ "resource": "gold", "amount": 26, "per_level": 3 },
+		{ "resource": "wood", "amount": 10, "per_level": 1 }
+	  ],
 	  "stats": {
 		"health": 94,
 		"sanity": 90,
@@ -66,6 +81,11 @@
 	  "class": "Supporter",
 	  "description": "Keeps famine at bay with ritual discipline and grim patience.",
 	  "recruitment_weight": 2,
+	  "recruit_cost": [
+		{ "resource": "food", "amount": 22, "per_level": 3 },
+		{ "resource": "gold", "min_amount": 18, "max_amount": 24, "per_level": 2 },
+		{ "resource": "gems", "amount": 1 }
+	  ],
 	  "stats": {
 		"health": 88,
 		"sanity": 112,
@@ -86,6 +106,11 @@
 	  "class": "Defender",
 	  "description": "Descends where rope and sanity stop being useful.",
 	  "recruitment_weight": 3,
+	  "recruit_cost": [
+		{ "resource": "food", "amount": 17, "per_level": 2 },
+		{ "resource": "gold", "amount": 24, "per_level": 3 },
+		{ "resource": "stone", "amount": 12, "per_level": 2 }
+	  ],
 	  "stats": {
 		"health": 124,
 		"sanity": 76,
@@ -106,6 +131,11 @@
 	  "class": "Supporter",
 	  "description": "Turns fear into coin and drifters into labor.",
 	  "recruitment_weight": 2,
+	  "recruit_cost": [
+		{ "resource": "food", "amount": "12-18", "per_level": 2 },
+		{ "resource": "gold", "min_amount": 24, "max_amount": 32, "per_level": 3 },
+		{ "resource": "gems", "amount": 1 }
+	  ],
 	  "stats": {
 		"health": 86,
 		"sanity": 100,
