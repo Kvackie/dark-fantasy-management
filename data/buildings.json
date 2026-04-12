@@ -123,12 +123,7 @@
 				{ "resource": "gold", "amount": 3 }
 			],
 			"worker_slots": 1,
-			"max_level": 5,
-			"recruit_cost": [
-				{ "resource": "food", "amount": 18 },
-				{ "resource": "gold", "amount": 25 },
-				{ "resource": "gems", "amount": 1 }
-			]
+			"max_level": 5
 		}
 	]
 }

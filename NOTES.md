@@ -31,14 +31,14 @@
 
 - Boot always targets save slot 1 first. "New game" only happens if slot 1 is missing or reset.
 - `GameManager` expects a node/autoload literally named `GameSession`; renaming that breaks state access.
-- Recruitment unlock is global across owned settlements. One Tavern anywhere enables the whole market.
 - `get_available_heroes_for_slot()` does not really filter; the UI shows already-assigned heroes too and treats them as movable.
-- Building assignment and world clearing are mutually exclusive. A hero clearing a zone cannot work a building, and an assigned worker cannot join clearing.
 - Claimed settlements are a mix of one authored start settlement and generated settlements from world zones.
 - Inventory items exist, but the real economy uses `resources`; items are mostly inventory/UI content right now.
-- Tavern recruit cost shown in gameplay comes from `data/recruitment.json`, not the Tavern entry in `data/buildings.json`.
 
 # TODO
 
 - Combat is mostly scaffolded through hero/equipment stats; there is no real combat loop yet.
 - Hero skills tab is placeholder UI for now.
+- Add the ability to setup special zones that can be randomly generated into the loop.
+- Make a use for inventory items.
+- Give equipment bonuses that affect other parts of gameplay loop.

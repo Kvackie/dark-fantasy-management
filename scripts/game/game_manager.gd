@@ -491,6 +491,8 @@ func get_available_heroes_for_slot(_slot_index: int) -> Array:
 	var available: Array = []
 	for hero in heroes:
 		var hero_data: Dictionary = hero
+		if not _is_hero_available_for_world(hero_data):
+			continue
 		available.append(hero_data.duplicate(true))
 	return available
 

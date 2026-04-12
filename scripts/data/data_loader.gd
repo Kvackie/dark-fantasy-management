@@ -168,21 +168,17 @@ func create_empty_hero_equipment() -> Dictionary:
 
 func normalize_hero_class(hero_class: String) -> String:
 	var normalized_input := hero_class.strip_edges().to_lower()
-	if normalized_input.is_empty():
-		return "Supporter"
-	if normalized_input == "attacker":
-		return "Attacker"
-	if normalized_input == "defender":
-		return "Defender"
-	if normalized_input == "supporter":
-		return "Supporter"
-	if normalized_input in ["ranger", "hunter", "warrior", "rogue", "assassin", "duelist"]:
-		return "Attacker"
-	if normalized_input in ["smith", "delver", "guardian", "protector", "tank", "warden"]:
-		return "Defender"
-	if normalized_input in ["forager", "monk", "host", "support", "healer", "scholar", "mystic", "cleric"]:
-		return "Supporter"
-	return "Supporter"
+	match normalized_input:
+		"":
+			return "Supporter"
+		"attacker":
+			return "Attacker"
+		"defender":
+			return "Defender"
+		"supporter":
+			return "Supporter"
+		_:
+			return "Supporter"
 
 
 func normalize_hero_definition(entry: Dictionary, source: String = "core", mod_id: String = "", mod_folder_path: String = "") -> Dictionary:
