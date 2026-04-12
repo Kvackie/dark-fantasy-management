@@ -139,7 +139,7 @@
 	{
 	  "id": "gilded_band",
 	  "name": "Gilded Band",
-	  "slot": "head",
+	  "slot": "ring_1",
 	  "icon_path": "res://icon.svg",
 	  "bonuses": {
 		"stats": {

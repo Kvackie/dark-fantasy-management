@@ -1,0 +1,1082 @@
+extends HBoxContainer
+
+
+const UIScreenHelpers = preload("res://scripts/ui/ui_screen_helpers.gd")
+
+const HERO_TAB_INFO := "info"
+const HERO_TAB_EQUIPMENT := "equipment"
+const HERO_TAB_SKILLS := "skills"
+const HERO_TAB_LORE := "lore"
+const HERO_DETAIL_TABS := [HERO_TAB_INFO, HERO_TAB_EQUIPMENT, HERO_TAB_SKILLS, HERO_TAB_LORE]
+
+signal back_requested
+
+@onready var _context_panel: PanelContainer = get_node("ContextPanel")
+@onready var _name_bar: PanelContainer = get_node("RightSection/NameBar")
+@onready var _hero_name_label: Label = get_node("RightSection/NameBar/NameRow/HeroName")
+@onready var _back_button: Button = get_node("RightSection/NameBar/NameRow/BackButton")
+@onready var _tabs_column: VBoxContainer = get_node("RightSection/ContentSplit/TabsColumn")
+@onready var _tab_panel: PanelContainer = get_node("RightSection/ContentSplit/TabPanel")
+@onready var _tab_scroll: ScrollContainer = get_node("RightSection/ContentSplit/TabPanel/TabScroll")
+@onready var _tab_body: VBoxContainer = get_node("RightSection/ContentSplit/TabPanel/TabScroll/TabBody")
+
+var _selected_hero_uid: int = -1
+var _heroes_snapshot: Array = []
+var _inventory_snapshot: Dictionary = {"items": [], "equipment": []}
+var _hero_detail_tab: String = HERO_TAB_INFO
+var _selected_slot: String = ""
+var _selected_equipment_uid: int = -1
+var _equipment_slots_grid: GridContainer = null
+var _browser_root: Control = null
+var _equipment_list_scroll: ScrollContainer = null
+var _browser_scroll_value: int = 0
+var _hover_popup: Control = null
+var _hover_popup_body: VBoxContainer = null
+var _equipment_dialog: Control = null
+var _dismiss_confirm_uid: int = -1
+var _equipment_tiles: Dictionary = {}
+
+
+func _ready() -> void:
+	_style_shell()
+	var back_callback := Callable(self, "_on_back_pressed")
+	if not _back_button.pressed.is_connected(back_callback):
+		_back_button.pressed.connect(back_callback)
+
+
+func set_selected_hero_uid(hero_uid: int) -> void:
+	if _selected_hero_uid == hero_uid:
+		return
+	_selected_hero_uid = hero_uid
+	_reset_local_state()
+
+
+func set_heroes_snapshot(heroes_snapshot: Array) -> void:
+	_heroes_snapshot = heroes_snapshot.duplicate(true)
+
+
+func set_inventory_snapshot(inventory_snapshot: Dictionary) -> void:
+	_inventory_snapshot = inventory_snapshot.duplicate(true)
+
+
+func refresh() -> void:
+	_style_shell()
+	var hero_data := _get_selected_hero()
+	if hero_data.is_empty():
+		_clear_container(_tabs_column)
+		_clear_container(_tab_body)
+		_clear_container(_context_panel)
+		_hero_name_label.text = "Hero Unavailable"
+		_tab_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+		_build_unavailable_state()
+		return
+	_hero_name_label.text = String(hero_data.get("name", "Unknown Hero"))
+	if _refresh_in_place(hero_data):
+		return
+	_clear_container(_tabs_column)
+	_clear_container(_tab_body)
+	_clear_container(_context_panel)
+	for tab_id in HERO_DETAIL_TABS:
+		_tabs_column.add_child(_make_hero_tab_button(tab_id))
+	_tab_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED if _hero_detail_tab == HERO_TAB_EQUIPMENT else ScrollContainer.SCROLL_MODE_AUTO
+	_build_context_panel(hero_data)
+	_build_tab_content(_tab_body, hero_data)
+
+
+func _refresh_in_place(hero_data: Dictionary) -> bool:
+	if _hero_detail_tab != HERO_TAB_EQUIPMENT or _selected_slot.is_empty():
+		return false
+	if _browser_root == null or not is_instance_valid(_browser_root):
+		return false
+	if _equipment_list_scroll == null or not is_instance_valid(_equipment_list_scroll):
+		return false
+	if _equipment_slots_grid == null or not is_instance_valid(_equipment_slots_grid):
+		return false
+	_refresh_equipment_slot_grid(hero_data)
+	var slot_entries := _get_inventory_equipment_entries_for_slot(_selected_slot)
+	if slot_entries.size() != _equipment_tiles.size():
+		return false
+	for equipment_entry in slot_entries:
+		var entry := _as_dictionary(equipment_entry)
+		var equipment_uid := int(entry.get("uid", -1))
+		var tile: PanelContainer = _equipment_tiles.get(equipment_uid, null) as PanelContainer
+		if tile == null or not is_instance_valid(tile):
+			return false
+		_populate_equipment_browser_tile(tile, entry)
+	if _selected_equipment_uid <= 0:
+		if _equipment_dialog != null and is_instance_valid(_equipment_dialog):
+			_equipment_dialog.queue_free()
+		_equipment_dialog = null
+		return true
+	var selected_entry := _get_inventory_equipment_entry(_selected_equipment_uid)
+	if selected_entry.is_empty():
+		if _equipment_dialog != null and is_instance_valid(_equipment_dialog):
+			_equipment_dialog.queue_free()
+		_equipment_dialog = null
+		_selected_equipment_uid = -1
+		return true
+	if _equipment_dialog != null and is_instance_valid(_equipment_dialog):
+		_equipment_dialog.queue_free()
+	_equipment_dialog = _make_equipment_detail_dialog(hero_data, _selected_slot, selected_entry)
+	_browser_root.add_child(_equipment_dialog)
+	call_deferred("_restore_browser_scroll")
+	return true
+
+
+func _refresh_equipment_slot_grid(hero_data: Dictionary) -> void:
+	if _equipment_slots_grid == null or not is_instance_valid(_equipment_slots_grid):
+		return
+	_clear_container_immediately(_equipment_slots_grid)
+	for slot_key in DataLoader.HERO_EQUIPMENT_KEYS:
+		_equipment_slots_grid.add_child(_make_hero_equipment_slot_button(hero_data, slot_key))
+
+
+func _build_unavailable_state() -> void:
+	var message := UIScreenHelpers.make_label("That hero is no longer available in the roster.", 18)
+	_tab_body.add_child(message)
+	_tab_body.add_child(_make_small_nav_button("Back To Heroes", Callable(self, "_on_back_pressed")))
+
+
+func _build_context_panel(hero_data: Dictionary) -> void:
+	_equipment_slots_grid = null
+	_browser_root = null
+	_equipment_list_scroll = null
+	_hover_popup = null
+	_hover_popup_body = null
+	_equipment_dialog = null
+	_equipment_tiles.clear()
+	if _hero_detail_tab == HERO_TAB_EQUIPMENT and not _selected_slot.is_empty():
+		_build_equipment_browser(hero_data)
+		return
+	_build_portrait_panel(hero_data)
+
+
+func _build_portrait_panel(hero_data: Dictionary) -> void:
+	var portrait_texture := TextureRect.new()
+	portrait_texture.set_anchors_preset(Control.PRESET_FULL_RECT)
+	portrait_texture.offset_left = 0.0
+	portrait_texture.offset_top = 0.0
+	portrait_texture.offset_right = 0.0
+	portrait_texture.offset_bottom = 0.0
+	portrait_texture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	portrait_texture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	portrait_texture.texture = _load_hero_texture(hero_data)
+	portrait_texture.self_modulate = Color(1, 1, 1, 1)
+	_context_panel.add_child(portrait_texture)
+
+
+func _build_tab_content(container: VBoxContainer, hero_data: Dictionary) -> void:
+	match _hero_detail_tab:
+		HERO_TAB_EQUIPMENT:
+			container.add_child(UIScreenHelpers.make_label("Equipment", 21))
+			var slot_area := CenterContainer.new()
+			slot_area.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			slot_area.size_flags_vertical = Control.SIZE_EXPAND_FILL
+			container.add_child(slot_area)
+			var grid := GridContainer.new()
+			grid.columns = 3
+			grid.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+			grid.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+			grid.add_theme_constant_override("h_separation", 16)
+			grid.add_theme_constant_override("v_separation", 16)
+			_equipment_slots_grid = grid
+			slot_area.add_child(grid)
+			for slot_key in DataLoader.HERO_EQUIPMENT_KEYS:
+				grid.add_child(_make_hero_equipment_slot_button(hero_data, slot_key))
+		HERO_TAB_SKILLS:
+			container.add_child(UIScreenHelpers.make_label("Skills", 21))
+			container.add_child(UIScreenHelpers.make_label("Active and passive abilities will be shown here in a future pass.", 16))
+			container.add_child(UIScreenHelpers.make_label("No learned skills yet.", 16))
+		HERO_TAB_LORE:
+			container.add_child(UIScreenHelpers.make_label("Lore", 21))
+			var hero_definition: Dictionary = DataLoader.get_hero_definition(String(hero_data.get("definition_id", "")))
+			container.add_child(UIScreenHelpers.make_label(String(hero_definition.get("description", "No lore recorded.")), 17))
+			container.add_child(Control.new())
+			if _dismiss_confirm_uid == int(hero_data.get("uid", -1)):
+				var warning := UIScreenHelpers.make_label("Dismiss this hero permanently? Assignments, world tasks, and equipment links will be cleared.", 15)
+				warning.add_theme_color_override("font_color", Color("e8b0a7"))
+				container.add_child(warning)
+				var confirm_row := HBoxContainer.new()
+				confirm_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+				confirm_row.add_theme_constant_override("separation", 10)
+				container.add_child(confirm_row)
+				confirm_row.add_child(UIScreenHelpers.make_small_action_button("Cancel", Callable(self, "_cancel_hero_dismiss")))
+				confirm_row.add_child(_make_danger_button("Confirm Dismiss", Callable(self, "_confirm_hero_dismiss").bind(int(hero_data.get("uid", -1)))))
+			else:
+				container.add_child(_make_danger_button("Dismiss", Callable(self, "_prompt_hero_dismiss").bind(int(hero_data.get("uid", -1)))))
+		_:
+			var hero_definition: Dictionary = DataLoader.get_hero_definition(String(hero_data.get("definition_id", "")))
+			var assigned_slot: int = int(hero_data.get("assigned_slot", -1))
+			var assignment_name := "Unassigned"
+			if assigned_slot >= 0:
+				var building_definition: Dictionary = GameManager.get_slot_building_definition(assigned_slot)
+				assignment_name = String(building_definition.get("name", "Assigned"))
+			var combat_stats: Dictionary = GameManager.get_hero_effective_stats(int(hero_data.get("uid", -1)))
+			var work_stats: Dictionary = GameManager.get_hero_effective_work_stats(int(hero_data.get("uid", -1)))
+			if combat_stats.is_empty():
+				combat_stats = _as_dictionary(hero_data.get("stats", hero_definition.get("stats", {})))
+			if work_stats.is_empty():
+				work_stats = _as_dictionary(hero_data.get("work_stats", hero_definition.get("work_stats", {})))
+			container.add_child(_make_hero_info_section(
+				"Hero Record",
+				[
+					{"label": "Name", "value": String(hero_data.get("name", hero_definition.get("name", "Unknown Hero")))},
+					{"label": "Class", "value": String(hero_data.get("class", hero_definition.get("class", "Hero")))} ,
+					{"label": "Level", "value": str(int(hero_data.get("level", 1)))},
+					{"label": "Assignment", "value": assignment_name},
+					{"label": "Source", "value": _hero_source_text(hero_data)},
+				],
+				Color("d0a170")
+			))
+			container.add_child(_make_hero_info_section(
+				"Combat Stats",
+				[
+					{"label": "Health", "value": str(int(combat_stats.get("health", 0)))},
+					{"label": "Sanity", "value": str(int(combat_stats.get("sanity", 0)))},
+					{"label": "Attack", "value": str(int(combat_stats.get("attack", 0)))},
+					{"label": "Defense", "value": str(int(combat_stats.get("defense", 0)))},
+					{"label": "Crit Chance", "value": str(int(combat_stats.get("critical_chance", 0)))},
+					{"label": "Crit Damage", "value": str(int(combat_stats.get("critical_damage", 0)))},
+				],
+				Color("b76558")
+			))
+			container.add_child(_make_hero_info_section(
+				"Work Stats",
+				[
+					{"label": "Farming", "value": str(int(work_stats.get("farming", 0)))},
+					{"label": "Mining", "value": str(int(work_stats.get("mining", 0)))},
+					{"label": "Lumbering", "value": str(int(work_stats.get("lumbering", 0)))},
+				],
+				Color("7f9f84")
+			))
+
+
+func _build_equipment_browser(hero_data: Dictionary) -> void:
+	var slot_key := _selected_slot
+	var equipment_entries := _get_inventory_equipment_entries_for_slot(slot_key)
+	var body := VBoxContainer.new()
+	body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	body.add_theme_constant_override("separation", 12)
+	_context_panel.add_child(body)
+	var header_row := HBoxContainer.new()
+	header_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	header_row.add_theme_constant_override("separation", 10)
+	body.add_child(header_row)
+	var title := UIScreenHelpers.make_label("%s Loadout" % _equipment_slot_label(slot_key), 22)
+	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	header_row.add_child(title)
+	header_row.add_child(_make_small_nav_button("Portrait", Callable(self, "_close_equipment_browser")))
+	var browser_panel := UIScreenHelpers.make_panel()
+	browser_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	body.add_child(browser_panel)
+	var browser_root := Control.new()
+	browser_root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	browser_root.offset_left = 0.0
+	browser_root.offset_top = 0.0
+	browser_root.offset_right = 0.0
+	browser_root.offset_bottom = 0.0
+	browser_panel.add_child(browser_root)
+	_browser_root = browser_root
+	var browser_body := VBoxContainer.new()
+	browser_body.set_anchors_preset(Control.PRESET_FULL_RECT)
+	browser_body.offset_left = 0.0
+	browser_body.offset_top = 0.0
+	browser_body.offset_right = 0.0
+	browser_body.offset_bottom = 0.0
+	browser_body.add_theme_constant_override("separation", 10)
+	browser_root.add_child(browser_body)
+	browser_body.add_child(UIScreenHelpers.make_label("Available Equipment", 18))
+	var list_scroll := ScrollContainer.new()
+	list_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	list_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	list_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	browser_body.add_child(list_scroll)
+	_equipment_list_scroll = list_scroll
+	call_deferred("_restore_browser_scroll")
+	if equipment_entries.is_empty():
+		var empty_state := CenterContainer.new()
+		empty_state.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		empty_state.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		list_scroll.add_child(empty_state)
+		var empty_label := UIScreenHelpers.make_label("No inventory equipment matches this slot.", 15)
+		empty_label.autowrap_mode = TextServer.AUTOWRAP_OFF
+		empty_label.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		empty_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		empty_label.add_theme_color_override("font_color", Color("cbbba9"))
+		empty_state.add_child(empty_label)
+	else:
+		var list_body := GridContainer.new()
+		list_body.columns = 3
+		list_body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		list_body.add_theme_constant_override("h_separation", 8)
+		list_body.add_theme_constant_override("v_separation", 8)
+		list_scroll.add_child(list_body)
+		for equipment_entry in equipment_entries:
+			var entry := _as_dictionary(equipment_entry)
+			var tile := _make_equipment_browser_tile(entry)
+			_equipment_tiles[int(entry.get("uid", -1))] = tile
+			list_body.add_child(tile)
+	var hover_popup := Panel.new()
+	hover_popup.visible = false
+	hover_popup.top_level = true
+	hover_popup.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hover_popup.custom_minimum_size = Vector2(220, 210)
+	hover_popup.size = Vector2(220, 210)
+	var hover_style := StyleBoxFlat.new()
+	hover_style.bg_color = Color("0f0c0d", 0.96)
+	hover_style.border_color = Color("8b6d57")
+	hover_style.set_border_width_all(2)
+	hover_style.set_corner_radius_all(8)
+	hover_popup.add_theme_stylebox_override("panel", hover_style)
+	_context_panel.add_child(hover_popup)
+	var hover_margin := MarginContainer.new()
+	hover_margin.set_anchors_preset(Control.PRESET_FULL_RECT)
+	hover_margin.offset_left = 10.0
+	hover_margin.offset_top = 10.0
+	hover_margin.offset_right = -10.0
+	hover_margin.offset_bottom = -10.0
+	hover_margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hover_popup.add_child(hover_margin)
+	var hover_body := VBoxContainer.new()
+	hover_body.add_theme_constant_override("separation", 6)
+	hover_body.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hover_margin.add_child(hover_body)
+	_hover_popup = hover_popup
+	_hover_popup_body = hover_body
+	var selected_entry := _get_inventory_equipment_entry(_selected_equipment_uid)
+	if selected_entry.is_empty():
+		return
+	_equipment_dialog = _make_equipment_detail_dialog(hero_data, slot_key, selected_entry)
+	_browser_root.add_child(_equipment_dialog)
+
+
+func _make_equipment_detail_dialog(hero_data: Dictionary, slot_key: String, equipment_entry: Dictionary) -> Control:
+	var overlay := ColorRect.new()
+	overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	overlay.offset_left = 0.0
+	overlay.offset_top = 0.0
+	overlay.offset_right = 0.0
+	overlay.offset_bottom = 0.0
+	overlay.color = Color(0, 0, 0, 0.42)
+	var dialog := PanelContainer.new()
+	dialog.anchor_left = 0.08
+	dialog.anchor_top = 0.12
+	dialog.anchor_right = 0.92
+	dialog.anchor_bottom = 0.88
+	dialog.offset_left = 0.0
+	dialog.offset_top = 0.0
+	dialog.offset_right = 0.0
+	dialog.offset_bottom = 0.0
+	_style_panel(dialog, Color("151113"), Color("8b6d57"), 10)
+	overlay.add_child(dialog)
+	var body := VBoxContainer.new()
+	body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	body.add_theme_constant_override("separation", 10)
+	dialog.add_child(body)
+	var header_row := HBoxContainer.new()
+	header_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	header_row.add_theme_constant_override("separation", 8)
+	body.add_child(header_row)
+	var definition := DataLoader.get_equipment_definition(String(equipment_entry.get("definition_id", "")))
+	var title := UIScreenHelpers.make_label(String(definition.get("name", "Unknown Equipment")), 20)
+	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	header_row.add_child(title)
+	header_row.add_child(_make_small_nav_button("Close", Callable(self, "_close_equipment_dialog")))
+	var status_label := UIScreenHelpers.make_label(_equipment_owner_text(equipment_entry), 14)
+	status_label.add_theme_color_override("font_color", Color("c9d5e8"))
+	body.add_child(status_label)
+	body.add_child(_make_bonus_section("Combat Bonuses", _as_dictionary(_as_dictionary(definition.get("bonuses", {})).get("stats", {})), Color("c77265")))
+	body.add_child(_make_bonus_section("Work Bonuses", _as_dictionary(_as_dictionary(definition.get("bonuses", {})).get("work_stats", {})), Color("7fa283")))
+	var action_row := HBoxContainer.new()
+	action_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	action_row.add_theme_constant_override("separation", 10)
+	body.add_child(action_row)
+	var equip_disabled := _is_selected_equipment_already_equipped(equipment_entry, int(hero_data.get("uid", -1)), slot_key)
+	action_row.add_child(_make_button("Equip", Callable(self, "_equip_selected_equipment"), equip_disabled))
+	if _hero_slot_equipment_uid(hero_data, slot_key) > 0:
+		action_row.add_child(_make_button("Unequip", Callable(self, "_unequip_selected_hero_slot"), false))
+	return overlay
+
+
+func _make_equipment_browser_tile(equipment_entry: Dictionary) -> PanelContainer:
+	var tile := PanelContainer.new()
+	tile.custom_minimum_size = Vector2(112, 112)
+	tile.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_populate_equipment_browser_tile(tile, equipment_entry)
+	return tile
+
+
+func _populate_equipment_browser_tile(tile: PanelContainer, equipment_entry: Dictionary) -> void:
+	var definition := DataLoader.get_equipment_definition(String(equipment_entry.get("definition_id", "")))
+	var label_text := String(definition.get("name", "Unknown Equipment"))
+	var detail_text := _equipment_owner_short_text(equipment_entry)
+	_clear_container_immediately(tile)
+	_style_panel(tile, Color("141113"), Color("d0a170") if int(equipment_entry.get("uid", -1)) == _selected_equipment_uid else Color("8d8478"), 10)
+	_build_inventory_tile_content(tile, definition, detail_text, Color("b8c3d9"), Color("efe7db"), 44, 13, 12, label_text)
+	var button := Button.new()
+	button.set_anchors_preset(Control.PRESET_FULL_RECT)
+	button.offset_left = 0.0
+	button.offset_top = 0.0
+	button.offset_right = 0.0
+	button.offset_bottom = 0.0
+	button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	button.add_theme_stylebox_override("normal", _button_style(Color(0, 0, 0, 0), Color(0, 0, 0, 0), 10))
+	button.add_theme_stylebox_override("hover", _button_style(Color(1, 1, 1, 0.03), Color("d0a170"), 10))
+	button.add_theme_stylebox_override("pressed", _button_style(Color(1, 1, 1, 0.05), Color("d0a170"), 10))
+	button.add_theme_stylebox_override("focus", _button_style(Color(0, 0, 0, 0), Color("d0a170"), 10))
+	button.pressed.connect(Callable(self, "_select_equipment_entry").bind(int(equipment_entry.get("uid", -1))))
+	button.mouse_entered.connect(Callable(self, "_show_equipment_hover_popup").bind(int(equipment_entry.get("uid", -1))))
+	button.mouse_exited.connect(Callable(self, "_hide_equipment_hover_popup"))
+	tile.add_child(button)
+	if int(equipment_entry.get("uid", -1)) == _selected_equipment_uid:
+		button.add_theme_stylebox_override("normal", _button_style(Color(1, 1, 1, 0.04), Color("d0a170"), 10))
+
+
+func _make_hero_equipment_slot_button(hero_data: Dictionary, slot_key: String) -> Control:
+	var current_uid := _hero_slot_equipment_uid(hero_data, slot_key)
+	var current_entry: Dictionary = {}
+	var current_definition: Dictionary = {}
+	var occupied := current_uid > 0
+	if current_uid > 0:
+		current_entry = _get_inventory_equipment_entry(current_uid)
+		if not current_entry.is_empty():
+			current_definition = DataLoader.get_equipment_definition(String(current_entry.get("definition_id", "")))
+			occupied = not current_definition.is_empty()
+	var tile := PanelContainer.new()
+	tile.custom_minimum_size = Vector2(122, 144)
+	tile.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	tile.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	_style_panel(tile, Color("171315") if occupied else Color("100d0f"), Color("d0a170") if _selected_slot == slot_key else (Color("8b6d57") if occupied else Color("675042")), 8)
+	var body := VBoxContainer.new()
+	body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	body.add_theme_constant_override("separation", 6)
+	body.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	tile.add_child(body)
+	var slot_label := UIScreenHelpers.make_label(_equipment_slot_label(slot_key), 13)
+	slot_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	slot_label.add_theme_color_override("font_color", Color("d8c4ae") if occupied else Color("b7a291"))
+	slot_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	body.add_child(slot_label)
+	var center := CenterContainer.new()
+	center.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	center.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	body.add_child(center)
+	if occupied:
+		var icon := TextureRect.new()
+		icon.custom_minimum_size = Vector2(44, 44)
+		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		icon.texture = _load_texture_from_path(String(current_definition.get("icon_path", DataLoader.DEFAULT_CATALOG_ICON)))
+		if icon.texture == null:
+			icon.texture = _load_texture_from_path(DataLoader.DEFAULT_CATALOG_ICON)
+		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		center.add_child(icon)
+		var name_label := UIScreenHelpers.make_label(String(current_definition.get("name", "Occupied")), 12)
+		name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		name_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		name_label.add_theme_color_override("font_color", Color("efe7db"))
+		name_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		body.add_child(name_label)
+	else:
+		var empty_label := UIScreenHelpers.make_label("Empty", 15)
+		empty_label.autowrap_mode = TextServer.AUTOWRAP_OFF
+		empty_label.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		empty_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		empty_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		empty_label.add_theme_color_override("font_color", Color("8f8178"))
+		empty_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		center.add_child(empty_label)
+		var hint_label := UIScreenHelpers.make_label("No gear", 11)
+		hint_label.autowrap_mode = TextServer.AUTOWRAP_OFF
+		hint_label.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		hint_label.add_theme_color_override("font_color", Color("756962"))
+		hint_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		body.add_child(hint_label)
+	var button := Button.new()
+	button.set_anchors_preset(Control.PRESET_FULL_RECT)
+	button.offset_left = 0.0
+	button.offset_top = 0.0
+	button.offset_right = 0.0
+	button.offset_bottom = 0.0
+	button.text = ""
+	button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	button.add_theme_stylebox_override("normal", _button_style(Color(0, 0, 0, 0), Color("d0a170") if _selected_slot == slot_key else Color(0, 0, 0, 0), 8))
+	button.add_theme_stylebox_override("hover", _button_style(Color(1, 1, 1, 0.03), Color("b88d68"), 8))
+	button.add_theme_stylebox_override("pressed", _button_style(Color(1, 1, 1, 0.05), Color("d0a170"), 8))
+	button.pressed.connect(Callable(self, "_select_hero_equipment_slot").bind(slot_key))
+	tile.add_child(button)
+	return tile
+
+
+func _make_hero_tab_button(tab_id: String) -> Button:
+	var button := _make_button(tab_id.capitalize(), Callable(self, "_set_hero_detail_tab").bind(tab_id), false)
+	if tab_id == _hero_detail_tab:
+		button.add_theme_stylebox_override("normal", _button_style(Color("3a2b25"), Color("d0a170"), 7))
+		button.add_theme_stylebox_override("hover", _button_style(Color("3a2b25"), Color("d0a170"), 7))
+		button.add_theme_stylebox_override("pressed", _button_style(Color("3a2b25"), Color("d0a170"), 7))
+	return button
+
+
+func _set_hero_detail_tab(tab_id: String) -> void:
+	_hero_detail_tab = tab_id
+	_dismiss_confirm_uid = -1
+	if tab_id != HERO_TAB_EQUIPMENT:
+		_selected_slot = ""
+		_selected_equipment_uid = -1
+	refresh()
+
+
+func _prompt_hero_dismiss(hero_uid: int) -> void:
+	_dismiss_confirm_uid = hero_uid
+	refresh()
+
+
+func _cancel_hero_dismiss() -> void:
+	_dismiss_confirm_uid = -1
+	refresh()
+
+
+func _confirm_hero_dismiss(hero_uid: int) -> void:
+	_dismiss_confirm_uid = -1
+	if GameManager.dismiss_hero(hero_uid):
+		emit_signal("back_requested")
+
+
+func _select_hero_equipment_slot(slot_key: String) -> void:
+	_browser_scroll_value = 0
+	_selected_slot = slot_key
+	_selected_equipment_uid = -1
+	_hide_equipment_hover_popup()
+	refresh()
+
+
+func _select_equipment_entry(equipment_uid: int) -> void:
+	_remember_browser_scroll()
+	_selected_equipment_uid = equipment_uid
+	_hide_equipment_hover_popup()
+	if _browser_root == null or not is_instance_valid(_browser_root):
+		refresh()
+		return
+	if _equipment_dialog != null and is_instance_valid(_equipment_dialog):
+		_equipment_dialog.queue_free()
+	var hero_data := _get_selected_hero()
+	if hero_data.is_empty() or _selected_slot.is_empty():
+		return
+	var selected_entry := _get_inventory_equipment_entry(_selected_equipment_uid)
+	if selected_entry.is_empty():
+		return
+	_equipment_dialog = _make_equipment_detail_dialog(hero_data, _selected_slot, selected_entry)
+	_browser_root.add_child(_equipment_dialog)
+
+
+func _close_equipment_browser() -> void:
+	_browser_scroll_value = 0
+	_selected_slot = ""
+	_selected_equipment_uid = -1
+	_hide_equipment_hover_popup()
+	refresh()
+
+
+func _close_equipment_dialog() -> void:
+	_remember_browser_scroll()
+	_selected_equipment_uid = -1
+	if _equipment_dialog != null and is_instance_valid(_equipment_dialog):
+		_equipment_dialog.queue_free()
+	_equipment_dialog = null
+
+
+func _equip_selected_equipment() -> void:
+	if _selected_slot.is_empty() or _selected_equipment_uid <= 0:
+		return
+	_remember_browser_scroll()
+	GameManager.equip_equipment_to_hero(_selected_hero_uid, _selected_slot, _selected_equipment_uid)
+
+
+func _unequip_selected_hero_slot() -> void:
+	if _selected_slot.is_empty():
+		return
+	_remember_browser_scroll()
+	GameManager.unequip_hero_slot(_selected_hero_uid, _selected_slot)
+
+
+func _show_equipment_hover_popup(equipment_uid: int) -> void:
+	if _hover_popup == null or not is_instance_valid(_hover_popup) or _hover_popup_body == null or not is_instance_valid(_hover_popup_body):
+		return
+	var equipment_entry := _get_inventory_equipment_entry(equipment_uid)
+	if equipment_entry.is_empty():
+		return
+	_clear_container(_hover_popup_body)
+	var definition := DataLoader.get_equipment_definition(String(equipment_entry.get("definition_id", "")))
+	var title := _make_tooltip_label(String(definition.get("name", "Unknown Equipment")), 16, Color("fff4e4"), true)
+	_hover_popup_body.add_child(title)
+	var combat_values := _as_dictionary(_as_dictionary(definition.get("bonuses", {})).get("stats", {}))
+	var work_values := _as_dictionary(_as_dictionary(definition.get("bonuses", {})).get("work_stats", {}))
+	_hover_popup_body.add_child(_make_tooltip_bonus_section("Combat", combat_values, Color("c77265")))
+	_hover_popup_body.add_child(_make_tooltip_bonus_section("Work", work_values, Color("7fa283")))
+	_set_mouse_filter_recursive(_hover_popup, Control.MOUSE_FILTER_IGNORE)
+	_hover_popup_body.update_minimum_size()
+	var popup_size := _get_equipment_hover_popup_size()
+	_hover_popup.custom_minimum_size = popup_size
+	_hover_popup.size = popup_size
+	_position_equipment_hover_popup()
+	_hover_popup.visible = true
+
+
+func _hide_equipment_hover_popup() -> void:
+	if _hover_popup == null or not is_instance_valid(_hover_popup):
+		return
+	_hover_popup.visible = false
+
+
+func _position_equipment_hover_popup() -> void:
+	if _hover_popup == null or not is_instance_valid(_hover_popup):
+		return
+	var panel_rect := _context_panel.get_global_rect()
+	var mouse_pos: Vector2 = _context_panel.get_viewport().get_mouse_position()
+	var popup_size := _hover_popup.size
+	if popup_size == Vector2.ZERO:
+		popup_size = _get_equipment_hover_popup_size()
+	var desired_pos := mouse_pos + Vector2(14, 14)
+	if desired_pos.x + popup_size.x > panel_rect.position.x + panel_rect.size.x - 8.0:
+		desired_pos.x = mouse_pos.x - popup_size.x - 14.0
+	if desired_pos.y + popup_size.y > panel_rect.position.y + panel_rect.size.y - 8.0:
+		desired_pos.y = panel_rect.position.y + panel_rect.size.y - popup_size.y - 8.0
+	desired_pos.x = clampf(desired_pos.x, panel_rect.position.x + 8.0, max(panel_rect.position.x + 8.0, panel_rect.position.x + panel_rect.size.x - popup_size.x - 8.0))
+	desired_pos.y = clampf(desired_pos.y, panel_rect.position.y + 8.0, max(panel_rect.position.y + 8.0, panel_rect.position.y + panel_rect.size.y - popup_size.y - 8.0))
+	_hover_popup.global_position = desired_pos
+	_hover_popup.size = popup_size
+
+
+func _get_equipment_hover_popup_size() -> Vector2:
+	if _hover_popup_body == null or not is_instance_valid(_hover_popup_body):
+		return Vector2(280, 180)
+	var content_size := _hover_popup_body.get_combined_minimum_size()
+	var width := clampf(content_size.x + 20.0, 280.0, 420.0)
+	var height := clampf(content_size.y + 20.0, 140.0, 360.0)
+	return Vector2(width, height)
+
+
+func _remember_browser_scroll() -> void:
+	if _equipment_list_scroll == null or not is_instance_valid(_equipment_list_scroll):
+		return
+	_browser_scroll_value = _equipment_list_scroll.scroll_vertical
+
+
+func _restore_browser_scroll() -> void:
+	if _equipment_list_scroll == null or not is_instance_valid(_equipment_list_scroll):
+		return
+	_equipment_list_scroll.scroll_vertical = _browser_scroll_value
+
+
+func _get_selected_hero() -> Dictionary:
+	for hero_data in _heroes_snapshot:
+		var hero := _as_dictionary(hero_data)
+		if int(hero.get("uid", -1)) == _selected_hero_uid:
+			return hero.duplicate(true)
+	return {}
+
+
+func _hero_source_text(hero_data: Dictionary) -> String:
+	var source := String(hero_data.get("source", "core"))
+	if source == "mod":
+		var mod_id := String(hero_data.get("mod_id", "")).strip_edges()
+		return "Mod: %s" % (mod_id if not mod_id.is_empty() else "Unknown")
+	return "Core"
+
+
+func _hero_slot_equipment_uid(hero_data: Dictionary, slot_key: String) -> int:
+	return int(String(_as_dictionary(hero_data.get("equipment", {})).get(slot_key, "")).strip_edges())
+
+
+func _get_inventory_equipment_entries_for_slot(slot_key: String) -> Array:
+	var entries: Array = []
+	for equipment_entry in _as_array(_inventory_snapshot.get("equipment", [])):
+		if equipment_entry is not Dictionary:
+			continue
+		var definition := DataLoader.get_equipment_definition(String((equipment_entry as Dictionary).get("definition_id", "")))
+		if String(definition.get("slot", "")) == slot_key:
+			entries.append((equipment_entry as Dictionary).duplicate(true))
+	return entries
+
+
+func _get_inventory_equipment_entry(equipment_uid: int) -> Dictionary:
+	for equipment_entry in _as_array(_inventory_snapshot.get("equipment", [])):
+		if equipment_entry is Dictionary and int((equipment_entry as Dictionary).get("uid", -1)) == equipment_uid:
+			return (equipment_entry as Dictionary).duplicate(true)
+	return {}
+
+
+func _hero_name_by_uid(hero_uid: int) -> String:
+	for hero_data in _heroes_snapshot:
+		var hero := _as_dictionary(hero_data)
+		if int(hero.get("uid", -1)) == hero_uid:
+			return String(hero.get("name", "Unknown Hero"))
+	return "Unknown Hero"
+
+
+func _equipment_owner_text(equipment_entry: Dictionary) -> String:
+	var owner_uid := int(equipment_entry.get("equipped_hero_uid", -1))
+	if owner_uid <= 0:
+		return "Stored in inventory."
+	return _hero_name_by_uid(owner_uid)
+
+
+func _equipment_owner_short_text(equipment_entry: Dictionary) -> String:
+	var owner_uid := int(equipment_entry.get("equipped_hero_uid", -1))
+	return "Equipped" if owner_uid > 0 else ""
+
+
+func _is_selected_equipment_already_equipped(equipment_entry: Dictionary, hero_uid: int, slot_key: String) -> bool:
+	return int(equipment_entry.get("equipped_hero_uid", -1)) == hero_uid and String(equipment_entry.get("equipped_slot", "")) == slot_key
+
+
+func _equipment_slot_label(slot_key: String) -> String:
+	match slot_key:
+		"head":
+			return "Head"
+		"chest":
+			return "Chest"
+		"gloves":
+			return "Gloves"
+		"boots":
+			return "Boots"
+		"amulet":
+			return "Amulet"
+		"ring_1":
+			return "Ring 1"
+		_:
+			return slot_key.capitalize()
+
+
+func _make_hero_info_section(title: String, rows: Array, accent_color: Color) -> PanelContainer:
+	var panel := PanelContainer.new()
+	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var stylebox := StyleBoxFlat.new()
+	stylebox.bg_color = Color("141113")
+	stylebox.border_color = accent_color.darkened(0.25)
+	stylebox.set_border_width_all(2)
+	stylebox.set_corner_radius_all(10)
+	stylebox.content_margin_left = 12
+	stylebox.content_margin_top = 12
+	stylebox.content_margin_right = 12
+	stylebox.content_margin_bottom = 12
+	panel.add_theme_stylebox_override("panel", stylebox)
+	var body := VBoxContainer.new()
+	body.add_theme_constant_override("separation", 8)
+	panel.add_child(body)
+	var header := UIScreenHelpers.make_label(title, 18)
+	header.add_theme_color_override("font_color", accent_color)
+	body.add_child(header)
+	for row_data in rows:
+		var row := HBoxContainer.new()
+		row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_theme_constant_override("separation", 12)
+		body.add_child(row)
+		var label := UIScreenHelpers.make_label(String((row_data as Dictionary).get("label", "")), 14)
+		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		label.add_theme_color_override("font_color", Color("bfb1a2"))
+		row.add_child(label)
+		var value := UIScreenHelpers.make_label(String((row_data as Dictionary).get("value", "")), 15)
+		value.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		value.add_theme_color_override("font_color", Color("fff6ea"))
+		row.add_child(value)
+	return panel
+
+
+func _build_inventory_tile_content(parent: Control, definition: Dictionary, footer_text: String, footer_color: Color, title_color: Color, icon_size: int, title_font_size: int, footer_font_size: int, title_override: String = "") -> void:
+	var body := VBoxContainer.new()
+	body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	body.add_theme_constant_override("separation", 8)
+	body.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	parent.add_child(body)
+	var name_label := UIScreenHelpers.make_label(title_override if not title_override.is_empty() else String(definition.get("name", "Unknown")), title_font_size)
+	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	name_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	name_label.add_theme_color_override("font_color", title_color)
+	name_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	body.add_child(name_label)
+	var icon_holder := CenterContainer.new()
+	icon_holder.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	icon_holder.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	icon_holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	body.add_child(icon_holder)
+	var icon := TextureRect.new()
+	icon.custom_minimum_size = Vector2(icon_size, icon_size)
+	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	icon.texture = _load_texture_from_path(String(definition.get("icon_path", DataLoader.DEFAULT_CATALOG_ICON)))
+	if icon.texture == null:
+		icon.texture = _load_texture_from_path(DataLoader.DEFAULT_CATALOG_ICON)
+	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	icon_holder.add_child(icon)
+	var footer_label := UIScreenHelpers.make_label(footer_text, footer_font_size)
+	footer_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	footer_label.add_theme_color_override("font_color", footer_color)
+	footer_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	body.add_child(footer_label)
+
+
+func _make_bonus_section(title: String, values: Dictionary, accent_color: Color) -> PanelContainer:
+	var panel := PanelContainer.new()
+	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var stylebox := StyleBoxFlat.new()
+	stylebox.bg_color = Color("120f10")
+	stylebox.border_color = accent_color.darkened(0.2)
+	stylebox.set_border_width_all(1)
+	stylebox.set_corner_radius_all(8)
+	stylebox.content_margin_left = 10
+	stylebox.content_margin_top = 8
+	stylebox.content_margin_right = 10
+	stylebox.content_margin_bottom = 8
+	panel.add_theme_stylebox_override("panel", stylebox)
+	var body := VBoxContainer.new()
+	body.add_theme_constant_override("separation", 6)
+	panel.add_child(body)
+	var header := UIScreenHelpers.make_label(title, 15)
+	header.add_theme_color_override("font_color", accent_color)
+	body.add_child(header)
+	if values.is_empty():
+		var empty := UIScreenHelpers.make_label("none", 14)
+		empty.add_theme_color_override("font_color", Color("b9afa4"))
+		body.add_child(empty)
+		return panel
+	for key in values.keys():
+		var row := HBoxContainer.new()
+		row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		body.add_child(row)
+		var stat_label := UIScreenHelpers.make_label(String(key).capitalize().replace("_", " "), 14)
+		stat_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		stat_label.add_theme_color_override("font_color", Color("c8bcae"))
+		row.add_child(stat_label)
+		var value_label := UIScreenHelpers.make_label("%+d" % int(values[key]), 14)
+		value_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		value_label.add_theme_color_override("font_color", accent_color.lightened(0.15))
+		row.add_child(value_label)
+	return panel
+
+
+func _make_tooltip_bonus_section(title: String, values: Dictionary, accent_color: Color) -> PanelContainer:
+	var panel := PanelContainer.new()
+	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var stylebox := StyleBoxFlat.new()
+	stylebox.bg_color = Color("120f10")
+	stylebox.border_color = accent_color.darkened(0.2)
+	stylebox.set_border_width_all(1)
+	stylebox.set_corner_radius_all(8)
+	stylebox.content_margin_left = 10
+	stylebox.content_margin_top = 8
+	stylebox.content_margin_right = 10
+	stylebox.content_margin_bottom = 8
+	panel.add_theme_stylebox_override("panel", stylebox)
+	var body := VBoxContainer.new()
+	body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	body.add_theme_constant_override("separation", 6)
+	panel.add_child(body)
+	var header := _make_tooltip_label(title, 15, accent_color, true)
+	header.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	body.add_child(header)
+	if values.is_empty():
+		var empty := _make_tooltip_label("none", 14, Color("b9afa4"), false)
+		empty.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		body.add_child(empty)
+		return panel
+	for key in values.keys():
+		var row := HBoxContainer.new()
+		row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_theme_constant_override("separation", 10)
+		body.add_child(row)
+		var stat_label := _make_tooltip_label(String(key).capitalize().replace("_", " "), 14, Color("c8bcae"), false)
+		stat_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		stat_label.clip_text = true
+		row.add_child(stat_label)
+		var value_label := _make_tooltip_label("%+d" % int(values[key]), 14, accent_color.lightened(0.15), true)
+		value_label.custom_minimum_size = Vector2(34, 0)
+		value_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		row.add_child(value_label)
+	panel.update_minimum_size()
+	return panel
+
+
+func _make_tooltip_label(text: String, font_size: int, color: Color, accent: bool) -> Label:
+	var label := Label.new()
+	label.text = text
+	label.autowrap_mode = TextServer.AUTOWRAP_OFF
+	label.size_flags_horizontal = Control.SIZE_FILL
+	_style_label(label, font_size, accent)
+	label.add_theme_color_override("font_color", color)
+	return label
+
+
+func _set_mouse_filter_recursive(node: Node, filter_mode: Control.MouseFilter) -> void:
+	if node is Control:
+		(node as Control).mouse_filter = filter_mode
+	for child in node.get_children():
+		_set_mouse_filter_recursive(child, filter_mode)
+
+
+func _on_back_pressed() -> void:
+	emit_signal("back_requested")
+
+
+func _reset_local_state() -> void:
+	_hero_detail_tab = HERO_TAB_INFO
+	_selected_slot = ""
+	_selected_equipment_uid = -1
+	_browser_root = null
+	_equipment_list_scroll = null
+	_browser_scroll_value = 0
+	_hover_popup = null
+	_hover_popup_body = null
+	_equipment_dialog = null
+	_equipment_slots_grid = null
+	_dismiss_confirm_uid = -1
+	_equipment_tiles.clear()
+
+
+func _style_shell() -> void:
+	_style_panel(_context_panel, Color("161214"), Color("675042"), 10)
+	_style_panel(_name_bar, Color("1d1719"), Color("7c5f4d"), 10)
+	_style_panel(_tab_panel, Color("181416"), Color("675042"), 10)
+	_style_label(_hero_name_label, 28, true)
+	_style_button(_back_button)
+
+
+func _make_button(text: String, callback: Callable, disabled: bool) -> Button:
+	var button := Button.new()
+	button.text = text
+	button.disabled = disabled
+	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_style_button(button)
+	button.pressed.connect(callback)
+	return button
+
+
+func _make_small_nav_button(text: String, callback: Callable) -> Button:
+	var button := Button.new()
+	button.text = text
+	button.custom_minimum_size = Vector2(116, 30)
+	button.size_flags_horizontal = Control.SIZE_SHRINK_END
+	button.add_theme_font_size_override("font_size", 12)
+	button.add_theme_color_override("font_color", Color("e9dfd2"))
+	button.add_theme_color_override("font_hover_color", Color("f7efe3"))
+	button.add_theme_color_override("font_pressed_color", Color("fff1dc"))
+	button.add_theme_color_override("font_disabled_color", Color("96897f"))
+	button.add_theme_stylebox_override("normal", _button_style(Color("130f10"), Color("5e4a3d"), 6))
+	button.add_theme_stylebox_override("hover", _button_style(Color("1b1516"), Color("876850"), 6))
+	button.add_theme_stylebox_override("pressed", _button_style(Color("241c1b"), Color("a17d5c"), 6))
+	button.add_theme_stylebox_override("disabled", _button_style(Color("100d0e"), Color("433734"), 6))
+	button.pressed.connect(callback)
+	return button
+
+
+func _make_danger_button(text: String, callback: Callable) -> Button:
+	var button := _make_small_nav_button(text, callback)
+	button.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	button.add_theme_color_override("font_color", Color("f2d8d4"))
+	button.add_theme_color_override("font_hover_color", Color("fff0ed"))
+	button.add_theme_color_override("font_pressed_color", Color("fff7f5"))
+	button.add_theme_stylebox_override("normal", _button_style(Color("2a1415"), Color("8a4c49"), 6))
+	button.add_theme_stylebox_override("hover", _button_style(Color("34191a"), Color("b76558"), 6))
+	button.add_theme_stylebox_override("pressed", _button_style(Color("421d1d"), Color("d17a6d"), 6))
+	button.add_theme_stylebox_override("disabled", _button_style(Color("1a1011"), Color("4a2f31"), 6))
+	return button
+
+
+func _clear_container(container: Node) -> void:
+	UIScreenHelpers.clear_container(container)
+
+
+func _clear_container_immediately(container: Node) -> void:
+	for child in container.get_children():
+		container.remove_child(child)
+		child.queue_free()
+
+
+func _as_array(value: Variant) -> Array:
+	return UIScreenHelpers.as_array(value)
+
+
+func _as_dictionary(value: Variant) -> Dictionary:
+	return UIScreenHelpers.as_dictionary(value)
+
+
+func _load_hero_texture(hero_data: Dictionary) -> Texture2D:
+	var hero_definition: Dictionary = DataLoader.get_hero_definition(String(hero_data.get("definition_id", "")))
+	var portrait_path := String(hero_definition.get("portrait_path", ""))
+	var icon_path := String(hero_definition.get("icon_path", ""))
+	var resolved_path := portrait_path
+	if resolved_path.is_empty() or resolved_path == DataLoader.DEFAULT_HERO_IMAGE:
+		if not icon_path.is_empty() and icon_path != DataLoader.DEFAULT_HERO_IMAGE:
+			resolved_path = icon_path
+	if resolved_path.is_empty():
+		resolved_path = DataLoader.DEFAULT_HERO_IMAGE
+	var texture := _load_texture_from_path(resolved_path)
+	if texture != null:
+		return texture
+	return _load_texture_from_path(DataLoader.DEFAULT_HERO_IMAGE)
+
+
+func _load_texture_from_path(path: String) -> Texture2D:
+	if path.is_empty():
+		return null
+	if path.begins_with("res://"):
+		if ResourceLoader.exists(path):
+			return load(path)
+		return null
+	if path.begins_with("user://") or path.is_absolute_path():
+		if not FileAccess.file_exists(path):
+			return null
+		var image := Image.new()
+		if image.load(path) != OK:
+			return null
+		return ImageTexture.create_from_image(image)
+	return null
+
+
+func _style_panel(panel: Control, bg_color: Color, border_color: Color, corner_radius: int) -> void:
+	var stylebox := StyleBoxFlat.new()
+	stylebox.bg_color = bg_color
+	stylebox.border_color = border_color
+	stylebox.set_border_width_all(2)
+	stylebox.set_corner_radius_all(corner_radius)
+	stylebox.content_margin_left = 10
+	stylebox.content_margin_top = 10
+	stylebox.content_margin_right = 10
+	stylebox.content_margin_bottom = 10
+	panel.add_theme_stylebox_override("panel", stylebox)
+
+
+func _style_button(button: Button) -> void:
+	button.add_theme_font_size_override("font_size", 17)
+	button.add_theme_color_override("font_color", Color("faf5ef"))
+	button.add_theme_color_override("font_hover_color", Color("fffaf4"))
+	button.add_theme_color_override("font_pressed_color", Color("fff0dc"))
+	button.add_theme_color_override("font_disabled_color", Color("9d9287"))
+	button.add_theme_stylebox_override("normal", _button_style(Color("171315"), Color("6f5648"), 7))
+	button.add_theme_stylebox_override("hover", _button_style(Color("261d1d"), Color("a88563"), 7))
+	button.add_theme_stylebox_override("pressed", _button_style(Color("362925"), Color("d0a170"), 7))
+	button.add_theme_stylebox_override("disabled", _button_style(Color("121012"), Color("4c3e3a"), 7))
+
+
+func _style_label(label: Label, font_size: int, accent: bool) -> void:
+	label.add_theme_font_size_override("font_size", font_size)
+	label.add_theme_color_override("font_color", Color("fff9f1") if accent else Color("efe7db"))
+
+
+func _button_style(bg_color: Color, border_color: Color, corner_radius: int) -> StyleBoxFlat:
+	var stylebox := StyleBoxFlat.new()
+	stylebox.bg_color = bg_color
+	stylebox.border_color = border_color
+	stylebox.set_border_width_all(2)
+	stylebox.set_corner_radius_all(corner_radius)
+	stylebox.content_margin_left = 10
+	stylebox.content_margin_top = 8
+	stylebox.content_margin_right = 10
+	stylebox.content_margin_bottom = 8
+	return stylebox
