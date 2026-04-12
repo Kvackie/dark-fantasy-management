@@ -6,6 +6,7 @@ const BUILDINGS_PATH := "res://data/buildings.json"
 const SETTLEMENTS_PATH := "res://data/settlements.json"
 const UI_TEXT_PATH := "res://data/ui_text.json"
 const WORLD_CONFIG_PATH := "res://data/world.json"
+const RECRUITMENT_CONFIG_PATH := "res://data/recruitment.json"
 const HEROES_PATH := "res://data/heroes.json"
 const ITEMS_PATH := "res://data/items.json"
 const EQUIPMENT_PATH := "res://data/equipment.json"
@@ -44,6 +45,7 @@ var building_definitions: Dictionary = {}
 var settlement_definitions: Dictionary = {}
 var ui_texts: Dictionary = {}
 var world_config: Dictionary = {}
+var recruitment_config: Dictionary = {}
 var hero_definitions: Dictionary = {}
 var item_definitions: Dictionary = {}
 var equipment_definitions: Dictionary = {}
@@ -63,6 +65,7 @@ func reload_data() -> void:
 	settlement_definitions.clear()
 	ui_texts.clear()
 	world_config.clear()
+	recruitment_config.clear()
 	hero_definitions.clear()
 	item_definitions.clear()
 	equipment_definitions.clear()
@@ -73,6 +76,7 @@ func reload_data() -> void:
 
 	_load_ui_texts()
 	_load_world_config()
+	_load_recruitment_config()
 	_load_settlements()
 	_load_buildings()
 	_ensure_mod_roots()
@@ -100,6 +104,10 @@ func get_ui_text(key: String, replacements: Dictionary = {}, fallback: String = 
 
 func get_world_config() -> Dictionary:
 	return world_config.duplicate(true)
+
+
+func get_recruitment_config() -> Dictionary:
+	return recruitment_config.duplicate(true)
 
 
 func get_world_zone_override(zone_key: String) -> Dictionary:
@@ -298,6 +306,12 @@ func _load_world_config() -> void:
 	var payload: Dictionary = _load_json(WORLD_CONFIG_PATH)
 	if payload.get("config", null) is Dictionary:
 		world_config = (payload["config"] as Dictionary).duplicate(true)
+
+
+func _load_recruitment_config() -> void:
+	var payload: Dictionary = _load_json(RECRUITMENT_CONFIG_PATH)
+	if payload.get("config", null) is Dictionary:
+		recruitment_config = (payload["config"] as Dictionary).duplicate(true)
 
 
 func _load_buildings() -> void:

@@ -10,9 +10,17 @@ signal save_slots_changed(slots)
 signal tick_processed(tick_count, production_delta)
 signal save_loaded(slot_index)
 signal world_changed(world_state)
+signal recruit_market_changed(market_state)
 
 const SettlementGameData = preload("res://scripts/game/settlement_game.gd")
 const SAVE_SLOT_MANIFEST_PATH := "user://save_slots_manifest.json"
+const RESOURCE_WORK_STAT_MAP := {
+	"food": "farming",
+	"wood": "lumbering",
+	"stone": "mining",
+	"crystals": "mining",
+}
+const WORK_STAT_PRODUCTION_BONUS_PER_POINT := 0.03
 
 var resources: Dictionary = {}
 var slots: Array = []
@@ -20,6 +28,8 @@ var settlement_states: Dictionary = {}
 var heroes: Array = []
 var inventory_items: Array = []
 var inventory_equipment: Array = []
+var recruit_market_offers: Array = []
+var recruit_market_initialized: bool = false
 var owned_settlement_ids: Array = []
 var active_settlement_id: String = ""
 var world_seed: int = 0
@@ -30,6 +40,7 @@ var tick_count: int = 0
 
 var _next_hero_uid: int = 1
 var _next_equipment_uid: int = 1
+var _next_recruit_offer_id: int = 1
 var _autosave_elapsed: float = 0.0
 var _tick_timer: Timer
 
@@ -59,6 +70,8 @@ func reset_new_game() -> void:
 	heroes = []
 	inventory_items = []
 	inventory_equipment = []
+	recruit_market_offers = []
+	recruit_market_initialized = false
 	owned_settlement_ids = []
 	var default_settlement_id := DataLoader.get_default_settlement_id()
 	if not default_settlement_id.is_empty():
@@ -71,16 +84,19 @@ func reset_new_game() -> void:
 	tick_count = 0
 	_next_hero_uid = 1
 	_next_equipment_uid = 1
+	_next_recruit_offer_id = 1
 	_initialize_world_state()
 	_seed_starting_inventory()
 
 
 func emit_state() -> void:
 	_sync_active_settlement_slots()
+	_reconcile_recruit_market_state(true)
 	emit_signal("resources_changed", get_resource_snapshot())
 	emit_signal("settlement_changed", get_slots_snapshot())
 	emit_signal("heroes_changed", get_heroes_snapshot())
 	emit_signal("inventory_changed", get_inventory_snapshot())
+	emit_signal("recruit_market_changed", get_recruit_market_snapshot())
 	emit_signal("active_settlement_changed", active_settlement_id)
 	emit_signal("world_changed", get_world_snapshot())
 	emit_signal("selection_changed", selected_slot)
@@ -118,6 +134,51 @@ func get_owned_settlement_definitions() -> Array:
 		if not definition.is_empty():
 			owned_definitions.append(definition)
 	return owned_definitions
+
+
+func get_recruit_market_snapshot() -> Dictionary:
+	return {
+		"unlocked": is_recruitment_unlocked(),
+		"tavern_count": get_built_tavern_count(),
+		"offer_capacity": get_recruit_offer_capacity(),
+		"refresh_cost": get_recruit_refresh_cost(),
+		"recruit_cost": get_recruit_cost(),
+		"initialized": recruit_market_initialized,
+		"offers": _duplicate_dict_array(recruit_market_offers),
+	}
+
+
+func is_recruitment_unlocked() -> bool:
+	return get_built_tavern_count() > 0
+
+
+func get_built_tavern_count() -> int:
+	var tavern_count := 0
+	for settlement_id in owned_settlement_ids:
+		for slot in _get_settlement_slots(String(settlement_id)):
+			if String((slot as Dictionary).get("building_id", "")) == "tavern":
+				tavern_count += 1
+	return tavern_count
+
+
+func get_recruit_offer_capacity() -> int:
+	var recruitment_config := DataLoader.get_recruitment_config()
+	var tavern_count := get_built_tavern_count()
+	if tavern_count <= 0:
+		return 0
+	var base_offer_count: int = max(1, int(recruitment_config.get("base_offer_count", 3)))
+	var extra_offer_per_tavern: int = max(0, int(recruitment_config.get("extra_offer_per_tavern", 1)))
+	return base_offer_count + max(tavern_count - 1, 0) * extra_offer_per_tavern
+
+
+func get_recruit_refresh_cost() -> Dictionary:
+	var recruitment_config := DataLoader.get_recruitment_config()
+	return SettlementGameData.resource_list_to_dictionary(_as_array(recruitment_config.get("refresh_cost", [])))
+
+
+func get_recruit_cost() -> Dictionary:
+	var recruitment_config := DataLoader.get_recruitment_config()
+	return SettlementGameData.resource_list_to_dictionary(_as_array(recruitment_config.get("recruit_cost", [])))
 
 
 func get_settlement_slots_snapshot(settlement_id: String) -> Array:
@@ -460,24 +521,50 @@ func unassign_hero(hero_uid: int) -> bool:
 	return true
 
 
-func recruit_random_hero(slot_index: int) -> Dictionary:
-	var definition: Dictionary = get_slot_building_definition(slot_index)
-	if String(definition.get("id", "")) != "tavern":
+func refresh_recruit_offers() -> bool:
+	if not is_recruitment_unlocked():
+		return false
+	var refresh_cost := get_recruit_refresh_cost()
+	if not apply_cost(refresh_cost):
+		return false
+	recruit_market_offers = _generate_recruit_offer_batch(get_recruit_offer_capacity())
+	recruit_market_initialized = true
+	_emit_recruit_market_state(true)
+	return true
+
+
+func recruit_hero_from_offer(offer_id: int) -> Dictionary:
+	var offer_index := _find_recruit_offer_index(offer_id)
+	if offer_index == -1:
 		return {}
-	var recruit_cost: Dictionary = SettlementGameData.resource_list_to_dictionary(_as_array(definition.get("recruit_cost", [])))
-	if not can_afford(recruit_cost):
-		return {}
-	var hero_definition: Dictionary = _roll_hero_definition()
-	if hero_definition.is_empty():
-		return {}
+	var recruit_cost := get_recruit_cost()
 	if not apply_cost(recruit_cost):
 		return {}
-	var hero_instance: Dictionary = _create_hero_instance(hero_definition)
+	var offer_data: Dictionary = recruit_market_offers[offer_index]
+	var hero_instance := _create_hero_instance_from_offer(offer_data)
 	heroes.append(hero_instance)
+	recruit_market_offers.remove_at(offer_index)
 	emit_signal("heroes_changed", get_heroes_snapshot())
-	emit_signal("resources_changed", get_resource_snapshot())
+	emit_signal("recruit_market_changed", get_recruit_market_snapshot())
 	save_game(active_save_slot)
 	return hero_instance.duplicate(true)
+
+
+func dismiss_hero(hero_uid: int) -> bool:
+	var hero_index := _find_hero_index(hero_uid)
+	if hero_index == -1:
+		return false
+	_remove_hero_from_all_slots(hero_uid)
+	_unequip_all_hero_equipment(hero_index)
+	var world_changed := _remove_hero_from_world_tasks(hero_uid)
+	heroes.remove_at(hero_index)
+	emit_signal("heroes_changed", get_heroes_snapshot())
+	emit_signal("settlement_changed", get_slots_snapshot())
+	emit_signal("inventory_changed", get_inventory_snapshot())
+	if world_changed:
+		emit_signal("world_changed", get_world_snapshot())
+	save_game(active_save_slot)
+	return true
 
 
 func debug_grant_all_resources() -> void:
@@ -740,6 +827,8 @@ func _serialize_state() -> Dictionary:
 		"heroes": get_heroes_snapshot(),
 		"inventory_items": _duplicate_dict_array(inventory_items),
 		"inventory_equipment": _duplicate_dict_array(inventory_equipment),
+		"recruit_market_offers": _duplicate_dict_array(recruit_market_offers),
+		"recruit_market_initialized": recruit_market_initialized,
 		"owned_settlement_ids": owned_settlement_ids.duplicate(),
 		"active_settlement_id": active_settlement_id,
 		"world_seed": world_seed,
@@ -748,6 +837,7 @@ func _serialize_state() -> Dictionary:
 		"tick_count": tick_count,
 		"next_hero_uid": _next_hero_uid,
 		"next_equipment_uid": _next_equipment_uid,
+		"next_recruit_offer_id": _next_recruit_offer_id,
 	}
 
 
@@ -761,6 +851,8 @@ func _apply_loaded_state(data: Dictionary) -> void:
 			heroes.append(_normalize_loaded_hero((hero as Dictionary).duplicate(true)))
 	inventory_items = _normalize_loaded_item_stacks(data.get("inventory_items", []))
 	inventory_equipment = _normalize_loaded_equipment_instances(data.get("inventory_equipment", []))
+	recruit_market_offers = _normalize_loaded_recruit_market_offers(data.get("recruit_market_offers", []))
+	recruit_market_initialized = bool(data.get("recruit_market_initialized", data.has("recruit_market_offers"))) or not recruit_market_offers.is_empty()
 	_reconcile_loaded_equipment_links()
 	world_seed = int(data.get("world_seed", randi()))
 	world_zones = _normalize_loaded_world_zones(data.get("world_zones", {}))
@@ -817,17 +909,23 @@ func _apply_loaded_state(data: Dictionary) -> void:
 	tick_count = int(data.get("tick_count", 0))
 	_next_hero_uid = max(int(data.get("next_hero_uid", heroes.size() + 1)), _get_max_hero_uid() + 1)
 	_next_equipment_uid = max(int(data.get("next_equipment_uid", inventory_equipment.size() + 1)), _get_max_equipment_uid() + 1)
+	_next_recruit_offer_id = max(int(data.get("next_recruit_offer_id", recruit_market_offers.size() + 1)), _get_max_recruit_offer_id() + 1)
+	_reconcile_recruit_market_state(not data.has("recruit_market_offers"))
 
 
 func _emit_settlement_state(should_save: bool) -> void:
+	_reconcile_recruit_market_state(true)
 	emit_signal("settlement_changed", get_slots_snapshot())
+	emit_signal("recruit_market_changed", get_recruit_market_snapshot())
 	if should_save:
 		save_game(active_save_slot)
 
 
 func _emit_hero_and_settlement_state(should_save: bool) -> void:
+	_reconcile_recruit_market_state(true)
 	emit_signal("heroes_changed", get_heroes_snapshot())
 	emit_signal("settlement_changed", get_slots_snapshot())
+	emit_signal("recruit_market_changed", get_recruit_market_snapshot())
 	if should_save:
 		save_game(active_save_slot)
 
@@ -835,6 +933,12 @@ func _emit_hero_and_settlement_state(should_save: bool) -> void:
 func _emit_hero_and_inventory_state(should_save: bool) -> void:
 	emit_signal("heroes_changed", get_heroes_snapshot())
 	emit_signal("inventory_changed", get_inventory_snapshot())
+	if should_save:
+		save_game(active_save_slot)
+
+
+func _emit_recruit_market_state(should_save: bool) -> void:
+	emit_signal("recruit_market_changed", get_recruit_market_snapshot())
 	if should_save:
 		save_game(active_save_slot)
 
@@ -915,18 +1019,146 @@ func _calculate_slot_production(slot: Dictionary) -> Dictionary:
 	if definition.is_empty():
 		return {}
 	var production_delta: Dictionary = {}
-	var multiplier: float = 1.0
-	multiplier += float(max(int(slot.get("level", 1)) - 1, 0)) * float(definition.get("upgrade_growth", 0.0))
+	var level_multiplier: float = 1.0
+	level_multiplier += float(max(int(slot.get("level", 1)) - 1, 0)) * float(definition.get("upgrade_growth", 0.0))
 	for entry in _as_array(definition.get("base_production", [])):
 		if entry is Dictionary and entry.has("resource"):
 			var base_amount: float = float(entry.get("amount", 0))
-			var total_amount: int = int(round(base_amount * multiplier))
+			var resource_id := String(entry.resource)
+			var work_multiplier := 1.0 + (_get_slot_total_relevant_work(slot, resource_id) * WORK_STAT_PRODUCTION_BONUS_PER_POINT)
+			var total_amount: int = int(round(base_amount * level_multiplier * work_multiplier))
 			production_delta[String(entry.resource)] = total_amount
 	return production_delta
 
 
+func _get_slot_total_relevant_work(slot: Dictionary, resource_id: String) -> int:
+	var work_stat_key := String(RESOURCE_WORK_STAT_MAP.get(resource_id, "")).strip_edges()
+	if work_stat_key.is_empty():
+		return 0
+	var total_relevant_work := 0
+	for hero_uid in _normalize_int_array(slot.get("assigned_hero_ids", [])):
+		var effective_work_stats := get_hero_effective_work_stats(hero_uid)
+		total_relevant_work += int(effective_work_stats.get(work_stat_key, 0))
+	return total_relevant_work
+
+
+func _reconcile_recruit_market_state(seed_offers_if_unlocked: bool) -> bool:
+	if _next_recruit_offer_id < 1:
+		_next_recruit_offer_id = 1
+	if not is_recruitment_unlocked():
+		return false
+	var market_changed := false
+	if not recruit_market_offers.is_empty():
+		recruit_market_initialized = true
+	if seed_offers_if_unlocked and not recruit_market_initialized and recruit_market_offers.is_empty():
+		recruit_market_offers = _generate_recruit_offer_batch(get_recruit_offer_capacity())
+		recruit_market_initialized = true
+		market_changed = true
+	if recruit_market_initialized and recruit_market_offers.size() < get_recruit_offer_capacity():
+		recruit_market_offers.append_array(_generate_recruit_offer_batch_with_exclusions(get_recruit_offer_capacity() - recruit_market_offers.size(), _get_recruit_offer_definition_ids()))
+		market_changed = true
+	return market_changed
+
+
+func _generate_recruit_offer_batch(offer_count: int) -> Array:
+	return _generate_recruit_offer_batch_with_exclusions(offer_count, [])
+
+
+func _generate_recruit_offer_batch_with_exclusions(offer_count: int, excluded_definition_ids: Array) -> Array:
+	var offers: Array = []
+	var hero_pool: Array = DataLoader.get_all_heroes()
+	if offer_count <= 0 or hero_pool.is_empty():
+		return offers
+	var used_definition_ids: Dictionary = {}
+	for definition_id in excluded_definition_ids:
+		used_definition_ids[String(definition_id)] = true
+	while offers.size() < offer_count:
+		var weighted_pool: Array = []
+		for entry in hero_pool:
+			var hero_definition: Dictionary = entry
+			var definition_id := String(hero_definition.get("id", ""))
+			if used_definition_ids.has(definition_id):
+				continue
+			weighted_pool.append(hero_definition)
+		if weighted_pool.is_empty():
+			weighted_pool = hero_pool
+		var selected_definition := _roll_weighted_hero_definition(weighted_pool)
+		if selected_definition.is_empty():
+			break
+		offers.append(_create_recruit_offer(selected_definition))
+		used_definition_ids[String(selected_definition.get("id", ""))] = true
+	return offers
+
+
+func _get_recruit_offer_definition_ids() -> Array:
+	var definition_ids: Array = []
+	for offer_entry in recruit_market_offers:
+		var offer_data: Dictionary = offer_entry
+		var definition_id := String(offer_data.get("definition_id", "")).strip_edges()
+		if definition_id.is_empty():
+			continue
+		definition_ids.append(definition_id)
+	return definition_ids
+
+
+func _find_recruit_offer_index(offer_id: int) -> int:
+	for offer_index in range(recruit_market_offers.size()):
+		var offer_data: Dictionary = recruit_market_offers[offer_index]
+		if int(offer_data.get("offer_id", -1)) == offer_id:
+			return offer_index
+	return -1
+
+
+func _unequip_all_hero_equipment(hero_index: int) -> void:
+	if hero_index < 0 or hero_index >= heroes.size():
+		return
+	var hero_data: Dictionary = heroes[hero_index]
+	var hero_equipment := _as_dictionary(hero_data.get("equipment", {})).duplicate(true)
+	if hero_equipment.is_empty():
+		hero_equipment = DataLoader.create_empty_hero_equipment()
+	for slot_key in DataLoader.HERO_EQUIPMENT_KEYS:
+		var equipment_uid := int(String(hero_equipment.get(slot_key, "")).strip_edges())
+		if equipment_uid <= 0:
+			hero_equipment[slot_key] = ""
+			continue
+		var equipment_index := _find_inventory_equipment_index(equipment_uid)
+		if equipment_index != -1:
+			var equipment_instance: Dictionary = inventory_equipment[equipment_index]
+			equipment_instance["equipped_hero_uid"] = -1
+			equipment_instance["equipped_slot"] = ""
+			inventory_equipment[equipment_index] = equipment_instance
+		hero_equipment[slot_key] = ""
+	hero_data["equipment"] = hero_equipment
+	heroes[hero_index] = hero_data
+
+
+func _remove_hero_from_world_tasks(hero_uid: int) -> bool:
+	var world_changed := false
+	for zone_key in world_zones.keys():
+		var zone := _as_dictionary(world_zones.get(zone_key, {})).duplicate(true)
+		var assigned_ids := _normalize_int_array(zone.get("assigned_hero_uids", []))
+		if not assigned_ids.has(hero_uid):
+			continue
+		var remaining_ids: Array = []
+		for assigned_id in assigned_ids:
+			if int(assigned_id) != hero_uid:
+				remaining_ids.append(int(assigned_id))
+		zone["assigned_hero_uids"] = remaining_ids
+		if String(zone.get("state", "")) == "clearing" and remaining_ids.is_empty():
+			zone["state"] = "discovered"
+			zone["ticks_remaining"] = 0
+		world_zones[zone_key] = zone
+		world_changed = true
+	if world_changed:
+		_apply_world_visibility()
+	return world_changed
+
+
 func _roll_hero_definition() -> Dictionary:
-	var roster: Array = DataLoader.get_all_heroes()
+	return _roll_weighted_hero_definition(DataLoader.get_all_heroes())
+
+
+func _roll_weighted_hero_definition(roster: Array) -> Dictionary:
 	if roster.is_empty():
 		return {}
 	var total_weight: int = 0
@@ -941,6 +1173,22 @@ func _roll_hero_definition() -> Dictionary:
 		if roll <= cursor:
 			return hero_data.duplicate(true)
 	return (roster[0] as Dictionary).duplicate(true)
+
+
+func _create_recruit_offer(hero_definition: Dictionary) -> Dictionary:
+	var offer_data: Dictionary = {
+		"offer_id": _next_recruit_offer_id,
+		"definition_id": String(hero_definition.get("id", "")),
+		"name": String(hero_definition.get("name", "Unknown Hero")),
+		"class": String(hero_definition.get("class", "Supporter")),
+		"level": clampi(int(hero_definition.get("level", 1)), 1, 9999),
+		"stats": _normalize_runtime_stats(hero_definition.get("stats", {}), DataLoader.DEFAULT_HERO_STATS),
+		"work_stats": _normalize_runtime_stats(hero_definition.get("work_stats", {}), DataLoader.DEFAULT_HERO_WORK_STATS),
+		"source": String(hero_definition.get("source", "core")),
+		"mod_id": String(hero_definition.get("mod_id", "")),
+	}
+	_next_recruit_offer_id += 1
+	return offer_data
 
 
 func _create_hero_instance(hero_definition: Dictionary) -> Dictionary:
@@ -958,6 +1206,26 @@ func _create_hero_instance(hero_definition: Dictionary) -> Dictionary:
 		"world_task": _create_idle_world_task(),
 		"source": String(hero_definition.get("source", "core")),
 		"mod_id": String(hero_definition.get("mod_id", "")),
+	}
+	_next_hero_uid += 1
+	return hero_instance
+
+
+func _create_hero_instance_from_offer(offer_data: Dictionary) -> Dictionary:
+	var hero_instance: Dictionary = {
+		"uid": _next_hero_uid,
+		"definition_id": String(offer_data.get("definition_id", "")),
+		"name": String(offer_data.get("name", "Unknown Hero")),
+		"class": String(offer_data.get("class", "Supporter")),
+		"assigned_settlement_id": "",
+		"assigned_slot": -1,
+		"level": clampi(int(offer_data.get("level", 1)), 1, 9999),
+		"stats": _normalize_runtime_stats(offer_data.get("stats", {}), DataLoader.DEFAULT_HERO_STATS),
+		"work_stats": _normalize_runtime_stats(offer_data.get("work_stats", {}), DataLoader.DEFAULT_HERO_WORK_STATS),
+		"equipment": DataLoader.create_empty_hero_equipment(),
+		"world_task": _create_idle_world_task(),
+		"source": String(offer_data.get("source", "core")),
+		"mod_id": String(offer_data.get("mod_id", "")),
 	}
 	_next_hero_uid += 1
 	return hero_instance
@@ -1141,6 +1409,32 @@ func _normalize_loaded_slots_array(value: Variant) -> Array:
 		slot_data["assigned_hero_ids"] = _normalize_int_array(slot_data.get("assigned_hero_ids", []))
 		normalized_slots[index] = slot_data
 	return normalized_slots
+
+
+func _normalize_loaded_recruit_market_offers(value: Variant) -> Array:
+	var normalized_offers: Array = []
+	if value is not Array:
+		return normalized_offers
+	for offer_entry in value:
+		if offer_entry is not Dictionary:
+			continue
+		var offer_data: Dictionary = (offer_entry as Dictionary).duplicate(true)
+		var definition_id := String(offer_data.get("definition_id", "")).strip_edges()
+		if definition_id.is_empty():
+			continue
+		var hero_definition := DataLoader.get_hero_definition(definition_id)
+		normalized_offers.append({
+			"offer_id": max(1, int(offer_data.get("offer_id", normalized_offers.size() + 1))),
+			"definition_id": definition_id,
+			"name": String(offer_data.get("name", hero_definition.get("name", "Unknown Hero"))),
+			"class": String(offer_data.get("class", hero_definition.get("class", "Supporter"))),
+			"level": clampi(int(offer_data.get("level", 1)), 1, 9999),
+			"stats": _normalize_runtime_stats(offer_data.get("stats", {}), hero_definition.get("stats", DataLoader.DEFAULT_HERO_STATS)),
+			"work_stats": _normalize_runtime_stats(offer_data.get("work_stats", {}), hero_definition.get("work_stats", DataLoader.DEFAULT_HERO_WORK_STATS)),
+			"source": String(offer_data.get("source", hero_definition.get("source", "core"))),
+			"mod_id": String(offer_data.get("mod_id", hero_definition.get("mod_id", ""))),
+		})
+	return normalized_offers
 
 
 func _reconcile_loaded_equipment_links() -> void:
@@ -1710,6 +2004,13 @@ func _get_max_equipment_uid() -> int:
 	for equipment_data in inventory_equipment:
 		max_uid = max(max_uid, int((equipment_data as Dictionary).get("uid", 0)))
 	return max_uid
+
+
+func _get_max_recruit_offer_id() -> int:
+	var max_offer_id := 0
+	for offer_data in recruit_market_offers:
+		max_offer_id = max(max_offer_id, int((offer_data as Dictionary).get("offer_id", 0)))
+	return max_offer_id
 
 
 func _as_array(value: Variant) -> Array:

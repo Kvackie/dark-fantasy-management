@@ -1,0 +1,15 @@
+{
+	"config": {
+		"base_offer_count": 3,
+		"extra_offer_per_tavern": 1,
+		"refresh_cost": [
+			{ "resource": "gold", "amount": 20 },
+			{ "resource": "food", "amount": 10 }
+		],
+		"recruit_cost": [
+			{ "resource": "food", "amount": 18 },
+			{ "resource": "gold", "amount": 25 },
+			{ "resource": "gems", "amount": 1 }
+		]
+	}
+}

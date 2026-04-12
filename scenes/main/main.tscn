@@ -78,6 +78,7 @@ layout_mode = 2
 text = "The Hollow March"
 
 [node name="SettlementScroll" type="ScrollContainer" parent="Shell/MainRow/SettlementPanel/SettlementMargin/SettlementColumn" unique_id=111111111]
+visible = false
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
@@ -90,13 +91,13 @@ theme_override_constants/v_separation = 8
 columns = 4
 
 [node name="PageRoot" type="VBoxContainer" parent="Shell/MainRow/SettlementPanel/SettlementMargin/SettlementColumn" unique_id=122222222]
-visible = false
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_override_constants/separation = 12
 
 [node name="PageTitle" type="Label" parent="Shell/MainRow/SettlementPanel/SettlementMargin/SettlementColumn/PageRoot" unique_id=133333333]
+visible = false
 layout_mode = 2
 text = "Page"
 
@@ -164,6 +165,11 @@ text = "World"
 [node name="OverviewButton" type="Button" parent="Shell/BottomBar/BottomBarMargin/NavRow" unique_id=791168205]
 layout_mode = 2
 text = "Settlements"
+
+[node name="RecruitButton" type="Button" parent="Shell/BottomBar/BottomBarMargin/NavRow" unique_id=182828282]
+visible = false
+layout_mode = 2
+text = "Recruit"
 
 [node name="HeroesButton" type="Button" parent="Shell/BottomBar/BottomBarMargin/NavRow" unique_id=1086629683]
 layout_mode = 2

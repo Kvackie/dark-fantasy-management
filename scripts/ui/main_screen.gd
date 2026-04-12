@@ -44,6 +44,7 @@ const WORK_STAT_COLORS := {
 @onready var _page_title: Label = get_node("Shell/MainRow/SettlementPanel/SettlementMargin/SettlementColumn/PageRoot/PageTitle")
 @onready var _page_scroll: ScrollContainer = get_node("Shell/MainRow/SettlementPanel/SettlementMargin/SettlementColumn/PageRoot/PageScroll")
 @onready var _page_content: VBoxContainer = get_node("Shell/MainRow/SettlementPanel/SettlementMargin/SettlementColumn/PageRoot/PageScroll/PageContent")
+@onready var _recruit_button: Button = get_node("Shell/BottomBar/BottomBarMargin/NavRow/RecruitButton")
 
 var _resource_badges: Dictionary = {}
 var _slot_widgets: Array = []
@@ -61,6 +62,7 @@ var _hero_detail_hover_popup: Control = null
 var _hero_detail_hover_popup_body: VBoxContainer = null
 var _hero_detail_equipment_dialog: Control = null
 var _hero_detail_equipment_slots_grid: GridContainer = null
+var _hero_detail_dismiss_confirm_uid: int = -1
 var _hero_detail_equipment_tiles: Dictionary = {}
 var _save_slot_labels: Dictionary = {}
 var _save_slot_name_inputs: Dictionary = {}
@@ -70,6 +72,7 @@ var _heroes_snapshot: Array = []
 var _inventory_snapshot: Dictionary = {"items": [], "equipment": []}
 var _resource_values: Dictionary = {}
 var _resource_yields: Dictionary = {}
+var _recruit_market_snapshot: Dictionary = {}
 
 
 func _ready() -> void:
@@ -88,6 +91,7 @@ func _ready() -> void:
 	else:
 		_selected_slot = GameManager.selected_slot
 	_sync_top_bar_yields_after_state_load()
+	_refresh_recruit_nav_visibility()
 
 
 func _configure_root_layout() -> void:
@@ -133,6 +137,7 @@ func _apply_theme() -> void:
 	var bottom_buttons: Array = [
 		get_node("Shell/BottomBar/BottomBarMargin/NavRow/WorldButton"),
 		get_node("Shell/BottomBar/BottomBarMargin/NavRow/OverviewButton"),
+		get_node("Shell/BottomBar/BottomBarMargin/NavRow/RecruitButton"),
 		get_node("Shell/BottomBar/BottomBarMargin/NavRow/HeroesButton"),
 		get_node("Shell/BottomBar/BottomBarMargin/NavRow/InventoryButton"),
 		get_node("Shell/BottomBar/BottomBarMargin/NavRow/DebugButton"),
@@ -150,6 +155,7 @@ func _apply_theme() -> void:
 func _apply_ui_text_bundle() -> void:
 	get_node("Shell/BottomBar/BottomBarMargin/NavRow/WorldButton").text = _txt("nav.world")
 	get_node("Shell/BottomBar/BottomBarMargin/NavRow/OverviewButton").text = _txt("nav.settlements")
+	get_node("Shell/BottomBar/BottomBarMargin/NavRow/RecruitButton").text = _txt("nav.recruit", {}, "Recruit")
 	get_node("Shell/BottomBar/BottomBarMargin/NavRow/HeroesButton").text = _txt("nav.heroes")
 	get_node("Shell/BottomBar/BottomBarMargin/NavRow/InventoryButton").text = _txt("nav.inventory")
 	get_node("Shell/BottomBar/BottomBarMargin/NavRow/DebugButton").text = _txt("nav.debug")
@@ -160,6 +166,7 @@ func _apply_ui_text_bundle() -> void:
 func _wire_navigation() -> void:
 	get_node("Shell/BottomBar/BottomBarMargin/NavRow/WorldButton").pressed.connect(Callable(self, "_set_detail_mode").bind("world"))
 	get_node("Shell/BottomBar/BottomBarMargin/NavRow/OverviewButton").pressed.connect(Callable(self, "_set_detail_mode").bind("overview"))
+	get_node("Shell/BottomBar/BottomBarMargin/NavRow/RecruitButton").pressed.connect(Callable(self, "_set_detail_mode").bind("recruit"))
 	get_node("Shell/BottomBar/BottomBarMargin/NavRow/HeroesButton").pressed.connect(Callable(self, "_set_detail_mode").bind("heroes"))
 	get_node("Shell/BottomBar/BottomBarMargin/NavRow/InventoryButton").pressed.connect(Callable(self, "_set_detail_mode").bind("inventory"))
 	get_node("Shell/BottomBar/BottomBarMargin/NavRow/DebugButton").pressed.connect(Callable(self, "_set_detail_mode").bind("debug"))
@@ -173,6 +180,7 @@ func _connect_game_manager() -> void:
 	GameManager.active_settlement_changed.connect(_on_active_settlement_changed)
 	GameManager.heroes_changed.connect(_on_heroes_changed)
 	GameManager.inventory_changed.connect(_on_inventory_changed)
+	GameManager.recruit_market_changed.connect(_on_recruit_market_changed)
 	GameManager.selection_changed.connect(_on_selection_changed)
 	GameManager.save_slots_changed.connect(_on_save_slots_changed)
 	GameManager.save_loaded.connect(_on_save_loaded)
@@ -266,6 +274,13 @@ func _on_inventory_changed(inventory_state: Dictionary) -> void:
 		_refresh_active_content()
 
 
+func _on_recruit_market_changed(market_state: Dictionary) -> void:
+	_recruit_market_snapshot = market_state.duplicate(true)
+	_refresh_recruit_nav_visibility()
+	if _detail_mode == "recruit":
+		_refresh_active_content()
+
+
 func _refresh_resource_yields() -> void:
 	_resource_yields.clear()
 	for resource_id in SettlementGameData.RESOURCE_ORDER:
@@ -312,6 +327,15 @@ func _sync_top_bar_yields_after_state_load() -> void:
 	_refresh_resource_yields.call_deferred()
 
 
+func _refresh_recruit_nav_visibility() -> void:
+	var unlocked := bool(_recruit_market_snapshot.get("unlocked", false))
+	_recruit_button.visible = unlocked
+	if not unlocked and _detail_mode == "recruit":
+		_detail_mode = "heroes"
+		_apply_mode_layout()
+		_refresh_active_content()
+
+
 func _refresh_grid() -> void:
 	if _slots_snapshot.is_empty():
 		_slots_snapshot = GameManager.get_slots_snapshot()
@@ -348,6 +372,8 @@ func _refresh_page_content() -> void:
 	match _detail_mode:
 		"overview":
 			_build_overview_page()
+		"recruit":
+			_build_recruit_page()
 		"saves":
 			_build_saves_page()
 		"world":
@@ -369,13 +395,15 @@ func _apply_mode_layout() -> void:
 	_settlement_title.visible = _detail_mode == "settlement"
 	_settlement_scroll.visible = _detail_mode == "settlement"
 	_page_root.visible = full_page_mode
-	_page_title.visible = _detail_mode != "hero_detail" and _detail_mode != "world"
+	_page_title.visible = _detail_mode != "hero_detail" and _detail_mode != "world" and _detail_mode != "recruit"
 	_page_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED if _detail_mode == "hero_detail" or _detail_mode == "world" else ScrollContainer.SCROLL_MODE_AUTO
 	if _detail_mode == "hero_detail" or _detail_mode == "world":
 		_page_scroll.scroll_vertical = 0
 	match _detail_mode:
 		"overview":
 			_page_title.text = _txt("page.settlements")
+		"recruit":
+			_page_title.text = _txt("page.recruit", {}, "Recruit")
 		"saves":
 			_page_title.text = _txt("page.save_vault")
 		"world":
@@ -393,7 +421,7 @@ func _apply_mode_layout() -> void:
 
 
 func _is_full_page_mode() -> bool:
-	return _detail_mode == "overview" or _detail_mode == "saves" or _detail_mode == "world" or _detail_mode == "heroes" or _detail_mode == "inventory" or _detail_mode == "hero_detail" or _detail_mode == "debug"
+	return _detail_mode == "overview" or _detail_mode == "recruit" or _detail_mode == "saves" or _detail_mode == "world" or _detail_mode == "heroes" or _detail_mode == "inventory" or _detail_mode == "hero_detail" or _detail_mode == "debug"
 
 
 func _build_overview_page() -> void:
@@ -483,15 +511,6 @@ func _build_building_panel(slot_index: int, slot_data: Dictionary) -> void:
 		false
 	)
 
-	if String(building_definition.get("id", "")) == "tavern":
-		var recruit_cost: Dictionary = SettlementGameData.resource_list_to_dictionary(_as_array(building_definition.get("recruit_cost", [])))
-		_detail_content.add_child(_make_rich_text_label("[color=#d8d1c6]%s[/color] %s" % [_txt("settlement.recruit_cost", {"cost": ""}).trim_suffix(" "), _format_resource_bbcode(recruit_cost, "cost")], 15))
-		_add_button(
-			_txt("settlement.recruit_button"),
-			Callable(self, "_recruit_from_tavern").bind(slot_index),
-			not GameManager.can_afford(recruit_cost)
-		)
-
 	_add_section(_txt("settlement.assigned_heroes"))
 	var assigned_any: bool = false
 	for hero_data in _heroes_snapshot:
@@ -517,7 +536,7 @@ func _build_heroes_page() -> void:
 	var intro: Label = _make_label("All recruited heroes are gathered here. Portrait art will be used automatically when available.", 16)
 	_page_content.add_child(intro)
 	if _heroes_snapshot.is_empty():
-		_page_content.add_child(_make_label("No heroes recruited yet. Recruit one from a Tavern or use the Debug menu.", 17))
+		_page_content.add_child(_make_label("No heroes recruited yet. Build a Veil Tavern to unlock Recruit, or use the Debug menu.", 17))
 		return
 	var grid := GridContainer.new()
 	grid.columns = 5
@@ -530,6 +549,110 @@ func _build_heroes_page() -> void:
 		card.set_hero(hero_data)
 		card.selected.connect(_open_hero_detail)
 		grid.add_child(card)
+
+
+func _build_recruit_page() -> void:
+	var market_state := _recruit_market_snapshot if not _recruit_market_snapshot.is_empty() else GameManager.get_recruit_market_snapshot()
+	if not bool(market_state.get("unlocked", false)):
+		_page_content.add_child(_make_label("Build a Veil Tavern in any owned settlement to unlock the Recruit market.", 17))
+		return
+	var summary_panel := _make_panel()
+	summary_panel.custom_minimum_size = Vector2(0, 92)
+	_page_content.add_child(summary_panel)
+	var summary_body := HBoxContainer.new()
+	summary_body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	summary_body.add_theme_constant_override("separation", 18)
+	summary_panel.add_child(summary_body)
+	var left_summary := VBoxContainer.new()
+	left_summary.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	left_summary.add_theme_constant_override("separation", 4)
+	summary_body.add_child(left_summary)
+	var summary_label := _make_label(_txt("recruit.available_heroes", {"count": int(market_state.get("offer_capacity", 0))}, "Available Heroes: %d" % int(market_state.get("offer_capacity", 0))), 19)
+	summary_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	left_summary.add_child(summary_label)
+	var refresh_cost := _make_rich_text_label("[color=#d8d1c6]%s[/color] %s" % [_txt("recruit.refresh_cost", {"cost": ""}, "Refresh Cost:").trim_suffix(" "), _format_resource_bbcode(_as_dictionary(market_state.get("refresh_cost", {})), "cost")], 13)
+	refresh_cost.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	left_summary.add_child(refresh_cost)
+	var action_column := VBoxContainer.new()
+	action_column.size_flags_horizontal = Control.SIZE_SHRINK_END
+	action_column.alignment = BoxContainer.ALIGNMENT_CENTER
+	action_column.add_theme_constant_override("separation", 4)
+	summary_body.add_child(action_column)
+	var refresh_button := _make_small_action_button(_txt("recruit.refresh_heroes", {}, "Refresh Heroes"), Callable(self, "_refresh_recruit_market"))
+	refresh_button.custom_minimum_size = Vector2(160, 0)
+	refresh_button.disabled = not GameManager.can_afford(_as_dictionary(market_state.get("refresh_cost", {})))
+	action_column.add_child(refresh_button)
+	var tavern_label := _make_label(_txt("recruit.taverns_owned", {"count": int(market_state.get("tavern_count", 0))}, "Taverns Owned: %d" % int(market_state.get("tavern_count", 0))), 13)
+	tavern_label.autowrap_mode = TextServer.AUTOWRAP_OFF
+	tavern_label.custom_minimum_size = Vector2(160, 0)
+	tavern_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	tavern_label.size_flags_horizontal = Control.SIZE_FILL
+	tavern_label.add_theme_color_override("font_color", Color("cbbba9"))
+	action_column.add_child(tavern_label)
+	var offers := _as_array(market_state.get("offers", []))
+	if offers.is_empty():
+		_page_content.add_child(_make_label("No heroes are currently waiting. Refresh the market to draw a new slate.", 17))
+		return
+	var grid := GridContainer.new()
+	grid.columns = 2
+	grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	grid.add_theme_constant_override("h_separation", 14)
+	grid.add_theme_constant_override("v_separation", 14)
+	_page_content.add_child(grid)
+	for offer_entry in offers:
+		grid.add_child(_make_recruit_offer_card(_as_dictionary(offer_entry), _as_dictionary(market_state.get("recruit_cost", {}))))
+
+
+func _make_recruit_offer_card(offer_data: Dictionary, recruit_cost: Dictionary) -> PanelContainer:
+	var panel := PanelContainer.new()
+	panel.custom_minimum_size = Vector2(0, 236)
+	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_style_panel(panel, Color("151214"), Color("78614e"), 10)
+	var body := VBoxContainer.new()
+	body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	body.add_theme_constant_override("separation", 8)
+	panel.add_child(body)
+
+	var header_row := HBoxContainer.new()
+	header_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	header_row.add_theme_constant_override("separation", 12)
+	body.add_child(header_row)
+
+	var portrait_holder := PanelContainer.new()
+	portrait_holder.custom_minimum_size = Vector2(92, 92)
+	portrait_holder.add_theme_stylebox_override("panel", _button_style(Color("100d0e"), Color("4f3f36"), 8))
+	header_row.add_child(portrait_holder)
+	var portrait := TextureRect.new()
+	portrait.set_anchors_preset(Control.PRESET_FULL_RECT)
+	portrait.offset_left = 6.0
+	portrait.offset_top = 6.0
+	portrait.offset_right = -6.0
+	portrait.offset_bottom = -6.0
+	portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	portrait.texture = _load_hero_texture(offer_data)
+	portrait_holder.add_child(portrait)
+
+	var header_text := VBoxContainer.new()
+	header_text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	header_text.add_theme_constant_override("separation", 4)
+	header_row.add_child(header_text)
+	var hero_name := _make_label(String(offer_data.get("name", "Unknown Hero")), 18)
+	hero_name.autowrap_mode = TextServer.AUTOWRAP_OFF
+	header_text.add_child(hero_name)
+	var hero_meta := _make_label("Lv.%d  |  %s" % [int(offer_data.get("level", 1)), String(offer_data.get("class", "Hero"))], 14)
+	hero_meta.add_theme_color_override("font_color", Color("cbbba9"))
+	header_text.add_child(hero_meta)
+
+	var stats := _as_dictionary(offer_data.get("stats", {}))
+	var work_stats := _as_dictionary(offer_data.get("work_stats", {}))
+	body.add_child(_make_rich_text_label(_format_recruit_combat_stats_bbcode(stats), 13))
+	body.add_child(_make_rich_text_label(_format_work_stats_bbcode(work_stats), 13))
+	var cost_label := _make_rich_text_label("[color=#d8d1c6]Recruit Cost:[/color] %s" % _format_resource_bbcode(recruit_cost, "cost"), 13)
+	body.add_child(cost_label)
+	var recruit_button := _make_button("Recruit Hero", Callable(self, "_recruit_offer").bind(int(offer_data.get("offer_id", -1))), not GameManager.can_afford(recruit_cost))
+	body.add_child(recruit_button)
+	return panel
 
 
 func _open_settlement(settlement_id: String) -> void:
@@ -780,6 +903,19 @@ func _build_hero_detail_tab_content(container: VBoxContainer, hero_data: Diction
 			container.add_child(_make_label("Lore", 21))
 			var hero_definition: Dictionary = DataLoader.get_hero_definition(String(hero_data.get("definition_id", "")))
 			container.add_child(_make_label(String(hero_definition.get("description", "No lore recorded.")), 17))
+			container.add_child(Control.new())
+			if _hero_detail_dismiss_confirm_uid == int(hero_data.get("uid", -1)):
+				var warning := _make_label("Dismiss this hero permanently? Assignments, world tasks, and equipment links will be cleared.", 15)
+				warning.add_theme_color_override("font_color", Color("e8b0a7"))
+				container.add_child(warning)
+				var confirm_row := HBoxContainer.new()
+				confirm_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+				confirm_row.add_theme_constant_override("separation", 10)
+				container.add_child(confirm_row)
+				confirm_row.add_child(_make_small_action_button("Cancel", Callable(self, "_cancel_hero_dismiss")))
+				confirm_row.add_child(_make_danger_button("Confirm Dismiss", Callable(self, "_confirm_hero_dismiss").bind(int(hero_data.get("uid", -1)))))
+			else:
+				container.add_child(_make_danger_button("Dismiss", Callable(self, "_prompt_hero_dismiss").bind(int(hero_data.get("uid", -1)))))
 		_:
 			_hero_detail_equipment_slots_grid = null
 			var hero_definition: Dictionary = DataLoader.get_hero_definition(String(hero_data.get("definition_id", "")))
@@ -1207,8 +1343,28 @@ func _refresh_saves_page_state(slots: Array) -> void:
 			load_button.disabled = not bool(entry.get("exists", false))
 
 
-func _recruit_from_tavern(slot_index: int) -> void:
-	GameManager.recruit_random_hero(slot_index)
+func _refresh_recruit_market() -> void:
+	GameManager.refresh_recruit_offers()
+
+
+func _recruit_offer(offer_id: int) -> void:
+	GameManager.recruit_hero_from_offer(offer_id)
+
+
+func _prompt_hero_dismiss(hero_uid: int) -> void:
+	_hero_detail_dismiss_confirm_uid = hero_uid
+	_refresh_active_content()
+
+
+func _cancel_hero_dismiss() -> void:
+	_hero_detail_dismiss_confirm_uid = -1
+	_refresh_active_content()
+
+
+func _confirm_hero_dismiss(hero_uid: int) -> void:
+	_hero_detail_dismiss_confirm_uid = -1
+	if GameManager.dismiss_hero(hero_uid):
+		_back_to_heroes()
 
 
 func _debug_grant_resources() -> void:
@@ -1222,6 +1378,7 @@ func _debug_recruit_hero() -> void:
 func _open_hero_detail(hero_uid: int) -> void:
 	_selected_hero_uid = hero_uid
 	_hero_detail_tab = "info"
+	_hero_detail_dismiss_confirm_uid = -1
 	_hero_detail_selected_slot = ""
 	_hero_detail_selected_equipment_uid = -1
 	_hero_detail_context_panel = null
@@ -1231,6 +1388,7 @@ func _open_hero_detail(hero_uid: int) -> void:
 
 
 func _back_to_heroes() -> void:
+	_hero_detail_dismiss_confirm_uid = -1
 	_hero_detail_selected_slot = ""
 	_hero_detail_selected_equipment_uid = -1
 	_hero_detail_context_panel = null
@@ -1241,6 +1399,7 @@ func _back_to_heroes() -> void:
 
 func _set_hero_detail_tab(tab_id: String) -> void:
 	_hero_detail_tab = tab_id
+	_hero_detail_dismiss_confirm_uid = -1
 	if tab_id != "equipment":
 		_hero_detail_selected_slot = ""
 		_hero_detail_selected_equipment_uid = -1
@@ -1934,6 +2093,19 @@ func _make_small_action_button(text: String, callback: Callable) -> Button:
 	return button
 
 
+func _make_danger_button(text: String, callback: Callable) -> Button:
+	var button := _make_small_nav_button(text, callback)
+	button.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	button.add_theme_color_override("font_color", Color("f2d8d4"))
+	button.add_theme_color_override("font_hover_color", Color("fff0ed"))
+	button.add_theme_color_override("font_pressed_color", Color("fff7f5"))
+	button.add_theme_stylebox_override("normal", _button_style(Color("2a1415"), Color("8a4c49"), 6))
+	button.add_theme_stylebox_override("hover", _button_style(Color("34191a"), Color("b76558"), 6))
+	button.add_theme_stylebox_override("pressed", _button_style(Color("421d1d"), Color("d17a6d"), 6))
+	button.add_theme_stylebox_override("disabled", _button_style(Color("1a1011"), Color("4a2f31"), 6))
+	return button
+
+
 func _format_resource_dict(values: Dictionary) -> String:
 	if values.is_empty():
 		return _txt("common.none")
@@ -1981,6 +2153,18 @@ func _format_work_stats_bbcode(work_stats: Dictionary) -> String:
 	var parts: Array[String] = []
 	for stat_key in ["farming", "mining", "lumbering"]:
 		parts.append("[color=%s]%s %d[/color]" % [String(WORK_STAT_COLORS.get(stat_key, "#e6ddd3")), _txt("work.%s" % stat_key, {}, stat_key.capitalize()), int(work_stats.get(stat_key, 0))])
+	return "  |  ".join(parts)
+
+
+func _format_recruit_combat_stats_bbcode(stats: Dictionary) -> String:
+	var parts: Array[String] = [
+		"[color=#d8847b]HP %d[/color]" % int(stats.get("health", 0)),
+		"[color=#c8b8d9]SAN %d[/color]" % int(stats.get("sanity", 0)),
+		"[color=#d0a170]ATK %d[/color]" % int(stats.get("attack", 0)),
+		"[color=#88a8c8]DEF %d[/color]" % int(stats.get("defense", 0)),
+		"[color=#f0c96c]CRIT %d%%[/color]" % int(stats.get("critical_chance", 0)),
+		"[color=#e5b86f]CRIT DMG %d%%[/color]" % int(stats.get("critical_damage", 0)),
+	]
 	return "  |  ".join(parts)
 
 
