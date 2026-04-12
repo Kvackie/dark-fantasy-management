@@ -192,7 +192,6 @@ func get_recruit_market_snapshot() -> Dictionary:
 		"tavern_count": get_built_tavern_count(),
 		"offer_capacity": get_recruit_offer_capacity(),
 		"refresh_cost": get_recruit_refresh_cost(),
-		"recruit_cost": get_recruit_cost(),
 		"initialized": recruit_market_initialized,
 		"offers": _session().duplicate_dict_array(recruit_market_offers),
 	}
@@ -224,11 +223,6 @@ func get_recruit_offer_capacity() -> int:
 func get_recruit_refresh_cost() -> Dictionary:
 	var recruitment_config := DataLoader.get_recruitment_config()
 	return SettlementGameData.resource_list_to_dictionary(_as_array(recruitment_config.get("refresh_cost", [])))
-
-
-func get_recruit_cost() -> Dictionary:
-	var recruitment_config := DataLoader.get_recruitment_config()
-	return SettlementGameData.resource_list_to_dictionary(_as_array(recruitment_config.get("recruit_cost", [])))
 
 
 func get_settlement_slots_snapshot(settlement_id: String) -> Array:
@@ -571,10 +565,10 @@ func recruit_hero_from_offer(offer_id: int) -> Dictionary:
 	var offer_index := _find_recruit_offer_index(offer_id)
 	if offer_index == -1:
 		return {}
-	var recruit_cost := get_recruit_cost()
+	var offer_data: Dictionary = recruit_market_offers[offer_index]
+	var recruit_cost := _normalize_resolved_recruit_cost(offer_data.get("recruit_cost", {}))
 	if not apply_cost(recruit_cost):
 		return {}
-	var offer_data: Dictionary = recruit_market_offers[offer_index]
 	var hero_instance := _create_hero_instance_from_offer(offer_data)
 	heroes.append(hero_instance)
 	recruit_market_offers.remove_at(offer_index)
@@ -1106,12 +1100,14 @@ func _roll_weighted_hero_definition(roster: Array) -> Dictionary:
 
 
 func _create_recruit_offer(hero_definition: Dictionary) -> Dictionary:
+	var hero_level := clampi(int(hero_definition.get("level", 1)), 1, 9999)
 	var offer_data: Dictionary = {
 		"offer_id": _next_recruit_offer_id,
 		"definition_id": String(hero_definition.get("id", "")),
 		"name": String(hero_definition.get("name", "Unknown Hero")),
 		"class": String(hero_definition.get("class", "Supporter")),
-		"level": clampi(int(hero_definition.get("level", 1)), 1, 9999),
+		"level": hero_level,
+		"recruit_cost": _resolve_recruit_cost(hero_definition, hero_level),
 		"stats": _normalize_runtime_stats(hero_definition.get("stats", {}), DataLoader.DEFAULT_HERO_STATS),
 		"work_stats": _normalize_runtime_stats(hero_definition.get("work_stats", {}), DataLoader.DEFAULT_HERO_WORK_STATS),
 		"source": String(hero_definition.get("source", "core")),
@@ -1119,6 +1115,39 @@ func _create_recruit_offer(hero_definition: Dictionary) -> Dictionary:
 	}
 	_next_recruit_offer_id += 1
 	return offer_data
+
+
+func _resolve_recruit_cost(hero_definition: Dictionary, hero_level: int) -> Dictionary:
+	var resolved_cost: Dictionary = {}
+	for cost_entry in _as_array(hero_definition.get("recruit_cost", [])):
+		var entry := _as_dictionary(cost_entry)
+		var resource_id := String(entry.get("resource", "")).strip_edges()
+		if resource_id.is_empty():
+			continue
+		var base_amount := 0
+		if entry.has("min_amount") or entry.has("max_amount"):
+			var min_amount := int(entry.get("min_amount", 0))
+			var max_amount := int(entry.get("max_amount", min_amount))
+			if max_amount < min_amount:
+				var swap_amount := min_amount
+				min_amount = max_amount
+				max_amount = swap_amount
+			base_amount = randi_range(min_amount, max_amount)
+		else:
+			base_amount = int(entry.get("amount", 0))
+		var final_amount: int = max(0, base_amount + max(hero_level - 1, 0) * int(entry.get("per_level", 0)))
+		if final_amount <= 0:
+			continue
+		resolved_cost[resource_id] = int(resolved_cost.get(resource_id, 0)) + final_amount
+	return resolved_cost
+
+
+func _normalize_resolved_recruit_cost(value: Variant) -> Dictionary:
+	var normalized_cost: Dictionary = {}
+	var source_cost := _as_dictionary(value)
+	for resource_id in source_cost.keys():
+		normalized_cost[String(resource_id)] = max(0, int(source_cost.get(resource_id, 0)))
+	return normalized_cost
 
 
 func _create_hero_instance(hero_definition: Dictionary) -> Dictionary:
@@ -1359,6 +1388,7 @@ func _normalize_loaded_recruit_market_offers(value: Variant) -> Array:
 			"name": String(offer_data.get("name", hero_definition.get("name", "Unknown Hero"))),
 			"class": String(offer_data.get("class", hero_definition.get("class", "Supporter"))),
 			"level": clampi(int(offer_data.get("level", 1)), 1, 9999),
+			"recruit_cost": _normalize_resolved_recruit_cost(offer_data.get("recruit_cost", _resolve_recruit_cost(hero_definition, clampi(int(offer_data.get("level", 1)), 1, 9999)))),
 			"stats": _normalize_runtime_stats(offer_data.get("stats", {}), hero_definition.get("stats", DataLoader.DEFAULT_HERO_STATS)),
 			"work_stats": _normalize_runtime_stats(offer_data.get("work_stats", {}), hero_definition.get("work_stats", DataLoader.DEFAULT_HERO_WORK_STATS)),
 			"source": String(offer_data.get("source", hero_definition.get("source", "core"))),

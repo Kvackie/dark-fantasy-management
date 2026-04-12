@@ -206,6 +206,7 @@ func normalize_hero_definition(entry: Dictionary, source: String = "core", mod_i
 		"class": normalized_class,
 		"description": String(entry.get("description", "")).strip_edges(),
 		"recruitment_weight": max(1, int(entry.get("recruitment_weight", 1))),
+		"recruit_cost": _normalize_recruit_cost_entries(entry.get("recruit_cost", [])),
 		"stats": _normalize_stat_block(entry.get("stats", {}), DEFAULT_HERO_STATS),
 		"work_stats": _normalize_stat_block(entry.get("work_stats", {}), DEFAULT_HERO_WORK_STATS),
 		"source": source,
@@ -235,6 +236,54 @@ func normalize_settlement_definition(entry: Dictionary) -> Dictionary:
 	if entry.has("schema_version"):
 		normalized["schema_version"] = entry["schema_version"]
 	return normalized
+
+
+func _normalize_recruit_cost_entries(value: Variant) -> Array:
+	var normalized_entries: Array = []
+	if value is not Array:
+		return normalized_entries
+	for entry_value in value:
+		if entry_value is not Dictionary:
+			continue
+		var entry: Dictionary = (entry_value as Dictionary).duplicate(true)
+		var resource_id := String(entry.get("resource", "")).strip_edges()
+		if resource_id.is_empty():
+			continue
+		var normalized_entry: Dictionary = {
+			"resource": resource_id,
+		}
+		if entry.has("min_amount") or entry.has("max_amount"):
+			var min_amount := int(entry.get("min_amount", 0))
+			var max_amount := int(entry.get("max_amount", min_amount))
+			if max_amount < min_amount:
+				var swap_amount := min_amount
+				min_amount = max_amount
+				max_amount = swap_amount
+			normalized_entry["min_amount"] = max(0, min_amount)
+			normalized_entry["max_amount"] = max(0, max_amount)
+		else:
+			var amount_value = entry.get("amount", 0)
+			if amount_value is String:
+				var amount_text := String(amount_value).strip_edges()
+				var separator_index := amount_text.find("-")
+				if separator_index > 0 and separator_index < amount_text.length() - 1:
+					var min_text := amount_text.substr(0, separator_index).strip_edges()
+					var max_text := amount_text.substr(separator_index + 1).strip_edges()
+					var min_amount := int(min_text)
+					var max_amount := int(max_text)
+					if max_amount < min_amount:
+						var swap_amount := min_amount
+						min_amount = max_amount
+						max_amount = swap_amount
+					normalized_entry["min_amount"] = max(0, min_amount)
+					normalized_entry["max_amount"] = max(0, max_amount)
+				else:
+					normalized_entry["amount"] = max(0, int(amount_text))
+			else:
+				normalized_entry["amount"] = max(0, int(amount_value))
+		normalized_entry["per_level"] = int(entry.get("per_level", 0))
+		normalized_entries.append(normalized_entry)
+	return normalized_entries
 
 
 func normalize_building_definition(entry: Dictionary) -> Dictionary:

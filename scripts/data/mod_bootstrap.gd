@@ -41,6 +41,23 @@ func _seed_template_hero_mod() -> void:
 		"class": "Supporter",
 		"description": "Example mod hero definition. Copy this folder, edit hero.json, and optionally add portrait.png or icon.png.",
 		"recruitment_weight": 1,
+		"recruit_cost": [
+			{
+				"resource": "food",
+				"amount": "12-18",
+				"per_level": 2,
+			},
+			{
+				"resource": "gold",
+				"min_amount": 20,
+				"max_amount": 28,
+				"per_level": 3,
+			},
+			{
+				"resource": "gems",
+				"amount": 1,
+			},
+		],
 		"stats": {
 			"health": 96,
 			"sanity": 102,
@@ -113,6 +130,15 @@ func _template_hero_mod_readme() -> String:
 	return "Hero Mod Folder\n\n" + \
 		"Required:\n" + \
 		"- hero.json\n\n" + \
+		"Hero fields:\n" + \
+		"- id\n" + \
+		"- name\n" + \
+		"- class\n" + \
+		"- description\n" + \
+		"- recruitment_weight\n" + \
+		"- recruit_cost (array; supports amount, min_amount/max_amount, and per_level)\n" + \
+		"- stats\n" + \
+		"- work_stats\n\n" + \
 		"Optional:\n" + \
 		"- portrait.png\n" + \
 		"- icon.png\n\n" + \
