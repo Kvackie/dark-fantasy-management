@@ -17,6 +17,8 @@ signal settlement_selected(settlement_id: String)
 @onready var _hero_hover_panel: PanelContainer = get_node("ModalOverlay/HeroHoverPanel")
 @onready var _hero_hover_scroll: ScrollContainer = get_node("ModalOverlay/HeroHoverPanel/HoverMargin/HoverFrame/HoverFrameMargin/HoverScroll")
 @onready var _hero_hover_body: VBoxContainer = get_node("ModalOverlay/HeroHoverPanel/HoverMargin/HoverFrame/HoverFrameMargin/HoverScroll/HoverBody")
+@onready var _popup_content_frame: PanelContainer = get_node("ModalOverlay/DialogCenter/PopupPanel/PopupMargin/PopupShell/PopupContentFrame")
+@onready var _hero_hover_frame: PanelContainer = get_node("ModalOverlay/HeroHoverPanel/HoverMargin/HoverFrame")
 
 var _world_view: Control = null
 var _world_snapshot: Dictionary = {}
@@ -286,8 +288,8 @@ func _style_dialog_shell() -> void:
 	content_style.border_color = Color("5a4639")
 	content_style.set_border_width_all(1)
 	content_style.set_corner_radius_all(10)
-	get_node("ModalOverlay/DialogCenter/PopupPanel/PopupMargin/PopupShell/PopupContentFrame").add_theme_stylebox_override("panel", content_style)
-	get_node("ModalOverlay/HeroHoverPanel/HoverMargin/HoverFrame").add_theme_stylebox_override("panel", content_style)
+	_popup_content_frame.add_theme_stylebox_override("panel", content_style)
+	_hero_hover_frame.add_theme_stylebox_override("panel", content_style)
 	var hover_style := StyleBoxFlat.new()
 	hover_style.bg_color = Color("171214")
 	hover_style.border_color = Color("8f6e54")

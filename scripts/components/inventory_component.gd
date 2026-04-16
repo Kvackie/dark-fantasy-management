@@ -15,7 +15,7 @@ func add_item_to_inventory(definition_id: String, quantity: int) -> void:
 	if item_definition.is_empty():
 		return
 	var max_stack: int = max(1, int(item_definition.get("max_stack", DataLoader.DEFAULT_ITEM_MAX_STACK)))
-	var items: Array = _session.inventory_items
+	var items: Array = _inventory_items()
 	var remaining: int = quantity
 	for stack_index in range(items.size()):
 		if remaining <= 0:
@@ -37,7 +37,7 @@ func add_item_to_inventory(definition_id: String, quantity: int) -> void:
 			"quantity": stack_quantity,
 		})
 		remaining -= stack_quantity
-	_session.inventory_items = items
+	_set_inventory_items(items)
 
 
 func add_equipment_to_inventory(definition_id: String) -> Dictionary:
@@ -47,16 +47,16 @@ func add_equipment_to_inventory(definition_id: String) -> Dictionary:
 	if equipment_definition.is_empty():
 		return {}
 	var instance := _create_equipment_instance(equipment_definition)
-	var equipment: Array = _session.inventory_equipment
+	var equipment: Array = _inventory_equipment()
 	equipment.append(instance)
-	_session.inventory_equipment = equipment
+	_set_inventory_equipment(equipment)
 	return instance.duplicate(true)
 
 
 func get_inventory_equipment_instance(equipment_uid: int) -> Dictionary:
 	if equipment_uid <= 0 or _session == null:
 		return {}
-	for entry in _session.inventory_equipment:
+	for entry in _inventory_equipment():
 		var equipment_instance: Dictionary = entry
 		if int(equipment_instance.get("uid", -1)) == equipment_uid:
 			return equipment_instance.duplicate(true)
@@ -74,7 +74,7 @@ func equip_equipment_to_hero(hero_uid: int, slot_key: String, equipment_uid: int
 	var equipment_index := _find_inventory_equipment_index(equipment_uid)
 	if equipment_index == -1:
 		return false
-	var equipment_instance: Dictionary = _session.inventory_equipment[equipment_index]
+	var equipment_instance: Dictionary = _inventory_equipment()[equipment_index]
 	var equipment_definition := DataLoader.get_equipment_definition(String(equipment_instance.get("definition_id", "")))
 	if equipment_definition.is_empty():
 		return false
@@ -82,7 +82,7 @@ func equip_equipment_to_hero(hero_uid: int, slot_key: String, equipment_uid: int
 		return false
 	_unequip_hero_slot_internal(hero_index, slot_key)
 	_detach_equipment_instance(equipment_uid)
-	var heroes: Array = _session.heroes
+	var heroes: Array = _heroes()
 	var hero_data: Dictionary = heroes[hero_index]
 	var hero_equipment := _as_dictionary(hero_data.get("equipment", {})).duplicate(true)
 	if hero_equipment.is_empty():
@@ -91,8 +91,8 @@ func equip_equipment_to_hero(hero_uid: int, slot_key: String, equipment_uid: int
 	hero_equipment[slot_key] = str(equipment_uid)
 	hero_data["equipment"] = hero_equipment
 	heroes[hero_index] = hero_data
-	_session.heroes = heroes
-	_session.rebuild_equipment_compatibility(_session.heroes, _session.inventory_equipment, DataLoader.HERO_EQUIPMENT_KEYS, Callable(DataLoader, "get_equipment_definition"), Callable(DataLoader, "create_empty_hero_equipment"))
+	_set_heroes(heroes)
+	_rebuild_equipment_compatibility()
 	return true
 
 
@@ -138,8 +138,9 @@ func seed_starting_inventory() -> void:
 func _find_hero_index(hero_uid: int) -> int:
 	if _session == null:
 		return -1
-	for index in _session.heroes.size():
-		var hero_data: Dictionary = _session.heroes[index]
+	var heroes: Array = _heroes()
+	for index in heroes.size():
+		var hero_data: Dictionary = heroes[index]
 		if int(hero_data.get("uid", -1)) == hero_uid:
 			return index
 	return -1
@@ -148,8 +149,9 @@ func _find_hero_index(hero_uid: int) -> int:
 func _find_inventory_equipment_index(equipment_uid: int) -> int:
 	if _session == null:
 		return -1
-	for index in _session.inventory_equipment.size():
-		var equipment_instance: Dictionary = _session.inventory_equipment[index]
+	var equipment: Array = _inventory_equipment()
+	for index in equipment.size():
+		var equipment_instance: Dictionary = equipment[index]
 		if int(equipment_instance.get("uid", -1)) == equipment_uid:
 			return index
 	return -1
@@ -159,19 +161,19 @@ func _create_equipment_instance(equipment_definition: Dictionary) -> Dictionary:
 	if _session == null:
 		return {}
 	var equipment_instance: Dictionary = {
-		"uid": int(_session.next_equipment_uid),
+		"uid": int(_next_equipment_uid()),
 		"definition_id": String(equipment_definition.get("id", "")),
 		"equipped_hero_uid": -1,
 		"equipped_slot": "",
 	}
-	_session.next_equipment_uid = int(_session.next_equipment_uid) + 1
+	_set_next_equipment_uid(_next_equipment_uid() + 1)
 	return equipment_instance
 
 
 func _unequip_hero_slot_internal(hero_index: int, slot_key: String) -> int:
 	if _session == null:
 		return -1
-	var heroes: Array = _session.heroes
+	var heroes: Array = _heroes()
 	if hero_index < 0 or hero_index >= heroes.size():
 		return -1
 	var hero_data: Dictionary = heroes[hero_index]
@@ -182,16 +184,16 @@ func _unequip_hero_slot_internal(hero_index: int, slot_key: String) -> int:
 	hero_equipment[slot_key] = ""
 	hero_data["equipment"] = hero_equipment
 	heroes[hero_index] = hero_data
-	_session.heroes = heroes
+	_set_heroes(heroes)
 	_clear_equipment_instance_link(equipment_uid)
-	_session.rebuild_equipment_compatibility(_session.heroes, _session.inventory_equipment, DataLoader.HERO_EQUIPMENT_KEYS, Callable(DataLoader, "get_equipment_definition"), Callable(DataLoader, "create_empty_hero_equipment"))
+	_rebuild_equipment_compatibility()
 	return equipment_uid
 
 
 func _detach_equipment_instance(equipment_uid: int) -> void:
 	if equipment_uid <= 0 or _session == null:
 		return
-	var heroes: Array = _session.heroes
+	var heroes: Array = _heroes()
 	for hero_index in range(heroes.size()):
 		var hero_data: Dictionary = heroes[hero_index]
 		var hero_equipment := _as_dictionary(hero_data.get("equipment", {})).duplicate(true)
@@ -205,15 +207,15 @@ func _detach_equipment_instance(equipment_uid: int) -> void:
 		if changed:
 			hero_data["equipment"] = hero_equipment
 			heroes[hero_index] = hero_data
-	_session.heroes = heroes
+	_set_heroes(heroes)
 	_clear_equipment_instance_link(equipment_uid)
-	_session.rebuild_equipment_compatibility(_session.heroes, _session.inventory_equipment, DataLoader.HERO_EQUIPMENT_KEYS, Callable(DataLoader, "get_equipment_definition"), Callable(DataLoader, "create_empty_hero_equipment"))
+	_rebuild_equipment_compatibility()
 
 
 func _clear_equipment_instance_link(equipment_uid: int) -> void:
 	if equipment_uid <= 0 or _session == null:
 		return
-	var equipment: Array = _session.inventory_equipment
+	var equipment: Array = _inventory_equipment()
 	var equipment_index := -1
 	for index in range(equipment.size()):
 		var equipment_instance: Dictionary = equipment[index]
@@ -226,11 +228,56 @@ func _clear_equipment_instance_link(equipment_uid: int) -> void:
 	equipment_instance["equipped_hero_uid"] = -1
 	equipment_instance["equipped_slot"] = ""
 	equipment[equipment_index] = equipment_instance
-	_session.inventory_equipment = equipment
+	_set_inventory_equipment(equipment)
+
+
+func _inventory_items() -> Array:
+	return _as_array(_session.get("inventory_items"))
+
+
+func _set_inventory_items(items: Array) -> void:
+	_session.set("inventory_items", items)
+
+
+func _inventory_equipment() -> Array:
+	return _as_array(_session.get("inventory_equipment"))
+
+
+func _set_inventory_equipment(equipment: Array) -> void:
+	_session.set("inventory_equipment", equipment)
+
+
+func _heroes() -> Array:
+	return _as_array(_session.get("heroes"))
+
+
+func _set_heroes(heroes: Array) -> void:
+	_session.set("heroes", heroes)
+
+
+func _next_equipment_uid() -> int:
+	var current_uid = _session.get("next_equipment_uid")
+	if current_uid == null:
+		return 1
+	return int(current_uid)
+
+
+func _set_next_equipment_uid(value: int) -> void:
+	_session.set("next_equipment_uid", value)
+
+
+func _rebuild_equipment_compatibility() -> void:
+	_session.rebuild_equipment_compatibility(_heroes(), _inventory_equipment(), DataLoader.HERO_EQUIPMENT_KEYS, Callable(DataLoader, "get_equipment_definition"), Callable(DataLoader, "create_empty_hero_equipment"))
 
 
 func _as_dictionary(value: Variant) -> Dictionary:
 	if value is Dictionary:
 		return value
 	return {}
+
+
+func _as_array(value: Variant) -> Array:
+	if value is Array:
+		return value
+	return []
 

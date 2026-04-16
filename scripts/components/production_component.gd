@@ -49,11 +49,11 @@ func get_owned_settlement_production_preview() -> Dictionary:
 		return {}
 	if not _game.has_method("get_owned_settlement_ids"):
 		return {}
-	if not _game.has_method("_get_settlement_slots"):
+	if not _game.has_method("get_settlement_slots_snapshot"):
 		return {}
 	var production_delta: Dictionary = {}
 	for settlement_id in _as_array(_game.get_owned_settlement_ids()):
-		for slot in _as_array(_game._get_settlement_slots(String(settlement_id))):
+		for slot in _as_array(_game.get_settlement_slots_snapshot(String(settlement_id))):
 			var slot_data: Dictionary = _as_dictionary(slot)
 			var slot_delta: Dictionary = _calculate_slot_production(slot_data)
 			for resource_id in slot_delta.keys():
@@ -68,7 +68,7 @@ func _on_tick_timeout() -> void:
 
 
 func _calculate_slot_production(slot: Dictionary) -> Dictionary:
-	if _game == null or not _game.has_method("_as_array"):
+	if _game == null:
 		return {}
 	var building_id: String = String(slot.get("building_id", ""))
 	if building_id.is_empty():

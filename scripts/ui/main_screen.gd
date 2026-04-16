@@ -67,6 +67,18 @@ const WORK_STAT_COLORS := {
 @onready var _page_scroll: ScrollContainer = get_node("Shell/MainRow/SettlementPanel/SettlementMargin/SettlementColumn/PageRoot/PageScroll")
 @onready var _page_content: VBoxContainer = get_node("Shell/MainRow/SettlementPanel/SettlementMargin/SettlementColumn/PageRoot/PageScroll/PageContent")
 @onready var _recruit_button: Button = get_node("Shell/BottomBar/BottomBarMargin/NavRow/RecruitButton")
+@onready var _background: TextureRect = get_node("Background")
+@onready var _shell: Control = get_node("Shell")
+@onready var _settlement_panel: Control = get_node("Shell/MainRow/SettlementPanel")
+@onready var _details_panel_node: Control = get_node("Shell/MainRow/DetailsPanel")
+@onready var _bottom_bar: Control = get_node("Shell/BottomBar")
+@onready var _world_button: Button = get_node("Shell/BottomBar/BottomBarMargin/NavRow/WorldButton")
+@onready var _overview_button: Button = get_node("Shell/BottomBar/BottomBarMargin/NavRow/OverviewButton")
+@onready var _heroes_button: Button = get_node("Shell/BottomBar/BottomBarMargin/NavRow/HeroesButton")
+@onready var _inventory_button: Button = get_node("Shell/BottomBar/BottomBarMargin/NavRow/InventoryButton")
+@onready var _debug_button: Button = get_node("Shell/BottomBar/BottomBarMargin/NavRow/DebugButton")
+@onready var _saves_button: Button = get_node("Shell/BottomBar/BottomBarMargin/NavRow/SavesButton")
+@onready var _back_button: Button = get_node("Shell/BottomBar/BottomBarMargin/NavRow/BackButton")
 
 var _resource_badges: Dictionary = {}
 var _slot_widgets: Array = []
@@ -113,45 +125,41 @@ func _configure_root_layout() -> void:
 	var window: Window = get_window()
 	if window != null:
 		window.min_size = Vector2i(1152, 648)
-	var background: TextureRect = get_node("Background")
-	background.set_anchors_preset(Control.PRESET_FULL_RECT)
-	background.offset_left = 0.0
-	background.offset_top = 0.0
-	background.offset_right = 0.0
-	background.offset_bottom = 0.0
-	background.custom_minimum_size = Vector2.ZERO
-	background.texture = null
-	background.visible = false
-	var shell: Control = get_node("Shell")
-	shell.set_anchors_preset(Control.PRESET_FULL_RECT)
-	shell.offset_left = 0.0
-	shell.offset_top = 0.0
-	shell.offset_right = 0.0
-	shell.offset_bottom = 0.0
-	var settlement_panel: Control = get_node("Shell/MainRow/SettlementPanel")
-	settlement_panel.size_flags_stretch_ratio = 1.6
-	var details_panel: Control = get_node("Shell/MainRow/DetailsPanel")
-	details_panel.size_flags_stretch_ratio = 1.0
+	_background.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_background.offset_left = 0.0
+	_background.offset_top = 0.0
+	_background.offset_right = 0.0
+	_background.offset_bottom = 0.0
+	_background.custom_minimum_size = Vector2.ZERO
+	_background.texture = null
+	_background.visible = false
+	_shell.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_shell.offset_left = 0.0
+	_shell.offset_top = 0.0
+	_shell.offset_right = 0.0
+	_shell.offset_bottom = 0.0
+	_settlement_panel.size_flags_stretch_ratio = 1.6
+	_details_panel_node.size_flags_stretch_ratio = 1.0
 
 
 func _apply_theme() -> void:
 	var chrome_nodes: Array = [
-		get_node("Shell/TopBar"),
-		get_node("Shell/MainRow/SettlementPanel"),
-		get_node("Shell/MainRow/DetailsPanel"),
-		get_node("Shell/BottomBar"),
+		_top_bar,
+		_settlement_panel,
+		_details_panel_node,
+		_bottom_bar,
 	]
 	for chrome in chrome_nodes:
 		_style_panel(chrome, Color("211a1c"), Color("7a5e4b"), 10)
 	var bottom_buttons: Array = [
-		get_node("Shell/BottomBar/BottomBarMargin/NavRow/WorldButton"),
-		get_node("Shell/BottomBar/BottomBarMargin/NavRow/OverviewButton"),
-		get_node("Shell/BottomBar/BottomBarMargin/NavRow/RecruitButton"),
-		get_node("Shell/BottomBar/BottomBarMargin/NavRow/HeroesButton"),
-		get_node("Shell/BottomBar/BottomBarMargin/NavRow/InventoryButton"),
-		get_node("Shell/BottomBar/BottomBarMargin/NavRow/DebugButton"),
-		get_node("Shell/BottomBar/BottomBarMargin/NavRow/SavesButton"),
-		get_node("Shell/BottomBar/BottomBarMargin/NavRow/BackButton"),
+		_world_button,
+		_overview_button,
+		_recruit_button,
+		_heroes_button,
+		_inventory_button,
+		_debug_button,
+		_saves_button,
+		_back_button,
 	]
 	for button in bottom_buttons:
 		_style_button(button)
@@ -162,29 +170,29 @@ func _apply_theme() -> void:
 
 
 func _apply_ui_text_bundle() -> void:
-	get_node("Shell/BottomBar/BottomBarMargin/NavRow/WorldButton").text = _txt("nav.world")
-	get_node("Shell/BottomBar/BottomBarMargin/NavRow/OverviewButton").text = _txt("nav.settlements")
-	get_node("Shell/BottomBar/BottomBarMargin/NavRow/RecruitButton").text = _txt("nav.recruit", {}, "Recruit")
-	get_node("Shell/BottomBar/BottomBarMargin/NavRow/HeroesButton").text = _txt("nav.heroes")
-	get_node("Shell/BottomBar/BottomBarMargin/NavRow/InventoryButton").text = _txt("nav.inventory")
-	get_node("Shell/BottomBar/BottomBarMargin/NavRow/DebugButton").text = _txt("nav.debug")
-	get_node("Shell/BottomBar/BottomBarMargin/NavRow/SavesButton").text = _txt("nav.saves")
-	get_node("Shell/BottomBar/BottomBarMargin/NavRow/BackButton").text = _txt("nav.home")
+	_world_button.text = _txt("nav.world")
+	_overview_button.text = _txt("nav.settlements")
+	_recruit_button.text = _txt("nav.recruit", {}, "Recruit")
+	_heroes_button.text = _txt("nav.heroes")
+	_inventory_button.text = _txt("nav.inventory")
+	_debug_button.text = _txt("nav.debug")
+	_saves_button.text = _txt("nav.saves")
+	_back_button.text = _txt("nav.home")
 
 
 func _wire_navigation() -> void:
 	_navigation.connect_navigation(
 		self,
 		{
-			MODE_WORLD: get_node("Shell/BottomBar/BottomBarMargin/NavRow/WorldButton"),
-			MODE_OVERVIEW: get_node("Shell/BottomBar/BottomBarMargin/NavRow/OverviewButton"),
-			MODE_RECRUIT: get_node("Shell/BottomBar/BottomBarMargin/NavRow/RecruitButton"),
-			MODE_HEROES: get_node("Shell/BottomBar/BottomBarMargin/NavRow/HeroesButton"),
-			MODE_INVENTORY: get_node("Shell/BottomBar/BottomBarMargin/NavRow/InventoryButton"),
-			MODE_DEBUG: get_node("Shell/BottomBar/BottomBarMargin/NavRow/DebugButton"),
-			MODE_SAVES: get_node("Shell/BottomBar/BottomBarMargin/NavRow/SavesButton"),
+			MODE_WORLD: _world_button,
+			MODE_OVERVIEW: _overview_button,
+			MODE_RECRUIT: _recruit_button,
+			MODE_HEROES: _heroes_button,
+			MODE_INVENTORY: _inventory_button,
+			MODE_DEBUG: _debug_button,
+			MODE_SAVES: _saves_button,
 		},
-		get_node("Shell/BottomBar/BottomBarMargin/NavRow/BackButton")
+		_back_button
 	)
 
 

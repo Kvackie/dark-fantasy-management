@@ -751,7 +751,7 @@ func _serialize_state() -> Dictionary:
 func _apply_loaded_state(data: Dictionary) -> void:
 	resources = SettlementGameData.duplicate_resources(data.get("resources", {}))
 	settlement_states = _normalize_loaded_settlement_states(data.get("settlement_states", {}), data.get("slots", []))
-	_session().generated_settlement_definitions = _normalize_loaded_generated_settlement_definitions(data.get("generated_settlement_definitions", {}))
+	_set_generated_settlement_definitions(_normalize_loaded_generated_settlement_definitions(data.get("generated_settlement_definitions", {})))
 	heroes = []
 	for hero in data.get("heroes", []):
 		if hero is Dictionary:
@@ -1572,7 +1572,7 @@ func _register_generated_settlement_definition(zone: Dictionary) -> void:
 	var normalized := _create_generated_settlement_definition(zone)
 	if normalized.is_empty():
 		return
-	_session().generated_settlement_definitions[String(normalized.get("id", ""))] = normalized
+	_set_generated_settlement_definition(String(normalized.get("id", "")), normalized)
 
 
 func _create_generated_settlement_definition(zone: Dictionary) -> Dictionary:
@@ -1607,13 +1607,14 @@ func _get_any_settlement_definition(settlement_id: String) -> Dictionary:
 	var definition := DataLoader.get_settlement_definition(settlement_id)
 	if not definition.is_empty():
 		return definition
-	return _as_dictionary(_session().generated_settlement_definitions.get(settlement_id, {})).duplicate(true)
+	return _get_generated_settlement_definition(settlement_id)
 
 
 func _duplicate_generated_settlement_definitions() -> Dictionary:
 	var copy: Dictionary = {}
-	for settlement_id in _session().generated_settlement_definitions.keys():
-		copy[String(settlement_id)] = _as_dictionary(_session().generated_settlement_definitions[settlement_id]).duplicate(true)
+	var generated_settlement_definitions := _generated_settlement_definitions()
+	for settlement_id in generated_settlement_definitions.keys():
+		copy[String(settlement_id)] = _as_dictionary(generated_settlement_definitions[settlement_id]).duplicate(true)
 	return copy
 
 
@@ -1630,7 +1631,7 @@ func _normalize_loaded_generated_settlement_definitions(value: Variant) -> Dicti
 
 
 func _reconcile_generated_settlement_definitions() -> void:
-	var generated_definitions: Dictionary = _session().generated_settlement_definitions.duplicate(true)
+	var generated_definitions: Dictionary = _generated_settlement_definitions().duplicate(true)
 	for zone_data in world_zones.values():
 		var zone := _as_dictionary(zone_data)
 		if String(zone.get("state", "")) != "claimed":
@@ -1639,7 +1640,25 @@ func _reconcile_generated_settlement_definitions() -> void:
 		if normalized.is_empty():
 			continue
 		generated_definitions[String(normalized.get("id", ""))] = normalized
-	_session().generated_settlement_definitions = generated_definitions
+	_set_generated_settlement_definitions(generated_definitions)
+
+
+func _generated_settlement_definitions() -> Dictionary:
+	return _as_dictionary(_session().get("generated_settlement_definitions"))
+
+
+func _set_generated_settlement_definitions(value: Dictionary) -> void:
+	_session().set("generated_settlement_definitions", value)
+
+
+func _set_generated_settlement_definition(settlement_id: String, definition: Dictionary) -> void:
+	var generated_definitions := _generated_settlement_definitions().duplicate(true)
+	generated_definitions[settlement_id] = definition
+	_set_generated_settlement_definitions(generated_definitions)
+
+
+func _get_generated_settlement_definition(settlement_id: String) -> Dictionary:
+	return _as_dictionary(_generated_settlement_definitions().get(settlement_id, {})).duplicate(true)
 
 
 func _serialize_settlement_states() -> Dictionary:
