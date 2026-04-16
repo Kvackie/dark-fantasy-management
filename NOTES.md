@@ -42,3 +42,4 @@
 - Add the ability to setup special zones that can be randomly generated into the loop.
 - Make a use for inventory items.
 - Give equipment bonuses that affect other parts of gameplay loop.
+- Zooming to world map
