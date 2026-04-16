@@ -39,17 +39,11 @@ func stop_tick_timer() -> void:
 func get_slot_production_preview(slot_index: int) -> Dictionary:
 	if _game == null:
 		return {}
-	if not _game.has_method("get_slot"):
-		return {}
 	return _calculate_slot_production(_as_dictionary(_game.get_slot(slot_index)))
 
 
 func get_owned_settlement_production_preview() -> Dictionary:
 	if _game == null:
-		return {}
-	if not _game.has_method("get_owned_settlement_ids"):
-		return {}
-	if not _game.has_method("get_settlement_slots_snapshot"):
 		return {}
 	var production_delta: Dictionary = {}
 	for settlement_id in _as_array(_game.get_owned_settlement_ids()):
@@ -62,7 +56,7 @@ func get_owned_settlement_production_preview() -> Dictionary:
 
 
 func _on_tick_timeout() -> void:
-	if _game == null or not _game.has_method("process_tick"):
+	if _game == null:
 		return
 	_game.process_tick()
 
@@ -90,7 +84,7 @@ func _calculate_slot_production(slot: Dictionary) -> Dictionary:
 
 
 func _get_slot_total_relevant_work(slot: Dictionary, resource_id: String) -> int:
-	if _game == null or not _game.has_method("get_hero_effective_work_stats"):
+	if _game == null:
 		return 0
 	var work_stat_key := String(RESOURCE_WORK_STAT_MAP.get(resource_id, "")).strip_edges()
 	if work_stat_key.is_empty():

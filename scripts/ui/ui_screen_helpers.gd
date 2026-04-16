@@ -60,14 +60,14 @@ static func make_small_action_button(text: String, callback: Callable) -> Button
 	return button
 
 
-static func make_overview_settlement_tile(settlement_definition: Dictionary, open_callback: Callable) -> PanelContainer:
+static func make_overview_settlement_tile(settlement_definition: Dictionary, open_callback: Callable, active_settlement_id: String, built_plot_count: int) -> PanelContainer:
 	var panel := PanelContainer.new()
 	panel.custom_minimum_size = Vector2(176, 214)
 	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var settlement_id := String(settlement_definition.get("id", ""))
-	var accent := Color("d0a170") if settlement_id == GameManager.active_settlement_id else Color("7a5e4b")
+	var accent := Color("d0a170") if settlement_id == active_settlement_id else Color("7a5e4b")
 	_style_panel(panel, Color("141113"), accent, 10)
-	var plot_counts := _get_settlement_plot_counts(settlement_id)
+	var plot_counts := _settlement_plot_counts_from_built(built_plot_count)
 	var body := VBoxContainer.new()
 	body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -181,8 +181,7 @@ static func _equipment_slot_label(slot_key: String) -> String:
 			return slot_key.capitalize()
 
 
-static func _get_settlement_plot_counts(settlement_id: String) -> Dictionary:
-	var built_slots: int = GameManager.get_settlement_built_plot_count(settlement_id)
+static func _settlement_plot_counts_from_built(built_slots: int) -> Dictionary:
 	return {
 		"built": built_slots,
 		"available": max(SettlementGameData.GRID_SIZE - built_slots, 0),
