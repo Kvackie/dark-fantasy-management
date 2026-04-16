@@ -133,20 +133,32 @@ func clear_pending_save() -> void:
 	pending_save = false
 
 
-func get_save_slot_metadata(slot_count: int, resolve_name: Callable) -> Array:
+func get_save_slot_metadata(slot_count: int, resolve_name: Callable = Callable()) -> Array:
 	var manifest := _load_save_slot_manifest()
 	var manifest_slots := _as_dictionary(manifest.get("slots", {}))
 	var slot_info: Array = []
 	for slot_index in range(1, slot_count + 1):
 		var path := _save_path(slot_index)
 		var metadata := _as_dictionary(manifest_slots.get(str(slot_index), {}))
+		var resolved_name := ""
+		if resolve_name.is_valid():
+			resolved_name = str(resolve_name.call(slot_index, metadata))
+		else:
+			resolved_name = _default_save_slot_name(slot_index, metadata)
 		slot_info.append({
 			"slot": slot_index,
 			"exists": FileAccess.file_exists(path),
 			"active": slot_index == active_save_slot,
-			"name": resolve_name.call(slot_index, metadata),
+			"name": resolved_name,
 		})
 	return slot_info
+
+
+func _default_save_slot_name(slot_index: int, metadata: Dictionary) -> String:
+	var custom_name := String(metadata.get("name", "")).strip_edges()
+	if not custom_name.is_empty():
+		return custom_name
+	return DataLoader.get_ui_text("save.slot_default_name", {"slot": slot_index}, "Slot %d" % slot_index)
 
 
 func get_inventory_snapshot() -> Dictionary:

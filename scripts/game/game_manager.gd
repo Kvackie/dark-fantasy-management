@@ -13,17 +13,11 @@ signal world_changed()
 signal recruit_market_changed()
 
 const SettlementGameData = preload("res://scripts/game/settlement_game.gd")
+const ProductionComponentScript = preload("res://scripts/components/production_component.gd")
 const RESOURCE_ID_FOOD := "food"
 const RESOURCE_ID_WOOD := "wood"
 const RESOURCE_ID_STONE := "stone"
 const RESOURCE_ID_CRYSTALS := "crystals"
-const RESOURCE_WORK_STAT_MAP := {
-	RESOURCE_ID_FOOD: "farming",
-	RESOURCE_ID_WOOD: "lumbering",
-	RESOURCE_ID_STONE: "mining",
-	RESOURCE_ID_CRYSTALS: "mining",
-}
-const WORK_STAT_PRODUCTION_BONUS_PER_POINT := 0.03
 
 var resources: Dictionary:
 	get:
@@ -117,18 +111,15 @@ var _next_recruit_offer_id: int:
 	set(value):
 		_session().next_recruit_offer_id = value
 var _game_session: Node = null
-var _tick_timer: Timer
+var _production_component: Node = null
 
 
 func _ready() -> void:
 	randomize()
 	_resolve_session_dependency()
-	_tick_timer = Timer.new()
-	_tick_timer.wait_time = SettlementGameData.TICK_SECONDS
-	_tick_timer.autostart = true
-	_tick_timer.one_shot = false
-	_tick_timer.timeout.connect(_on_tick_timeout)
-	add_child(_tick_timer)
+	_ensure_production_component()
+	if _production_component != null and is_instance_valid(_production_component) and _production_component.has_method("start_tick_timer"):
+		_production_component.start_tick_timer()
 	reset_new_game()
 	emit_state()
 
@@ -492,18 +483,17 @@ func get_available_heroes_for_slot(_slot_index: int) -> Array:
 
 
 func get_slot_production_preview(slot_index: int) -> Dictionary:
-	return _calculate_slot_production(get_slot(slot_index))
+	_ensure_production_component()
+	if _production_component == null or not is_instance_valid(_production_component) or not _production_component.has_method("get_slot_production_preview"):
+		return {}
+	return _production_component.get_slot_production_preview(slot_index)
 
 
 func get_owned_settlement_production_preview() -> Dictionary:
-	var production_delta: Dictionary = {}
-	for settlement_id in owned_settlement_ids:
-		for slot in _get_settlement_slots(String(settlement_id)):
-			var slot_data: Dictionary = slot
-			var slot_delta: Dictionary = _calculate_slot_production(slot_data)
-			for resource_id in slot_delta.keys():
-				production_delta[resource_id] = int(production_delta.get(resource_id, 0)) + int(slot_delta[resource_id])
-	return production_delta
+	_ensure_production_component()
+	if _production_component == null or not is_instance_valid(_production_component) or not _production_component.has_method("get_owned_settlement_production_preview"):
+		return {}
+	return _production_component.get_owned_settlement_production_preview()
 
 
 func assign_hero_to_slot(hero_uid: int, slot_index: int) -> bool:
@@ -713,7 +703,7 @@ func add_resources(delta: Dictionary) -> void:
 
 
 func get_save_slot_metadata() -> Array:
-	return _session().get_save_slot_metadata(SettlementGameData.SAVE_SLOT_COUNT, Callable(self, "_resolve_save_slot_name"))
+	return _session().get_save_slot_metadata(SettlementGameData.SAVE_SLOT_COUNT)
 
 
 func set_save_slot_name(slot_index: int, slot_name: String) -> void:
@@ -867,37 +857,6 @@ func _remove_hero_from_all_slots(hero_uid: int) -> void:
 	hero_data["assigned_slot"] = -1
 	heroes[hero_index] = hero_data
 	_session().rebuild_slot_assignment_compatibility(heroes, settlement_states)
-
-
-func _calculate_slot_production(slot: Dictionary) -> Dictionary:
-	var building_id: String = String(slot.get("building_id", ""))
-	if building_id.is_empty():
-		return {}
-	var definition: Dictionary = DataLoader.get_building_definition(building_id)
-	if definition.is_empty():
-		return {}
-	var production_delta: Dictionary = {}
-	var level_multiplier: float = 1.0
-	level_multiplier += float(max(int(slot.get("level", 1)) - 1, 0)) * float(definition.get("upgrade_growth", 0.0))
-	for entry in _as_array(definition.get("base_production", [])):
-		if entry is Dictionary and entry.has("resource"):
-			var base_amount: float = float(entry.get("amount", 0))
-			var resource_id := String(entry.resource)
-			var work_multiplier := 1.0 + (_get_slot_total_relevant_work(slot, resource_id) * WORK_STAT_PRODUCTION_BONUS_PER_POINT)
-			var total_amount: int = int(round(base_amount * level_multiplier * work_multiplier))
-			production_delta[String(entry.resource)] = total_amount
-	return production_delta
-
-
-func _get_slot_total_relevant_work(slot: Dictionary, resource_id: String) -> int:
-	var work_stat_key := String(RESOURCE_WORK_STAT_MAP.get(resource_id, "")).strip_edges()
-	if work_stat_key.is_empty():
-		return 0
-	var total_relevant_work := 0
-	for hero_uid in _normalize_int_array(slot.get("assigned_hero_ids", [])):
-		var effective_work_stats := get_hero_effective_work_stats(hero_uid)
-		total_relevant_work += int(effective_work_stats.get(work_stat_key, 0))
-	return total_relevant_work
 
 
 func _reconcile_recruit_market_state(seed_offers_if_unlocked: bool) -> bool:
@@ -1847,13 +1806,6 @@ func _normalize_int_array(value: Variant) -> Array:
 	return normalized
 
 
-func _resolve_save_slot_name(slot_index: int, metadata: Dictionary) -> String:
-	var custom_name := String(metadata.get("name", "")).strip_edges()
-	if not custom_name.is_empty():
-		return custom_name
-	return DataLoader.get_ui_text("save.slot_default_name", {"slot": slot_index}, "Slot %d" % slot_index)
-
-
 func _resolve_session_dependency() -> void:
 	if _game_session != null and is_instance_valid(_game_session):
 		return
@@ -1869,6 +1821,17 @@ func _resolve_session_dependency() -> void:
 		_game_session.ensure_inventory_component()
 
 
+func _ensure_production_component() -> void:
+	if _production_component != null and is_instance_valid(_production_component):
+		return
+	var component: Node = ProductionComponentScript.new()
+	component.name = "ProductionComponent"
+	if component.has_method("configure"):
+		component.configure(self)
+	add_child(component)
+	_production_component = component
+
+
 func _session() -> Node:
 	if _game_session == null or not is_instance_valid(_game_session):
 		_resolve_session_dependency()
@@ -1879,5 +1842,4 @@ func _request_persistence_update() -> void:
 	_session().mark_save_dirty()
 
 
-func _on_tick_timeout() -> void:
-	process_tick()
+ 
