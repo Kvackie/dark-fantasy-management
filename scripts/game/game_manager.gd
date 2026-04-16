@@ -648,42 +648,27 @@ func get_heroes_snapshot() -> Array:
 
 
 func add_item_to_inventory(definition_id: String, quantity: int) -> void:
-	if quantity <= 0:
+	var session := _session()
+	if session == null:
 		return
-	var item_definition: Dictionary = DataLoader.get_item_definition(definition_id)
-	if item_definition.is_empty():
+	if session.has_method("ensure_inventory_component"):
+		session.ensure_inventory_component()
+	var component: Node = session.inventory_component
+	if component == null or not is_instance_valid(component) or not component.has_method("add_item_to_inventory"):
 		return
-	var max_stack: int = max(1, int(item_definition.get("max_stack", DataLoader.DEFAULT_ITEM_MAX_STACK)))
-	var remaining: int = quantity
-	for stack_index in range(inventory_items.size()):
-		if remaining <= 0:
-			break
-		var stack: Dictionary = inventory_items[stack_index]
-		if String(stack.get("definition_id", "")) != definition_id:
-			continue
-		var current_quantity := int(stack.get("quantity", 0))
-		if current_quantity >= max_stack:
-			continue
-		var added: int = min(max_stack - current_quantity, remaining)
-		stack["quantity"] = current_quantity + added
-		inventory_items[stack_index] = stack
-		remaining -= added
-	while remaining > 0:
-		var stack_quantity: int = min(max_stack, remaining)
-		inventory_items.append({
-			"definition_id": definition_id,
-			"quantity": stack_quantity,
-		})
-		remaining -= stack_quantity
+	component.add_item_to_inventory(definition_id, quantity)
 
 
 func add_equipment_to_inventory(definition_id: String) -> Dictionary:
-	var equipment_definition: Dictionary = DataLoader.get_equipment_definition(definition_id)
-	if equipment_definition.is_empty():
+	var session := _session()
+	if session == null:
 		return {}
-	var instance := _create_equipment_instance(equipment_definition)
-	inventory_equipment.append(instance)
-	return instance.duplicate(true)
+	if session.has_method("ensure_inventory_component"):
+		session.ensure_inventory_component()
+	var component: Node = session.inventory_component
+	if component == null or not is_instance_valid(component) or not component.has_method("add_equipment_to_inventory"):
+		return {}
+	return component.add_equipment_to_inventory(definition_id)
 
 
 func get_inventory_equipment_instance(equipment_uid: int) -> Dictionary:
@@ -691,42 +676,30 @@ func get_inventory_equipment_instance(equipment_uid: int) -> Dictionary:
 
 
 func equip_equipment_to_hero(hero_uid: int, slot_key: String, equipment_uid: int) -> bool:
-	if not DataLoader.HERO_EQUIPMENT_KEYS.has(slot_key):
+	var session := _session()
+	if session == null:
 		return false
-	var hero_index := _find_hero_index(hero_uid)
-	if hero_index == -1:
+	if session.has_method("ensure_inventory_component"):
+		session.ensure_inventory_component()
+	var component: Node = session.inventory_component
+	if component == null or not is_instance_valid(component) or not component.has_method("equip_equipment_to_hero"):
 		return false
-	var equipment_index := _find_inventory_equipment_index(equipment_uid)
-	if equipment_index == -1:
+	if not component.equip_equipment_to_hero(hero_uid, slot_key, equipment_uid):
 		return false
-	var equipment_instance: Dictionary = inventory_equipment[equipment_index]
-	var equipment_definition := DataLoader.get_equipment_definition(String(equipment_instance.get("definition_id", "")))
-	if equipment_definition.is_empty():
-		return false
-	if String(equipment_definition.get("slot", "")) != slot_key:
-		return false
-	_unequip_hero_slot_internal(hero_index, slot_key)
-	_detach_equipment_instance(equipment_uid)
-	var hero_data: Dictionary = heroes[hero_index]
-	var hero_equipment := _as_dictionary(hero_data.get("equipment", {})).duplicate(true)
-	if hero_equipment.is_empty():
-		hero_equipment = DataLoader.create_empty_hero_equipment()
-		hero_data["equipment"] = hero_equipment
-	hero_equipment[slot_key] = str(equipment_uid)
-	hero_data["equipment"] = hero_equipment
-	heroes[hero_index] = hero_data
-	_session().rebuild_equipment_compatibility(heroes, inventory_equipment, DataLoader.HERO_EQUIPMENT_KEYS, Callable(DataLoader, "get_equipment_definition"), Callable(DataLoader, "create_empty_hero_equipment"))
 	_emit_hero_and_inventory_state(true)
 	return true
 
 
 func unequip_hero_slot(hero_uid: int, slot_key: String) -> bool:
-	if not DataLoader.HERO_EQUIPMENT_KEYS.has(slot_key):
+	var session := _session()
+	if session == null:
 		return false
-	var hero_index := _find_hero_index(hero_uid)
-	if hero_index == -1:
+	if session.has_method("ensure_inventory_component"):
+		session.ensure_inventory_component()
+	var component: Node = session.inventory_component
+	if component == null or not is_instance_valid(component) or not component.has_method("unequip_hero_slot"):
 		return false
-	if _unequip_hero_slot_internal(hero_index, slot_key) <= 0:
+	if not component.unequip_hero_slot(hero_uid, slot_key):
 		return false
 	_emit_hero_and_inventory_state(true)
 	return true
@@ -878,43 +851,21 @@ func _emit_recruit_market_state(should_save: bool) -> void:
 
 
 func _seed_starting_inventory() -> void:
-	for entry in [
-		{"definition_id": "rations", "quantity": 24},
-		{"definition_id": "timber_bundle", "quantity": 48},
-		{"definition_id": "grave_coin", "quantity": 135},
-		{"definition_id": "veil_crystal", "quantity": 7},
-	]:
-		add_item_to_inventory(String((entry as Dictionary).get("definition_id", "")), int((entry as Dictionary).get("quantity", 0)))
-	for equipment_id in [
-		"grave_hood",
-		"watcher_cowl",
-		"ashen_mask",
-		"thorn_circlet",
-		"veil_cap",
-		"iron_brow",
-		"bone_visor",
-		"lantern_veil",
-		"mire_hat",
-		"gilded_band",
-		"crypt_wreath",
-		"pit_gloves",
-		"ember_amulet",
-	]:
-		add_equipment_to_inventory(equipment_id)
+	var session := _session()
+	if session == null:
+		return
+	if session.has_method("ensure_inventory_component"):
+		session.ensure_inventory_component()
+	var component: Node = session.inventory_component
+	if component == null or not is_instance_valid(component) or not component.has_method("seed_starting_inventory"):
+		return
+	component.seed_starting_inventory()
 
 
 func _find_hero_index(hero_uid: int) -> int:
 	for index in heroes.size():
 		var hero_data: Dictionary = heroes[index]
 		if int(hero_data.get("uid", -1)) == hero_uid:
-			return index
-	return -1
-
-
-func _find_inventory_equipment_index(equipment_uid: int) -> int:
-	for index in inventory_equipment.size():
-		var equipment_instance: Dictionary = inventory_equipment[index]
-		if int(equipment_instance.get("uid", -1)) == equipment_uid:
 			return index
 	return -1
 
@@ -1188,17 +1139,6 @@ func _create_hero_instance_from_offer(offer_data: Dictionary) -> Dictionary:
 	}
 	_next_hero_uid += 1
 	return hero_instance
-
-
-func _create_equipment_instance(equipment_definition: Dictionary) -> Dictionary:
-	var equipment_instance: Dictionary = {
-		"uid": _next_equipment_uid,
-		"definition_id": String(equipment_definition.get("id", "")),
-		"equipped_hero_uid": -1,
-		"equipped_slot": "",
-	}
-	_next_equipment_uid += 1
-	return equipment_instance
 
 
 func _normalize_loaded_hero(hero_data: Dictionary) -> Dictionary:
@@ -1841,54 +1781,6 @@ func _append_item_stacks(target: Array, definition_id: String, quantity: int, ma
 		remaining -= stack_quantity
 
 
-func _unequip_hero_slot_internal(hero_index: int, slot_key: String) -> int:
-	if hero_index < 0 or hero_index >= heroes.size():
-		return -1
-	var hero_data: Dictionary = heroes[hero_index]
-	var hero_equipment := _as_dictionary(hero_data.get("equipment", {})).duplicate(true)
-	if hero_equipment.is_empty():
-		hero_equipment = DataLoader.create_empty_hero_equipment()
-	var equipment_uid := int(String(hero_equipment.get(slot_key, "")).strip_edges())
-	hero_equipment[slot_key] = ""
-	hero_data["equipment"] = hero_equipment
-	heroes[hero_index] = hero_data
-	_clear_equipment_instance_link(equipment_uid)
-	_session().rebuild_equipment_compatibility(heroes, inventory_equipment, DataLoader.HERO_EQUIPMENT_KEYS, Callable(DataLoader, "get_equipment_definition"), Callable(DataLoader, "create_empty_hero_equipment"))
-	return equipment_uid
-
-
-func _detach_equipment_instance(equipment_uid: int) -> void:
-	if equipment_uid <= 0:
-		return
-	for hero_index in range(heroes.size()):
-		var hero_data: Dictionary = heroes[hero_index]
-		var hero_equipment := _as_dictionary(hero_data.get("equipment", {})).duplicate(true)
-		if hero_equipment.is_empty():
-			continue
-		var changed := false
-		for slot_key in hero_equipment.keys():
-			if int(String(hero_equipment.get(slot_key, "")).strip_edges()) == equipment_uid:
-				hero_equipment[slot_key] = ""
-				changed = true
-		if changed:
-			hero_data["equipment"] = hero_equipment
-			heroes[hero_index] = hero_data
-	_clear_equipment_instance_link(equipment_uid)
-	_session().rebuild_equipment_compatibility(heroes, inventory_equipment, DataLoader.HERO_EQUIPMENT_KEYS, Callable(DataLoader, "get_equipment_definition"), Callable(DataLoader, "create_empty_hero_equipment"))
-
-
-func _clear_equipment_instance_link(equipment_uid: int) -> void:
-	if equipment_uid <= 0:
-		return
-	var equipment_index := _find_inventory_equipment_index(equipment_uid)
-	if equipment_index == -1:
-		return
-	var equipment_instance: Dictionary = inventory_equipment[equipment_index]
-	equipment_instance["equipped_hero_uid"] = -1
-	equipment_instance["equipped_slot"] = ""
-	inventory_equipment[equipment_index] = equipment_instance
-
-
 func _get_hero_equipment_bonuses(hero_data: Dictionary) -> Dictionary:
 	var bonuses := {
 		"stats": {},
@@ -1920,11 +1812,15 @@ func _get_hero_equipment_bonuses(hero_data: Dictionary) -> Dictionary:
 
 
 func _get_inventory_equipment_instance(equipment_uid: int) -> Dictionary:
-	for entry in inventory_equipment:
-		var equipment_instance: Dictionary = entry
-		if int(equipment_instance.get("uid", -1)) == equipment_uid:
-			return equipment_instance.duplicate(true)
-	return {}
+	var session := _session()
+	if session == null:
+		return {}
+	if session.has_method("ensure_inventory_component"):
+		session.ensure_inventory_component()
+	var component: Node = session.inventory_component
+	if component == null or not is_instance_valid(component) or not component.has_method("get_inventory_equipment_instance"):
+		return {}
+	return component.get_inventory_equipment_instance(equipment_uid)
 
 
 func _get_max_hero_uid() -> int:
@@ -1985,6 +1881,9 @@ func _resolve_session_dependency() -> void:
 	_game_session = root.get_node_or_null("GameSession")
 	if _game_session == null:
 		push_error("GameManager could not resolve GameSession at startup.")
+		return
+	if _game_session.has_method("ensure_inventory_component"):
+		_game_session.ensure_inventory_component()
 
 
 func _session() -> Node:
