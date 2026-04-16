@@ -264,7 +264,7 @@ func _set_next_equipment_uid(value: int) -> void:
 
 
 func _rebuild_equipment_compatibility() -> void:
-	_session.rebuild_equipment_compatibility(_heroes(), _inventory_equipment(), DataLoader.HERO_EQUIPMENT_KEYS, Callable(DataLoader, "get_equipment_definition"), Callable(DataLoader, "create_empty_hero_equipment"))
+	_session.refresh_equipment_compatibility()
 
 
 func _as_dictionary(value: Variant) -> Dictionary:

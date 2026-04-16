@@ -56,6 +56,30 @@ func get_inventory_component() -> Node:
 	return inventory_component
 
 
+func get_resources_state() -> Dictionary:
+	return resources
+
+
+func set_resources_state(value: Dictionary) -> void:
+	resources = value
+
+
+func get_slots_state() -> Array:
+	return slots
+
+
+func set_slots_state(value: Array) -> void:
+	slots = value
+
+
+func get_settlement_states_state() -> Dictionary:
+	return settlement_states
+
+
+func set_settlement_states_state(value: Dictionary) -> void:
+	settlement_states = value
+
+
 func get_inventory_items() -> Array:
 	return inventory_items
 
@@ -96,6 +120,86 @@ func set_generated_settlement_definitions(definitions: Dictionary) -> void:
 	generated_settlement_definitions = definitions
 
 
+func get_recruit_market_offers_state() -> Array:
+	return recruit_market_offers
+
+
+func set_recruit_market_offers_state(value: Array) -> void:
+	recruit_market_offers = value
+
+
+func is_recruit_market_initialized_state() -> bool:
+	return recruit_market_initialized
+
+
+func set_recruit_market_initialized_state(value: bool) -> void:
+	recruit_market_initialized = value
+
+
+func get_owned_settlement_ids_state() -> Array:
+	return owned_settlement_ids
+
+
+func set_owned_settlement_ids_state(value: Array) -> void:
+	owned_settlement_ids = value
+
+
+func get_active_settlement_id_state() -> String:
+	return active_settlement_id
+
+
+func set_active_settlement_id_state(value: String) -> void:
+	active_settlement_id = value
+
+
+func get_world_seed_state() -> int:
+	return world_seed
+
+
+func set_world_seed_state(value: int) -> void:
+	world_seed = value
+
+
+func get_world_zones_state() -> Dictionary:
+	return world_zones
+
+
+func set_world_zones_state(value: Dictionary) -> void:
+	world_zones = value
+
+
+func get_selected_slot_state() -> int:
+	return selected_slot
+
+
+func set_selected_slot_state(value: int) -> void:
+	selected_slot = value
+
+
+func get_active_save_slot_state() -> int:
+	return active_save_slot
+
+
+func set_active_save_slot_state(value: int) -> void:
+	active_save_slot = value
+
+
+func get_tick_count_state() -> int:
+	return tick_count
+
+
+func set_tick_count_state(value: int) -> void:
+	tick_count = value
+
+
+func get_next_hero_uid_state() -> int:
+	return next_hero_uid
+
+
+func set_next_hero_uid_state(value: int) -> void:
+	next_hero_uid = value
+
+
 func reset_runtime_state(starting_resources: Dictionary, default_settlement_id: String) -> void:
 	resources = starting_resources.duplicate(true)
 	settlement_states = {}
@@ -124,6 +228,14 @@ func reset_runtime_state(starting_resources: Dictionary, default_settlement_id: 
 	autosave_elapsed = 0.0
 	pending_save = false
 	ensure_inventory_component()
+
+
+func get_next_recruit_offer_id_state() -> int:
+	return next_recruit_offer_id
+
+
+func set_next_recruit_offer_id_state(value: int) -> void:
+	next_recruit_offer_id = value
 
 
 func set_selected_slot(slot_index: int, slot_count: int) -> int:
@@ -519,6 +631,22 @@ func hero_world_task_is_idle(hero_uid: int, zone_state: Dictionary) -> bool:
 		if _normalize_int_array(zone.get("assigned_hero_uids", [])).has(hero_uid):
 			return false
 	return true
+
+
+func refresh_slot_assignment_compatibility() -> void:
+	rebuild_slot_assignment_compatibility(heroes, settlement_states)
+
+
+func refresh_equipment_compatibility() -> void:
+	rebuild_equipment_compatibility(heroes, inventory_equipment, DataLoader.HERO_EQUIPMENT_KEYS, Callable(DataLoader, "get_equipment_definition"), Callable(DataLoader, "create_empty_hero_equipment"))
+
+
+func refresh_world_task_compatibility() -> void:
+	rebuild_world_task_compatibility(heroes, world_zones)
+
+
+func is_hero_world_task_idle(hero_uid: int) -> bool:
+	return hero_world_task_is_idle(hero_uid, world_zones)
 
 
 func _get_active_settlement_slots() -> Array:

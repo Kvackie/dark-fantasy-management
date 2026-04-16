@@ -21,95 +21,95 @@ const RESOURCE_ID_CRYSTALS := "crystals"
 
 var resources: Dictionary:
 	get:
-		return _session().resources
+		return _session().get_resources_state()
 	set(value):
-		_session().resources = value
+		_session().set_resources_state(value)
 var slots: Array:
 	get:
-		return _session().slots
+		return _session().get_slots_state()
 	set(value):
-		_session().slots = value
+		_session().set_slots_state(value)
 var settlement_states: Dictionary:
 	get:
-		return _session().settlement_states
+		return _session().get_settlement_states_state()
 	set(value):
-		_session().settlement_states = value
+		_session().set_settlement_states_state(value)
 var heroes: Array:
 	get:
-		return _session().heroes
+		return _session().get_heroes()
 	set(value):
-		_session().heroes = value
+		_session().set_heroes(value)
 var inventory_items: Array:
 	get:
-		return _session().inventory_items
+		return _session().get_inventory_items()
 	set(value):
-		_session().inventory_items = value
+		_session().set_inventory_items(value)
 var inventory_equipment: Array:
 	get:
-		return _session().inventory_equipment
+		return _session().get_inventory_equipment()
 	set(value):
-		_session().inventory_equipment = value
+		_session().set_inventory_equipment(value)
 var recruit_market_offers: Array:
 	get:
-		return _session().recruit_market_offers
+		return _session().get_recruit_market_offers_state()
 	set(value):
-		_session().recruit_market_offers = value
+		_session().set_recruit_market_offers_state(value)
 var recruit_market_initialized: bool:
 	get:
-		return _session().recruit_market_initialized
+		return _session().is_recruit_market_initialized_state()
 	set(value):
-		_session().recruit_market_initialized = value
+		_session().set_recruit_market_initialized_state(value)
 var owned_settlement_ids: Array:
 	get:
-		return _session().owned_settlement_ids
+		return _session().get_owned_settlement_ids_state()
 	set(value):
-		_session().owned_settlement_ids = value
+		_session().set_owned_settlement_ids_state(value)
 var active_settlement_id: String:
 	get:
-		return _session().active_settlement_id
+		return _session().get_active_settlement_id_state()
 	set(value):
-		_session().active_settlement_id = value
+		_session().set_active_settlement_id_state(value)
 var world_seed: int:
 	get:
-		return _session().world_seed
+		return _session().get_world_seed_state()
 	set(value):
-		_session().world_seed = value
+		_session().set_world_seed_state(value)
 var world_zones: Dictionary:
 	get:
-		return _session().world_zones
+		return _session().get_world_zones_state()
 	set(value):
-		_session().world_zones = value
+		_session().set_world_zones_state(value)
 var selected_slot: int:
 	get:
-		return _session().selected_slot
+		return _session().get_selected_slot_state()
 	set(value):
-		_session().selected_slot = value
+		_session().set_selected_slot_state(value)
 var active_save_slot: int:
 	get:
-		return _session().active_save_slot
+		return _session().get_active_save_slot_state()
 	set(value):
-		_session().active_save_slot = value
+		_session().set_active_save_slot_state(value)
 var tick_count: int:
 	get:
-		return _session().tick_count
+		return _session().get_tick_count_state()
 	set(value):
-		_session().tick_count = value
+		_session().set_tick_count_state(value)
 
 var _next_hero_uid: int:
 	get:
-		return _session().next_hero_uid
+		return _session().get_next_hero_uid_state()
 	set(value):
-		_session().next_hero_uid = value
+		_session().set_next_hero_uid_state(value)
 var _next_equipment_uid: int:
 	get:
-		return _session().next_equipment_uid
+		return _session().get_next_equipment_uid()
 	set(value):
-		_session().next_equipment_uid = value
+		_session().set_next_equipment_uid(value)
 var _next_recruit_offer_id: int:
 	get:
-		return _session().next_recruit_offer_id
+		return _session().get_next_recruit_offer_id_state()
 	set(value):
-		_session().next_recruit_offer_id = value
+		_session().set_next_recruit_offer_id_state(value)
 var _game_session: Node = null
 var _production_component: Node = null
 
@@ -310,7 +310,7 @@ func start_zone_clearing(zone_key: String, hero_uids: Array) -> bool:
 	zone["ticks_remaining"] = duration
 	zone["clear_duration"] = duration
 	world_zones[zone_key] = zone
-	_session().rebuild_world_task_compatibility(heroes, world_zones)
+	_session().refresh_world_task_compatibility()
 	_emit_world_and_hero_state(true)
 	return true
 
@@ -466,7 +466,7 @@ func dismantle_building(slot_index: int) -> bool:
 		hero_data["assigned_slot"] = -1
 		heroes[hero_index] = hero_data
 	slots[slot_index] = SettlementGameData.empty_slot(slot_index)
-	_session().rebuild_slot_assignment_compatibility(heroes, settlement_states)
+	_session().refresh_slot_assignment_compatibility()
 	add_resources(refund)
 	_emit_hero_and_settlement_state(true)
 	return true
@@ -511,7 +511,7 @@ func assign_hero_to_slot(hero_uid: int, slot_index: int) -> bool:
 	if hero_index == -1:
 		return false
 	var hero_data: Dictionary = heroes[hero_index]
-	if not _session().hero_world_task_is_idle(hero_uid, world_zones):
+	if not _session().is_hero_world_task_idle(hero_uid):
 		return false
 	var previous_slot: int = int(hero_data.get("assigned_slot", -1))
 	var previous_settlement_id := String(hero_data.get("assigned_settlement_id", "")).strip_edges()
@@ -521,7 +521,7 @@ func assign_hero_to_slot(hero_uid: int, slot_index: int) -> bool:
 	hero_data["assigned_settlement_id"] = active_settlement_id
 	hero_data["assigned_slot"] = slot_index
 	heroes[hero_index] = hero_data
-	_session().rebuild_slot_assignment_compatibility(heroes, settlement_states)
+	_session().refresh_slot_assignment_compatibility()
 	_emit_hero_and_settlement_state(true)
 	return true
 
@@ -576,9 +576,9 @@ func dismiss_hero(hero_uid: int) -> bool:
 	_unequip_all_hero_equipment(hero_index)
 	var world_changed := _remove_hero_from_world_tasks(hero_uid)
 	heroes.remove_at(hero_index)
-	_session().rebuild_slot_assignment_compatibility(heroes, settlement_states)
-	_session().rebuild_equipment_compatibility(heroes, inventory_equipment, DataLoader.HERO_EQUIPMENT_KEYS, Callable(DataLoader, "get_equipment_definition"), Callable(DataLoader, "create_empty_hero_equipment"))
-	_session().rebuild_world_task_compatibility(heroes, world_zones)
+	_session().refresh_slot_assignment_compatibility()
+	_session().refresh_equipment_compatibility()
+	_session().refresh_world_task_compatibility()
 	emit_signal("heroes_changed")
 	emit_signal("settlement_changed")
 	emit_signal("inventory_changed")
@@ -856,7 +856,7 @@ func _remove_hero_from_all_slots(hero_uid: int) -> void:
 	hero_data["assigned_settlement_id"] = ""
 	hero_data["assigned_slot"] = -1
 	heroes[hero_index] = hero_data
-	_session().rebuild_slot_assignment_compatibility(heroes, settlement_states)
+	_session().refresh_slot_assignment_compatibility()
 
 
 func _reconcile_recruit_market_state(seed_offers_if_unlocked: bool) -> bool:
@@ -937,7 +937,7 @@ func _unequip_all_hero_equipment(hero_index: int) -> void:
 		hero_equipment[slot_key] = ""
 	hero_data["equipment"] = hero_equipment
 	heroes[hero_index] = hero_data
-	_session().rebuild_equipment_compatibility(heroes, inventory_equipment, DataLoader.HERO_EQUIPMENT_KEYS, Callable(DataLoader, "get_equipment_definition"), Callable(DataLoader, "create_empty_hero_equipment"))
+	_session().refresh_equipment_compatibility()
 
 
 func _remove_hero_from_world_tasks(hero_uid: int) -> bool:
@@ -959,7 +959,7 @@ func _remove_hero_from_world_tasks(hero_uid: int) -> bool:
 		world_state_changed = true
 	if world_state_changed:
 		_apply_world_visibility()
-	_session().rebuild_world_task_compatibility(heroes, world_zones)
+	_session().refresh_world_task_compatibility()
 	return world_state_changed
 
 
@@ -1272,7 +1272,7 @@ func _normalize_loaded_recruit_market_offers(value: Variant) -> Array:
 
 
 func _reconcile_loaded_equipment_links() -> void:
-	_session().rebuild_equipment_compatibility(heroes, inventory_equipment, DataLoader.HERO_EQUIPMENT_KEYS, Callable(DataLoader, "get_equipment_definition"), Callable(DataLoader, "create_empty_hero_equipment"))
+	_session().refresh_equipment_compatibility()
 
 
 func _normalize_owned_settlement_ids(value: Variant) -> Array:
@@ -1330,7 +1330,7 @@ func _reconcile_loaded_world_state() -> void:
 		_initialize_world_state()
 		return
 	_apply_world_visibility()
-	_session().rebuild_world_task_compatibility(heroes, world_zones)
+	_session().refresh_world_task_compatibility()
 
 
 func _process_world_tick() -> Dictionary:
@@ -1353,7 +1353,7 @@ func _process_world_tick() -> Dictionary:
 	if world_state_changed:
 		_apply_world_visibility()
 	if world_state_changed or hero_state_changed:
-		_session().rebuild_world_task_compatibility(heroes, world_zones)
+		_session().refresh_world_task_compatibility()
 	return {
 		"world_changed": world_state_changed,
 		"heroes_changed": hero_state_changed,
@@ -1466,11 +1466,7 @@ func _world_state_priority(state: String) -> int:
 
 
 func _is_hero_available_for_world(hero_data: Dictionary) -> bool:
-	return int(hero_data.get("assigned_slot", -1)) < 0 and _session().hero_world_task_is_idle(int(hero_data.get("uid", -1)), world_zones)
-
-
-func _hero_world_task_is_idle(hero_data: Dictionary) -> bool:
-	return _session().hero_world_task_is_idle(int(hero_data.get("uid", -1)), world_zones)
+	return int(hero_data.get("assigned_slot", -1)) < 0 and _session().is_hero_world_task_idle(int(hero_data.get("uid", -1)))
 
 
 func _get_zone_clear_duration(zone: Dictionary) -> int:
@@ -1696,7 +1692,7 @@ func _get_settlement_slots(settlement_id: String) -> Array:
 func _sync_active_settlement_slots() -> void:
 	if active_settlement_id.is_empty():
 		return
-	_session().rebuild_slot_assignment_compatibility(heroes, settlement_states)
+	_session().refresh_slot_assignment_compatibility()
 
 
 func _duplicate_optional_dict(value: Variant) -> Dictionary:
