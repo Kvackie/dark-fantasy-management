@@ -40,6 +40,8 @@ func _seed_template_hero_mod() -> void:
 		"name": "Template Hero",
 		"class": "Supporter",
 		"description": "Example mod hero definition. Copy this folder, edit hero.json, and optionally add portrait.png or icon.png.",
+		"level": 1,
+		"experience": 0,
 		"recruitment_weight": 1,
 		"recruit_cost": [
 			{
@@ -70,6 +72,19 @@ func _seed_template_hero_mod() -> void:
 			"farming": 2,
 			"mining": 1,
 			"lumbering": 3,
+		},
+		"stat_growth": {
+			"health": 3,
+			"sanity": 2,
+			"attack": 1,
+			"defense": 1,
+			"critical_chance": 1,
+			"critical_damage": 1,
+		},
+		"work_stat_growth": {
+			"farming": 1,
+			"mining": 1,
+			"lumbering": 1,
 		},
 	}
 	_write_text_file_if_missing(template_folder.path_join("hero.json"), JSON.stringify(template_hero, "\t"))
@@ -135,10 +150,15 @@ func _template_hero_mod_readme() -> String:
 		"- name\n" + \
 		"- class\n" + \
 		"- description\n" + \
+		"- level (optional; defaults to 1)\n" + \
+		"- experience (optional; defaults to minimum for the current level)\n" + \
 		"- recruitment_weight\n" + \
 		"- recruit_cost (array; supports amount, min_amount/max_amount, and per_level)\n" + \
 		"- stats\n" + \
-		"- work_stats\n\n" + \
+		"- work_stats\n" + \
+		"- stat_growth (optional; per-level combat stat gains)\n" + \
+		"- work_stat_growth (optional; per-level work stat gains)\n\n" + \
+		"Growth fields can be either fixed values like 2 or ranges like \"1-3\" or {\"min\": 1, \"max\": 3}.\n\n" + \
 		"Optional:\n" + \
 		"- portrait.png\n" + \
 		"- icon.png\n\n" + \

@@ -2,6 +2,8 @@ extends Node
 
 signal data_reloaded
 
+const SettlementGameData = preload("res://scripts/game/settlement_game.gd")
+
 const BUILDINGS_PATH := "res://data/buildings.json"
 const SETTLEMENTS_PATH := "res://data/settlements.json"
 const UI_TEXT_PATH := "res://data/ui_text.json"
@@ -35,10 +37,25 @@ const DEFAULT_HERO_STATS := {
 	"critical_damage": 150,
 }
 
+const DEFAULT_HERO_STAT_GROWTH := {
+	"health": 3,
+	"sanity": 2,
+	"attack": 1,
+	"defense": 1,
+	"critical_chance": 1,
+	"critical_damage": 1,
+}
+
 const DEFAULT_HERO_WORK_STATS := {
 	"farming": 0,
 	"mining": 0,
 	"lumbering": 0,
+}
+
+const DEFAULT_HERO_WORK_STAT_GROWTH := {
+	"farming": 1,
+	"mining": 1,
+	"lumbering": 1,
 }
 
 var building_definitions: Dictionary = {}
@@ -205,10 +222,14 @@ func normalize_hero_definition(entry: Dictionary, source: String = "core", mod_i
 		"name": hero_name,
 		"class": normalized_class,
 		"description": String(entry.get("description", "")).strip_edges(),
+		"level": max(1, int(entry.get("level", 1))),
+		"experience": max(int(entry.get("experience", 0)), max(int(entry.get("level", 1)) - 1, 0) * 10),
 		"recruitment_weight": max(1, int(entry.get("recruitment_weight", 1))),
 		"recruit_cost": _normalize_recruit_cost_entries(entry.get("recruit_cost", [])),
 		"stats": _normalize_stat_block(entry.get("stats", {}), DEFAULT_HERO_STATS),
+		"stat_growth": _normalize_growth_block(entry.get("stat_growth", {}), DEFAULT_HERO_STAT_GROWTH),
 		"work_stats": _normalize_stat_block(entry.get("work_stats", {}), DEFAULT_HERO_WORK_STATS),
+		"work_stat_growth": _normalize_growth_block(entry.get("work_stat_growth", {}), DEFAULT_HERO_WORK_STAT_GROWTH),
 		"source": source,
 		"mod_id": mod_id if source == "mod" else "",
 		"portrait_path": _resolve_catalog_image_path(entry, mod_folder_path, "portrait_path", "portrait.png", DEFAULT_HERO_IMAGE),
@@ -232,6 +253,9 @@ func normalize_settlement_definition(entry: Dictionary) -> Dictionary:
 		"id": settlement_id,
 		"name": settlement_name,
 		"icon_path": _resolve_catalog_image_path(entry, "", "icon_path", "icon.png", DEFAULT_CATALOG_ICON),
+		"biome": String(entry.get("biome", "neutral")).strip_edges().to_lower(),
+		"plot_count": max(1, int(entry.get("plot_count", SettlementGameData.GRID_SIZE))),
+		"allowed_buildings": _normalize_allowed_buildings(entry.get("allowed_buildings", ["ALL"])),
 	}
 	if entry.has("schema_version"):
 		normalized["schema_version"] = entry["schema_version"]
@@ -582,6 +606,54 @@ func _normalize_stat_block(value: Variant, defaults: Dictionary) -> Dictionary:
 	var normalized: Dictionary = {}
 	for stat_key in defaults.keys():
 		normalized[stat_key] = int(source_data.get(stat_key, defaults[stat_key]))
+	return normalized
+
+
+func _normalize_growth_block(value: Variant, defaults: Dictionary) -> Dictionary:
+	var source_data := _as_dictionary(value)
+	var normalized: Dictionary = {}
+	for stat_key in defaults.keys():
+		var stat_value: Variant = source_data.get(stat_key, defaults[stat_key])
+		if stat_value is Dictionary:
+			var range_data := stat_value as Dictionary
+			var min_amount := int(range_data.get("min", range_data.get("min_amount", defaults[stat_key])))
+			var max_amount := int(range_data.get("max", range_data.get("max_amount", min_amount)))
+			if max_amount < min_amount:
+				var swap_amount := min_amount
+				min_amount = max_amount
+				max_amount = swap_amount
+			normalized[stat_key] = {"min": min_amount, "max": max_amount}
+		elif stat_value is String:
+			var stat_text := String(stat_value).strip_edges()
+			var separator_index := stat_text.find("-")
+			if separator_index > 0 and separator_index < stat_text.length() - 1:
+				var min_amount := int(stat_text.substr(0, separator_index).strip_edges())
+				var max_amount := int(stat_text.substr(separator_index + 1).strip_edges())
+				if max_amount < min_amount:
+					var swap_amount := min_amount
+					min_amount = max_amount
+					max_amount = swap_amount
+				normalized[stat_key] = {"min": min_amount, "max": max_amount}
+			else:
+				normalized[stat_key] = int(stat_text)
+		else:
+			normalized[stat_key] = int(stat_value)
+	return normalized
+
+
+func _normalize_allowed_buildings(value: Variant) -> Array:
+	var normalized: Array = []
+	if value is not Array:
+		return ["ALL"]
+	for entry in value:
+		var building_key := String(entry).strip_edges()
+		if building_key.is_empty():
+			continue
+		if building_key.to_upper() == "ALL":
+			return ["ALL"]
+		normalized.append(building_key)
+	if normalized.is_empty():
+		return ["ALL"]
 	return normalized
 
 

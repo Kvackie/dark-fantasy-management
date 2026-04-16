@@ -51,7 +51,7 @@ theme_override_constants/separation = 10
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
-theme_override_constants/separation = 18
+theme_override_constants/separation = 1
 
 [node name="SettlementPanel" type="PanelContainer" parent="Shell/MainRow" unique_id=632424750]
 layout_mode = 2

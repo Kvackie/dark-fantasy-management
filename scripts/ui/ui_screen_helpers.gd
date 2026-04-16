@@ -60,14 +60,14 @@ static func make_small_action_button(text: String, callback: Callable) -> Button
 	return button
 
 
-static func make_overview_settlement_tile(settlement_definition: Dictionary, open_callback: Callable) -> PanelContainer:
+static func make_overview_settlement_tile(settlement_definition: Dictionary, open_callback: Callable, active_settlement_id: String, built_plot_count: int, total_plot_count: int) -> PanelContainer:
 	var panel := PanelContainer.new()
 	panel.custom_minimum_size = Vector2(176, 214)
 	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var settlement_id := String(settlement_definition.get("id", ""))
-	var accent := Color("d0a170") if settlement_id == GameManager.active_settlement_id else Color("7a5e4b")
+	var accent := Color("d0a170") if settlement_id == active_settlement_id else Color("7a5e4b")
 	_style_panel(panel, Color("141113"), accent, 10)
-	var plot_counts := _get_settlement_plot_counts(settlement_id)
+	var plot_counts := _settlement_plot_counts_from_built(built_plot_count)
 	var body := VBoxContainer.new()
 	body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -94,7 +94,7 @@ static func make_overview_settlement_tile(settlement_definition: Dictionary, ope
 		icon.texture = _load_texture_from_path(DataLoader.DEFAULT_CATALOG_ICON)
 	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	icon_holder.add_child(icon)
-	var plots_label := make_label(txt("overview.plots", {"built": int(plot_counts.get("built", 0)), "total": SettlementGameData.GRID_SIZE}), 13)
+	var plots_label := make_label(txt("overview.plots", {"built": int(plot_counts.get("built", 0)), "total": total_plot_count}), 13)
 	plots_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	plots_label.add_theme_color_override("font_color", Color("d9cbb7"))
 	plots_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -153,8 +153,36 @@ static func make_inventory_slot(entry: Dictionary) -> PanelContainer:
 	var accent_color := Color("7a5e4b") if kind == "item" else Color("8d8478")
 	_style_panel(panel, Color("141113"), accent_color, 10)
 	var footer_text := "x%d" % int(entry.get("quantity", 0)) if kind == "item" else _inventory_equipment_footer(entry, definition)
-	_build_inventory_tile_content(panel, definition, footer_text, Color("d9cbb7") if kind == "item" else Color("b8c3d9"), Color("efe7db"), 72, 15, 14)
+	build_inventory_tile_content(panel, definition, footer_text, Color("d9cbb7") if kind == "item" else Color("b8c3d9"), Color("efe7db"), 72, 15, 14)
 	return panel
+
+
+static func equipment_slot_label(slot_key: String) -> String:
+	return _equipment_slot_label(slot_key)
+
+
+static func build_inventory_tile_content(parent: Control, definition: Dictionary, footer_text: String, footer_color: Color, title_color: Color, icon_size: int, title_font_size: int, footer_font_size: int, title_override: String = "") -> void:
+	_build_inventory_tile_content(parent, definition, footer_text, footer_color, title_color, icon_size, title_font_size, footer_font_size, title_override)
+
+
+static func load_texture_from_path(path: String) -> Texture2D:
+	return _load_texture_from_path(path)
+
+
+static func load_hero_texture(hero_data: Dictionary) -> Texture2D:
+	var hero_definition: Dictionary = DataLoader.get_hero_definition(String(hero_data.get("definition_id", "")))
+	var portrait_path := String(hero_definition.get("portrait_path", ""))
+	var icon_path := String(hero_definition.get("icon_path", ""))
+	var resolved_path := portrait_path
+	if resolved_path.is_empty() or resolved_path == DataLoader.DEFAULT_HERO_IMAGE:
+		if not icon_path.is_empty() and icon_path != DataLoader.DEFAULT_HERO_IMAGE:
+			resolved_path = icon_path
+	if resolved_path.is_empty():
+		resolved_path = DataLoader.DEFAULT_HERO_IMAGE
+	var texture := _load_texture_from_path(resolved_path)
+	if texture != null:
+		return texture
+	return _load_texture_from_path(DataLoader.DEFAULT_HERO_IMAGE)
 
 
 static func _inventory_equipment_footer(entry: Dictionary, definition: Dictionary) -> String:
@@ -181,8 +209,7 @@ static func _equipment_slot_label(slot_key: String) -> String:
 			return slot_key.capitalize()
 
 
-static func _get_settlement_plot_counts(settlement_id: String) -> Dictionary:
-	var built_slots: int = GameManager.get_settlement_built_plot_count(settlement_id)
+static func _settlement_plot_counts_from_built(built_slots: int) -> Dictionary:
 	return {
 		"built": built_slots,
 		"available": max(SettlementGameData.GRID_SIZE - built_slots, 0),

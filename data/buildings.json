@@ -2,7 +2,7 @@
 	"buildings": [
 		{
 			"id": "gathering_lodge",
-			"name": "Gathering Lodge",
+			"name": "Lodge",
 			"description": "A rough frontier lodge where workers fan out to gather wood and forage enough food to keep the first district alive.",
 			"icon": "res://assets/buildings/gathering_house.png",
 			"build_cost": [
@@ -15,11 +15,10 @@
 			],
 			"upgrade_growth": 1.35,
 			"base_production": [
-				{ "resource": "wood", "amount": 8 },
-				{ "resource": "food", "amount": 3 }
+				{ "resource": "gold", "amount": 3 }
 			],
 			"worker_slots": 2,
-			"max_level": 5
+			"max_level": 20
 		},
 		{
 			"id": "farm",
@@ -39,7 +38,7 @@
 				{ "resource": "food", "amount": 10 }
 			],
 			"worker_slots": 2,
-			"max_level": 5
+			"max_level": 20
 		},
 		{
 			"id": "quarry",
@@ -59,7 +58,7 @@
 				{ "resource": "stone", "amount": 8 }
 			],
 			"worker_slots": 2,
-			"max_level": 5
+			"max_level": 20
 		},
 		{
 			"id": "lumber_camp",
@@ -79,7 +78,7 @@
 				{ "resource": "wood", "amount": 11 }
 			],
 			"worker_slots": 2,
-			"max_level": 5
+			"max_level": 20
 		},
 		{
 			"id": "smithy",
@@ -98,10 +97,51 @@
 			],
 			"upgrade_growth": 1.38,
 			"base_production": [
-				{ "resource": "gold", "amount": 6 }
 			],
 			"worker_slots": 2,
-			"max_level": 5
+			"max_level": 20
+		},
+		{
+			"id": "triage",
+			"name": "Triage",
+			"description": "A bleak treatment post where assigned heroes are patched up at a steady gold cost.",
+			"icon": "res://assets/buildings/triage_house.png",
+			"build_cost": [
+				{ "resource": "wood", "amount": 24 },
+				{ "resource": "stone", "amount": 12 },
+				{ "resource": "gold", "amount": 18 }
+			],
+			"upgrade_cost": [
+				{ "resource": "wood", "amount": 16 },
+				{ "resource": "stone", "amount": 10 },
+				{ "resource": "gold", "amount": 12 }
+			],
+			"upgrade_growth": 1.3,
+			"base_production": [
+			],
+			"worker_slots": 2,
+			"max_level": 20
+		},
+		{
+			"id": "barracks",
+			"name": "Barracks",
+			"description": "A grim drill hall where assigned heroes harden through constant training.",
+			"icon": "res://assets/buildings/barrack_house.png",
+			"build_cost": [
+				{ "resource": "wood", "amount": 28 },
+				{ "resource": "stone", "amount": 16 },
+				{ "resource": "gold", "amount": 14 }
+			],
+			"upgrade_cost": [
+				{ "resource": "wood", "amount": 18 },
+				{ "resource": "stone", "amount": 12 },
+				{ "resource": "gold", "amount": 10 }
+			],
+			"upgrade_growth": 1.3,
+			"base_production": [
+			],
+			"worker_slots": 2,
+			"max_level": 20
 		},
 		{
 			"id": "tavern",
@@ -120,10 +160,9 @@
 			],
 			"upgrade_growth": 1.4,
 			"base_production": [
-				{ "resource": "gold", "amount": 3 }
 			],
 			"worker_slots": 1,
-			"max_level": 5
+			"max_level": 20
 		}
 	]
 }

@@ -2,19 +2,19 @@ extends Node
 
 const RESOURCE_ORDER := ["wood", "food", "stone", "gold", "heroes", "gems", "crystals"]
 const TRACKED_RESOURCES := ["wood", "food", "stone", "gold", "gems", "crystals"]
-const GRID_SIZE := 9
+const GRID_SIZE := 8
 const GRID_COLUMNS := 3
 const SAVE_SLOT_COUNT := 3
 const TICK_SECONDS := 2.0
 const AUTOSAVE_INTERVAL := 12.0
 const MAX_BUILDING_LEVEL := 5
 const STARTING_RESOURCES := {
-	"wood": 120,
-	"food": 90,
-	"stone": 70,
-	"gold": 150,
-	"gems": 8,
-	"crystals": 4,
+	"wood": 200,
+	"food": 200,
+	"stone": 200,
+	"gold": 200,
+	"gems": 0,
+	"crystals": 0,
 }
 
 
@@ -34,9 +34,9 @@ static func empty_slot(index: int) -> Dictionary:
 	}
 
 
-static func create_empty_grid() -> Array:
+static func create_empty_grid(plot_count: int = GRID_SIZE) -> Array:
 	var slots: Array = []
-	for index in GRID_SIZE:
+	for index in max(0, plot_count):
 		slots.append(empty_slot(index))
 	return slots
 

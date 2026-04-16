@@ -17,6 +17,8 @@ signal settlement_selected(settlement_id: String)
 @onready var _hero_hover_panel: PanelContainer = get_node("ModalOverlay/HeroHoverPanel")
 @onready var _hero_hover_scroll: ScrollContainer = get_node("ModalOverlay/HeroHoverPanel/HoverMargin/HoverFrame/HoverFrameMargin/HoverScroll")
 @onready var _hero_hover_body: VBoxContainer = get_node("ModalOverlay/HeroHoverPanel/HoverMargin/HoverFrame/HoverFrameMargin/HoverScroll/HoverBody")
+@onready var _popup_content_frame: PanelContainer = get_node("ModalOverlay/DialogCenter/PopupPanel/PopupMargin/PopupShell/PopupContentFrame")
+@onready var _hero_hover_frame: PanelContainer = get_node("ModalOverlay/HeroHoverPanel/HoverMargin/HoverFrame")
 
 var _world_view: Control = null
 var _world_snapshot: Dictionary = {}
@@ -188,13 +190,9 @@ func _make_hero_checkbox(hero_data: Dictionary) -> CheckBox:
 	return checkbox
 
 
-func _on_hero_checkbox_toggled(pressed: bool, hero_uid: int, checkbox: CheckBox) -> void:
-	var max_party: int = max(1, int(_as_dictionary(_world_snapshot.get("config", {})).get("max_clearing_party", 3)))
+func _on_hero_checkbox_toggled(pressed: bool, hero_uid: int, _checkbox: CheckBox) -> void:
 	if pressed:
 		if _selected_hero_uids.has(hero_uid):
-			return
-		if _selected_hero_uids.size() >= max_party:
-			checkbox.set_pressed_no_signal(false)
 			return
 		_selected_hero_uids.append(hero_uid)
 	else:
@@ -286,8 +284,8 @@ func _style_dialog_shell() -> void:
 	content_style.border_color = Color("5a4639")
 	content_style.set_border_width_all(1)
 	content_style.set_corner_radius_all(10)
-	get_node("ModalOverlay/DialogCenter/PopupPanel/PopupMargin/PopupShell/PopupContentFrame").add_theme_stylebox_override("panel", content_style)
-	get_node("ModalOverlay/HeroHoverPanel/HoverMargin/HoverFrame").add_theme_stylebox_override("panel", content_style)
+	_popup_content_frame.add_theme_stylebox_override("panel", content_style)
+	_hero_hover_frame.add_theme_stylebox_override("panel", content_style)
 	var hover_style := StyleBoxFlat.new()
 	hover_style.bg_color = Color("171214")
 	hover_style.border_color = Color("8f6e54")
@@ -316,7 +314,7 @@ func _show_hero_hover_popup(hero_data: Dictionary, _source_control: Control) -> 
 	_hero_hover_body.add_child(_make_hover_label(String(hero_data.get("name", "Unknown Hero")), 20, true))
 	_hero_hover_body.add_child(_make_colored_stat_line("Class", String(hero_data.get("class", "Hero")), Color("#b58ad1")))
 	_hero_hover_body.add_child(_make_colored_stat_line("Level", str(int(hero_data.get("level", 1))), Color("#d0a170")))
-	_hero_hover_body.add_child(_make_colored_stat_line("Health", str(int(combat_stats.get("health", 0))), Color("#d97777")))
+	_hero_hover_body.add_child(_make_colored_stat_line("Health", "%d/%d" % [int(combat_stats.get("current_health", combat_stats.get("health", 0))), int(combat_stats.get("max_health", combat_stats.get("health", 0)))], Color("#d97777")))
 	_hero_hover_body.add_child(_make_colored_stat_line("Sanity", str(int(combat_stats.get("sanity", 0))), Color("#90b3d7")))
 	_hero_hover_body.add_child(_make_colored_stat_line("Attack", str(int(combat_stats.get("attack", 0))), Color("#df8c66")))
 	_hero_hover_body.add_child(_make_colored_stat_line("Defense", str(int(combat_stats.get("defense", 0))), Color("#8fb7cb")))

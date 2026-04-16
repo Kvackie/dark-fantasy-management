@@ -2,6 +2,8 @@ extends Node
 
 
 const SettlementGameData = preload("res://scripts/game/settlement_game.gd")
+const InventoryComponentScript = preload("res://scripts/components/inventory_component.gd")
+const WorldTaskComponentScript = preload("res://scripts/components/world_task_component.gd")
 
 
 const SAVE_SLOT_MANIFEST_PATH := "user://save_slots_manifest.json"
@@ -33,6 +35,171 @@ var next_recruit_offer_id: int = 1
 var autosave_elapsed: float = 0.0
 var pending_save: bool = false
 
+var inventory_component: Node = null
+
+func _ready() -> void:
+	ensure_inventory_component()
+
+
+func ensure_inventory_component() -> void:
+	if inventory_component != null and is_instance_valid(inventory_component):
+		return
+	var component: Node = InventoryComponentScript.new()
+	component.name = "InventoryComponent"
+	if component.has_method("configure"):
+		component.configure(self)
+	add_child(component)
+	inventory_component = component
+
+
+func get_inventory_component() -> Node:
+	ensure_inventory_component()
+	return inventory_component
+
+
+func get_resources_state() -> Dictionary:
+	return resources
+
+
+func set_resources_state(value: Dictionary) -> void:
+	resources = value
+
+
+func get_slots_state() -> Array:
+	return slots
+
+
+func set_slots_state(value: Array) -> void:
+	slots = value
+
+
+func get_settlement_states_state() -> Dictionary:
+	return settlement_states
+
+
+func set_settlement_states_state(value: Dictionary) -> void:
+	settlement_states = value
+
+
+func get_inventory_items() -> Array:
+	return inventory_items
+
+
+func set_inventory_items(items: Array) -> void:
+	inventory_items = items
+
+
+func get_inventory_equipment() -> Array:
+	return inventory_equipment
+
+
+func set_inventory_equipment(equipment: Array) -> void:
+	inventory_equipment = equipment
+
+
+func get_heroes() -> Array:
+	return heroes
+
+
+func set_heroes(hero_list: Array) -> void:
+	heroes = hero_list
+
+
+func get_next_equipment_uid() -> int:
+	return next_equipment_uid
+
+
+func set_next_equipment_uid(value: int) -> void:
+	next_equipment_uid = value
+
+
+func get_generated_settlement_definitions() -> Dictionary:
+	return generated_settlement_definitions
+
+
+func set_generated_settlement_definitions(definitions: Dictionary) -> void:
+	generated_settlement_definitions = definitions
+
+
+func get_recruit_market_offers_state() -> Array:
+	return recruit_market_offers
+
+
+func set_recruit_market_offers_state(value: Array) -> void:
+	recruit_market_offers = value
+
+
+func is_recruit_market_initialized_state() -> bool:
+	return recruit_market_initialized
+
+
+func set_recruit_market_initialized_state(value: bool) -> void:
+	recruit_market_initialized = value
+
+
+func get_owned_settlement_ids_state() -> Array:
+	return owned_settlement_ids
+
+
+func set_owned_settlement_ids_state(value: Array) -> void:
+	owned_settlement_ids = value
+
+
+func get_active_settlement_id_state() -> String:
+	return active_settlement_id
+
+
+func set_active_settlement_id_state(value: String) -> void:
+	active_settlement_id = value
+
+
+func get_world_seed_state() -> int:
+	return world_seed
+
+
+func set_world_seed_state(value: int) -> void:
+	world_seed = value
+
+
+func get_world_zones_state() -> Dictionary:
+	return world_zones
+
+
+func set_world_zones_state(value: Dictionary) -> void:
+	world_zones = value
+
+
+func get_selected_slot_state() -> int:
+	return selected_slot
+
+
+func set_selected_slot_state(value: int) -> void:
+	selected_slot = value
+
+
+func get_active_save_slot_state() -> int:
+	return active_save_slot
+
+
+func set_active_save_slot_state(value: int) -> void:
+	active_save_slot = value
+
+
+func get_tick_count_state() -> int:
+	return tick_count
+
+
+func set_tick_count_state(value: int) -> void:
+	tick_count = value
+
+
+func get_next_hero_uid_state() -> int:
+	return next_hero_uid
+
+
+func set_next_hero_uid_state(value: int) -> void:
+	next_hero_uid = value
+
 
 func reset_runtime_state(starting_resources: Dictionary, default_settlement_id: String) -> void:
 	resources = starting_resources.duplicate(true)
@@ -40,7 +207,7 @@ func reset_runtime_state(starting_resources: Dictionary, default_settlement_id: 
 	if not default_settlement_id.is_empty():
 		settlement_states[default_settlement_id] = {
 			"settlement_id": default_settlement_id,
-			"slots": SettlementGameData.create_empty_grid(),
+			"slots": SettlementGameData.create_empty_grid(5),
 		}
 	generated_settlement_definitions = {}
 	heroes = []
@@ -61,6 +228,15 @@ func reset_runtime_state(starting_resources: Dictionary, default_settlement_id: 
 	next_recruit_offer_id = 1
 	autosave_elapsed = 0.0
 	pending_save = false
+	ensure_inventory_component()
+
+
+func get_next_recruit_offer_id_state() -> int:
+	return next_recruit_offer_id
+
+
+func set_next_recruit_offer_id_state(value: int) -> void:
+	next_recruit_offer_id = value
 
 
 func set_selected_slot(slot_index: int, slot_count: int) -> int:
@@ -110,23 +286,36 @@ func clear_pending_save() -> void:
 	pending_save = false
 
 
-func get_save_slot_metadata(slot_count: int, resolve_name: Callable) -> Array:
+func get_save_slot_metadata(slot_count: int, resolve_name: Callable = Callable()) -> Array:
 	var manifest := _load_save_slot_manifest()
 	var manifest_slots := _as_dictionary(manifest.get("slots", {}))
 	var slot_info: Array = []
 	for slot_index in range(1, slot_count + 1):
 		var path := _save_path(slot_index)
 		var metadata := _as_dictionary(manifest_slots.get(str(slot_index), {}))
+		var resolved_name := ""
+		if resolve_name.is_valid():
+			resolved_name = str(resolve_name.call(slot_index, metadata))
+		else:
+			resolved_name = _default_save_slot_name(slot_index, metadata)
 		slot_info.append({
 			"slot": slot_index,
 			"exists": FileAccess.file_exists(path),
 			"active": slot_index == active_save_slot,
-			"name": resolve_name.call(slot_index, metadata),
+			"name": resolved_name,
 		})
 	return slot_info
 
 
+func _default_save_slot_name(slot_index: int, metadata: Dictionary) -> String:
+	var custom_name := String(metadata.get("name", "")).strip_edges()
+	if not custom_name.is_empty():
+		return custom_name
+	return DataLoader.get_ui_text("save.slot_default_name", {"slot": slot_index}, "Slot %d" % slot_index)
+
+
 func get_inventory_snapshot() -> Dictionary:
+	ensure_inventory_component()
 	var item_snapshots: Array = []
 	for item_stack in inventory_items:
 		item_snapshots.append(_build_inventory_item_snapshot(item_stack))
@@ -406,43 +595,27 @@ func rebuild_equipment_compatibility(hero_list: Array, equipment_list: Array, eq
 
 
 func rebuild_world_task_compatibility(hero_list: Array, zone_state: Dictionary) -> void:
-	for hero_index in range(hero_list.size()):
-		var hero_data: Dictionary = _as_dictionary(hero_list[hero_index]).duplicate(true)
-		hero_data["world_task"] = _create_idle_world_task()
-		hero_list[hero_index] = hero_data
-	var hero_index_by_uid: Dictionary = {}
-	for hero_index in range(hero_list.size()):
-		hero_index_by_uid[int(_as_dictionary(hero_list[hero_index]).get("uid", -1))] = hero_index
-	for zone_key in zone_state.keys():
-		var zone := _as_dictionary(zone_state.get(zone_key, {})).duplicate(true)
-		if String(zone.get("state", "")) != "clearing":
-			zone["assigned_hero_uids"] = []
-			zone_state[zone_key] = zone
-			continue
-		var valid_hero_ids: Array = []
-		for hero_uid in _normalize_int_array(zone.get("assigned_hero_uids", [])):
-			var hero_index := int(hero_index_by_uid.get(hero_uid, -1))
-			if hero_index == -1:
-				continue
-			var hero_data: Dictionary = _as_dictionary(hero_list[hero_index]).duplicate(true)
-			hero_data["world_task"] = {
-				"type": "clearing",
-				"zone_key": String(zone_key),
-			}
-			hero_list[hero_index] = hero_data
-			valid_hero_ids.append(hero_uid)
-		zone["assigned_hero_uids"] = valid_hero_ids
-		zone_state[zone_key] = zone
+	WorldTaskComponentScript.rebuild_world_task_compatibility(hero_list, zone_state)
 
 
 func hero_world_task_is_idle(hero_uid: int, zone_state: Dictionary) -> bool:
-	for zone_key in zone_state.keys():
-		var zone := _as_dictionary(zone_state.get(zone_key, {}))
-		if String(zone.get("state", "")) != "clearing":
-			continue
-		if _normalize_int_array(zone.get("assigned_hero_uids", [])).has(hero_uid):
-			return false
-	return true
+	return WorldTaskComponentScript.hero_world_task_is_idle(hero_uid, zone_state)
+
+
+func refresh_slot_assignment_compatibility() -> void:
+	rebuild_slot_assignment_compatibility(heroes, settlement_states)
+
+
+func refresh_equipment_compatibility() -> void:
+	rebuild_equipment_compatibility(heroes, inventory_equipment, DataLoader.HERO_EQUIPMENT_KEYS, Callable(DataLoader, "get_equipment_definition"), Callable(DataLoader, "create_empty_hero_equipment"))
+
+
+func refresh_world_task_compatibility() -> void:
+	rebuild_world_task_compatibility(heroes, world_zones)
+
+
+func is_hero_world_task_idle(hero_uid: int) -> bool:
+	return hero_world_task_is_idle(hero_uid, world_zones)
 
 
 func _get_active_settlement_slots() -> Array:
@@ -548,6 +721,7 @@ func _build_hero_snapshot(hero_value: Variant) -> Dictionary:
 	hero_data["name"] = String(hero_data.get("name", "Unknown Hero"))
 	hero_data["class"] = String(hero_data.get("class", "Hero"))
 	hero_data["level"] = max(1, int(hero_data.get("level", 1)))
+	hero_data["experience"] = max(int(hero_data.get("experience", 0)), max(int(hero_data.get("level", 1)) - 1, 0) * 10)
 	hero_data["assigned_settlement_id"] = String(assignment.get("settlement_id", ""))
 	hero_data["assigned_slot"] = int(assignment.get("slot_index", -1))
 	hero_data["assignment"] = assignment
@@ -590,6 +764,7 @@ func _build_world_zone_snapshot(zone_key: String, zone_value: Variant) -> Dictio
 	zone_data["assigned_hero_uids"] = assigned_hero_uids
 	zone_data["assigned_hero_count"] = assigned_hero_uids.size()
 	zone_data["generated_name"] = String(zone_data.get("generated_name", "")).strip_edges()
+	zone_data["biome"] = String(zone_data.get("biome", "neutral")).strip_edges().to_lower()
 	zone_data["claim_cost"] = _as_dictionary(zone_data.get("claim_cost", {})).duplicate(true)
 	zone_data["settlement_id"] = String(zone_data.get("settlement_id", "")).strip_edges()
 	zone_data["settlement_name"] = String(zone_data.get("settlement_name", "")).strip_edges()
@@ -609,10 +784,3 @@ func _normalize_int_array(value: Variant) -> Array:
 		for entry in value:
 			normalized.append(int(entry))
 	return normalized
-
-
-func _create_idle_world_task() -> Dictionary:
-	return {
-		"type": "",
-		"zone_key": "",
-	}
