@@ -207,7 +207,7 @@ func reset_runtime_state(starting_resources: Dictionary, default_settlement_id: 
 	if not default_settlement_id.is_empty():
 		settlement_states[default_settlement_id] = {
 			"settlement_id": default_settlement_id,
-			"slots": SettlementGameData.create_empty_grid(),
+			"slots": SettlementGameData.create_empty_grid(5),
 		}
 	generated_settlement_definitions = {}
 	heroes = []
@@ -721,6 +721,7 @@ func _build_hero_snapshot(hero_value: Variant) -> Dictionary:
 	hero_data["name"] = String(hero_data.get("name", "Unknown Hero"))
 	hero_data["class"] = String(hero_data.get("class", "Hero"))
 	hero_data["level"] = max(1, int(hero_data.get("level", 1)))
+	hero_data["experience"] = max(int(hero_data.get("experience", 0)), max(int(hero_data.get("level", 1)) - 1, 0) * 10)
 	hero_data["assigned_settlement_id"] = String(assignment.get("settlement_id", ""))
 	hero_data["assigned_slot"] = int(assignment.get("slot_index", -1))
 	hero_data["assignment"] = assignment
@@ -763,6 +764,7 @@ func _build_world_zone_snapshot(zone_key: String, zone_value: Variant) -> Dictio
 	zone_data["assigned_hero_uids"] = assigned_hero_uids
 	zone_data["assigned_hero_count"] = assigned_hero_uids.size()
 	zone_data["generated_name"] = String(zone_data.get("generated_name", "")).strip_edges()
+	zone_data["biome"] = String(zone_data.get("biome", "neutral")).strip_edges().to_lower()
 	zone_data["claim_cost"] = _as_dictionary(zone_data.get("claim_cost", {})).duplicate(true)
 	zone_data["settlement_id"] = String(zone_data.get("settlement_id", "")).strip_edges()
 	zone_data["settlement_name"] = String(zone_data.get("settlement_name", "")).strip_edges()

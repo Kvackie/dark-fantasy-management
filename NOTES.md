@@ -1,16 +1,17 @@
 # Game Overview
 
 - Settlement builder with a light roster/world layer, not a combat game yet.
-- Core loop is: build structures on a 3x3 settlement grid, assign heroes, wait for ticks, spend output to expand.
+- Core loop is: build structures on an 8-slot settlement grid, assign heroes, wait for ticks, spend output to expand.
 - Production runs every 2 seconds and is the main source of progress.
-- Heroes matter mostly as workers and world-clearing units; their combat stats are mostly data/UI for now.
+- Heroes matter mostly as workers and world-clearing units; they also gain XP and level over time.
 - World map expansion is fog-of-war based: clear a zone, pay claim cost, get a new settlement, reveal nearby zones.
 - Recruitment is the mid-loop unlock: build a Tavern, then buy heroes from the recruit market.
 - Equipment mainly boosts hero stats/work stats and feeds the hero detail/inventory loop.
+- Special buildings can apply non-production tick effects, such as Triage healing assigned heroes for gold upkeep and Barracks granting assigned heroes XP.
 
 # How It Works
 
-- `DataLoader` loads all static content from `data/*.json` plus optional `user://mods/...` catalogs.
+- `DataLoader` loads all static content from `data/*.json` plus optional `user://mods/...` catalogs. Hero definitions support XP fields plus per-level `stat_growth` and `work_stat_growth`, including fixed values or ranges.
 - `GameSession` owns runtime/save data: resources, settlement slot grids, heroes, inventory, recruit offers, world zones, active settlement, save slots.
 - `GameManager` is the gameplay authority on top of `GameSession`: building, upgrading, assignment, recruitment, world clearing/claiming, ticking, save/load, autosave, signal emission.
 - `MainScreen` is the root UI shell. It auto-loads save slot 1, listens to `GameManager` signals, and swaps between settlement mode and page modes.
@@ -22,10 +23,11 @@
 # Key Flows
 
 - Startup/save flow: `MainScreen` tries `GameManager.load_game(1)` on boot -> if no save, `GameManager` emits fresh default state -> game starts with `The Hollow March`, starting resources, starter items, and starter equipment.
-- Settlement loop: click a slot -> build a structure if empty or manage it if built -> assign/move/unassign heroes -> next ticks add production to global resources.
+- Settlement loop: click a slot -> build a structure if empty or manage it if built -> assign/move/unassign heroes -> next ticks add production and any building-specific effects to global/resources hero state.
 - Recruitment loop: build at least one Tavern anywhere -> Recruit page appears -> offers seed/replenish automatically -> pay recruit cost -> hero instance is added to the roster.
 - World expansion loop: pick a discovered zone -> choose up to 3 idle/unassigned heroes -> zone enters `clearing` for several ticks -> when done, pay claim cost -> zone becomes a new owned settlement and reveals nearby zones.
 - Equipment loop: open a hero -> pick a fixed equipment slot -> choose matching inventory equipment -> equip/unequip updates both hero stats and reverse ownership on the inventory item.
+- Hero progression loop: XP increases from effects like Barracks -> once XP reaches `level * 10`, the hero levels up -> XP does not reset -> stat and work-stat growth are applied using that hero's resolved per-level growth values.
 
 # Gotchas
 
@@ -34,6 +36,7 @@
 - `get_available_heroes_for_slot()` does not really filter; the UI shows already-assigned heroes too and treats them as movable.
 - Claimed settlements are a mix of one authored start settlement and generated settlements from world zones.
 - Inventory items exist, but the real economy uses `resources`; items are mostly inventory/UI content right now.
+- Growth ranges are rolled once per hero and then stored on that hero; they do not reroll every level.
 
 # TODO
 
@@ -42,4 +45,3 @@
 - Add the ability to setup special zones that can be randomly generated into the loop.
 - Make a use for inventory items.
 - Give equipment bonuses that affect other parts of gameplay loop.
-- Zooming to world map

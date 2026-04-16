@@ -158,7 +158,19 @@ func emit_state() -> void:
 
 
 func get_building_catalog() -> Array:
-	return DataLoader.get_all_buildings()
+	return get_building_catalog_for_settlement(active_settlement_id)
+
+
+func get_building_catalog_for_settlement(settlement_id: String) -> Array:
+	var allowed_buildings := _get_allowed_buildings_for_settlement(settlement_id)
+	if allowed_buildings.has("ALL"):
+		return DataLoader.get_all_buildings()
+	var filtered_catalog: Array = []
+	for building_definition in DataLoader.get_all_buildings():
+		var building_data := building_definition as Dictionary
+		if allowed_buildings.has(String(building_data.get("id", ""))):
+			filtered_catalog.append(building_data)
+	return filtered_catalog
 
 
 func get_inventory_snapshot() -> Dictionary:
@@ -231,6 +243,11 @@ func get_settlement_built_plot_count(settlement_id: String) -> int:
 		if not String((slot as Dictionary).get("building_id", "")).is_empty():
 			built_slots += 1
 	return built_slots
+
+
+func get_settlement_plot_count(settlement_id: String) -> int:
+	var definition := _get_any_settlement_definition(settlement_id)
+	return max(1, int(definition.get("plot_count", SettlementGameData.GRID_SIZE)))
 
 
 func is_settlement_owned(settlement_id: String) -> bool:
@@ -412,6 +429,8 @@ func build_on_slot(slot_index: int, building_id: String) -> bool:
 	var definition: Dictionary = DataLoader.get_building_definition(building_id)
 	if definition.is_empty():
 		return false
+	if not _can_build_in_settlement(active_settlement_id, building_id):
+		return false
 	var build_cost: Dictionary = SettlementGameData.resource_list_to_dictionary(_as_array(definition.get("build_cost", [])))
 	if not apply_cost(build_cost):
 		return false
@@ -569,13 +588,13 @@ func dismiss_hero(hero_uid: int) -> bool:
 		hero_data_clear["equipment"] = hero_equipment
 		heroes[hero_index] = hero_data_clear
 		_session().refresh_equipment_compatibility()
-	var world_changed := _remove_hero_from_world_tasks(hero_uid)
+	var did_change_world := _remove_hero_from_world_tasks(hero_uid)
 	heroes.remove_at(hero_index)
 	_session().refresh_slot_assignment_compatibility()
 	emit_signal("heroes_changed")
 	emit_signal("settlement_changed")
 	emit_signal("inventory_changed")
-	if world_changed:
+	if did_change_world:
 		emit_signal("world_changed")
 	_request_persistence_update()
 	return true
@@ -602,20 +621,119 @@ func debug_recruit_random_hero() -> Dictionary:
 	return hero_instance.duplicate(true)
 
 
+func debug_grant_all_hero_experience() -> void:
+	var did_change := false
+	for hero_index in range(heroes.size()):
+		var hero_data: Dictionary = heroes[hero_index]
+		var current_experience := int(hero_data.get("experience", 0)) + 100
+		var current_level: int = max(1, int(hero_data.get("level", 1)))
+		while current_experience >= _hero_level_experience_ceiling(current_level):
+			hero_data = HeroRosterComponentScript.level_up_hero(hero_data)
+			current_level += 1
+		hero_data["experience"] = current_experience
+		hero_data["level"] = current_level
+		heroes[hero_index] = hero_data
+		did_change = true
+	if not did_change:
+		return
+	emit_signal("heroes_changed")
+	_request_persistence_update()
+
+
 func process_tick() -> Dictionary:
 	tick_count += 1
 	var production_delta := get_owned_settlement_production_preview()
 	if not production_delta.is_empty():
 		add_resources(production_delta)
+	var building_result := _process_special_building_tick()
 	var world_result := _process_world_tick()
+	if bool(building_result.get("heroes_changed", false)):
+		emit_signal("heroes_changed")
 	if bool(world_result.get("heroes_changed", false)):
 		emit_signal("heroes_changed")
+	if bool(building_result.get("resources_changed", false)):
+		emit_signal("resources_changed")
 	if bool(world_result.get("world_changed", false)):
 		emit_signal("world_changed")
 	emit_signal("tick_processed", tick_count, production_delta)
 	if tick_count > 0:
 		_request_persistence_update()
 	return production_delta
+
+
+func _process_special_building_tick() -> Dictionary:
+	var did_change_resources := false
+	var did_change_heroes := false
+	var hero_list := heroes
+	for settlement_id in owned_settlement_ids:
+		var settlement_slots := _get_settlement_slots(String(settlement_id))
+		for slot in settlement_slots:
+			var slot_data := _as_dictionary(slot)
+			var building_id := String(slot_data.get("building_id", ""))
+			if building_id == "triage":
+				for hero_uid in _normalize_int_array(slot_data.get("assigned_hero_ids", [])):
+					if int(resources.get("gold", 0)) < 3:
+						break
+					var hero_index := _find_hero_index(hero_uid)
+					if hero_index == -1:
+						continue
+					resources["gold"] = SettlementGameData.clamp_resource(int(resources.get("gold", 0)) - 3)
+					did_change_resources = true
+					var hero_data: Dictionary = hero_list[hero_index]
+					var hero_stats := _as_dictionary(hero_data.get("stats", {})).duplicate(true)
+					var max_health := int(hero_stats.get("max_health", hero_stats.get("health", 0)))
+					var current_health := int(hero_stats.get("current_health", max_health))
+					if current_health >= max_health:
+						continue
+					hero_stats["current_health"] = min(current_health + 3, max_health)
+					hero_data["stats"] = hero_stats
+					hero_list[hero_index] = hero_data
+					did_change_heroes = true
+			elif building_id == "barracks":
+				for hero_uid in _normalize_int_array(slot_data.get("assigned_hero_ids", [])):
+					var hero_index := _find_hero_index(hero_uid)
+					if hero_index == -1:
+						continue
+					var barracks_hero_data: Dictionary = hero_list[hero_index]
+					var current_experience := int(barracks_hero_data.get("experience", 0)) + 1
+					var current_level: int = max(1, int(barracks_hero_data.get("level", 1)))
+					while current_experience >= _hero_level_experience_ceiling(current_level):
+						barracks_hero_data = HeroRosterComponentScript.level_up_hero(barracks_hero_data)
+						current_level += 1
+					barracks_hero_data["experience"] = current_experience
+					barracks_hero_data["level"] = current_level
+					hero_list[hero_index] = barracks_hero_data
+					did_change_heroes = true
+	if did_change_heroes:
+		heroes = hero_list
+	return {
+		"resources_changed": did_change_resources,
+		"heroes_changed": did_change_heroes,
+	}
+
+
+func get_hero_experience_ceiling(hero_uid: int) -> int:
+	var hero_index := _find_hero_index(hero_uid)
+	if hero_index == -1:
+		return _hero_level_experience_ceiling(1)
+	return _hero_level_experience_ceiling(int(heroes[hero_index].get("level", 1)))
+
+
+func _hero_level_experience_ceiling(level: int) -> int:
+	return max(1, level) * 10
+
+
+func _can_build_in_settlement(settlement_id: String, building_id: String) -> bool:
+	var allowed_buildings := _get_allowed_buildings_for_settlement(settlement_id)
+	return allowed_buildings.has("ALL") or allowed_buildings.has(String(building_id).strip_edges())
+
+
+func _get_allowed_buildings_for_settlement(settlement_id: String) -> Array:
+	var definition := _get_any_settlement_definition(settlement_id)
+	var allowed_buildings := _as_array(definition.get("allowed_buildings", ["ALL"]))
+	if allowed_buildings.is_empty():
+		return ["ALL"]
+	return allowed_buildings
 
 
 func get_resource_snapshot() -> Dictionary:
@@ -744,8 +862,8 @@ func _serialize_state() -> Dictionary:
 
 func _apply_loaded_state(data: Dictionary) -> void:
 	resources = SettlementGameData.duplicate_resources(data.get("resources", {}))
-	settlement_states = _normalize_loaded_settlement_states(data.get("settlement_states", {}), data.get("slots", []))
 	_set_generated_settlement_definitions(_normalize_loaded_generated_settlement_definitions(data.get("generated_settlement_definitions", {})))
+	settlement_states = _normalize_loaded_settlement_states(data.get("settlement_states", {}), data.get("slots", []))
 	heroes = []
 	for hero in data.get("heroes", []):
 		if hero is Dictionary:
@@ -772,8 +890,9 @@ func _apply_loaded_state(data: Dictionary) -> void:
 	else:
 		_reconcile_loaded_world_state()
 	_reconcile_generated_settlement_definitions()
+	_reconcile_settlement_plot_counts()
 	_sync_active_settlement_slots()
-	if not data.has("inventory_items") and not data.has("inventory_equipment"):
+	if inventory_items.is_empty() and inventory_equipment.is_empty():
 		_seed_starting_inventory()
 	_session().repair_loaded_slot_assignment_state(heroes, settlement_states, owned_settlement_ids, DataLoader.get_default_settlement_id())
 	selected_slot = int(data.get("selected_slot", -1))
@@ -931,6 +1050,7 @@ func _normalize_loaded_world_zones(value: Variant) -> Dictionary:
 			"clear_duration": max(0, int(zone_data.get("clear_duration", 0))),
 			"assigned_hero_uids": _normalize_int_array(zone_data.get("assigned_hero_uids", [])),
 			"generated_name": String(zone_data.get("generated_name", "")).strip_edges(),
+			"biome": String(zone_data.get("biome", _determine_zone_biome(x, y))).strip_edges().to_lower(),
 			"claim_cost": _duplicate_optional_dict(zone_data.get("claim_cost", {})),
 			"settlement_id": String(zone_data.get("settlement_id", "")).strip_edges(),
 			"settlement_name": String(zone_data.get("settlement_name", "")).strip_edges(),
@@ -948,20 +1068,20 @@ func _normalize_loaded_settlement_states(value: Variant, legacy_slots: Variant) 
 		var state_data := _as_dictionary(source_states.get(settlement_id, {}))
 		normalized_states[settlement_key] = {
 			"settlement_id": settlement_key,
-			"slots": _normalize_loaded_slots_array(state_data.get("slots", [])),
+			"slots": _normalize_loaded_slots_array(state_data.get("slots", []), get_settlement_plot_count(settlement_key)),
 		}
 	if normalized_states.is_empty():
 		var default_settlement_id := DataLoader.get_default_settlement_id()
 		if not default_settlement_id.is_empty():
 			normalized_states[default_settlement_id] = {
 				"settlement_id": default_settlement_id,
-				"slots": _normalize_loaded_slots_array(legacy_slots),
+				"slots": _normalize_loaded_slots_array(legacy_slots, get_settlement_plot_count(default_settlement_id)),
 			}
 	return normalized_states
 
 
-func _normalize_loaded_slots_array(value: Variant) -> Array:
-	var normalized_slots := SettlementGameData.create_empty_grid()
+func _normalize_loaded_slots_array(value: Variant, plot_count: int) -> Array:
+	var normalized_slots := SettlementGameData.create_empty_grid(plot_count)
 	if value is not Array:
 		return normalized_slots
 	for loaded_slot in value:
@@ -999,11 +1119,13 @@ func _normalize_owned_settlement_ids(value: Variant) -> Array:
 func _initialize_world_state() -> void:
 	world_zones.clear()
 	var start_zone := _create_world_zone(0, 0, "claimed")
+	start_zone["biome"] = "neutral"
 	start_zone["settlement_id"] = DataLoader.get_default_settlement_id()
 	start_zone["settlement_name"] = _starting_settlement_name()
 	start_zone["generated_name"] = _starting_settlement_name()
 	world_zones[String(start_zone.get("key", "0,0"))] = start_zone
 	_apply_world_visibility()
+	_reconcile_settlement_plot_counts()
 
 
 func _reconcile_loaded_world_state() -> void:
@@ -1012,6 +1134,16 @@ func _reconcile_loaded_world_state() -> void:
 		return
 	for zone_key in world_zones.keys():
 		var zone := _as_dictionary(world_zones.get(zone_key, {})).duplicate(true)
+		if zone_key == _world_zone_key(0, 0) and String(zone.get("state", "")) == "claimed":
+			zone["biome"] = "neutral"
+			if String(zone.get("settlement_id", "")).is_empty():
+				zone["settlement_id"] = DataLoader.get_default_settlement_id()
+			if String(zone.get("settlement_name", "")).is_empty():
+				zone["settlement_name"] = _starting_settlement_name()
+			if String(zone.get("generated_name", "")).is_empty():
+				zone["generated_name"] = String(zone.get("settlement_name", ""))
+		if String(zone.get("biome", "")).is_empty():
+			zone["biome"] = _determine_zone_biome(int(zone.get("x", 0)), int(zone.get("y", 0)))
 		if String(zone.get("state", "")) != "clearing":
 			zone["assigned_hero_uids"] = []
 			if String(zone.get("state", "")) == "cleared":
@@ -1124,6 +1256,7 @@ func _create_world_zone(x: int, y: int, state: String) -> Dictionary:
 		"clear_duration": _get_zone_clear_duration({"key": zone_key, "x": x, "y": y}),
 		"assigned_hero_uids": [],
 		"generated_name": "",
+		"biome": _determine_zone_biome(x, y),
 		"claim_cost": {},
 		"settlement_id": "",
 		"settlement_name": "",
@@ -1139,6 +1272,8 @@ func _apply_world_override(zone: Dictionary) -> Dictionary:
 		zone["state"] = String(override.get("state", zone.get("state", "fog"))).strip_edges()
 	if override.has("name"):
 		zone["generated_name"] = String(override.get("name", "")).strip_edges()
+	if override.has("biome"):
+		zone["biome"] = String(override.get("biome", zone.get("biome", "neutral"))).strip_edges().to_lower()
 	if override.has("clear_duration"):
 		zone["clear_duration"] = max(0, int(override.get("clear_duration", zone.get("clear_duration", 0))))
 	if override.has("claim_cost"):
@@ -1287,6 +1422,9 @@ func _create_generated_settlement_definition(zone: Dictionary) -> Dictionary:
 		"id": settlement_id,
 		"name": settlement_name,
 		"icon_path": DataLoader.DEFAULT_CATALOG_ICON,
+		"biome": String(zone.get("biome", "neutral")),
+		"plot_count": _biome_plot_count(String(zone.get("biome", "neutral"))),
+		"allowed_buildings": _biome_allowed_buildings(String(zone.get("biome", "neutral"))),
 	})
 	if generated_definition.is_empty():
 		return {}
@@ -1379,8 +1517,11 @@ func _ensure_settlement_state(settlement_id: String) -> Dictionary:
 	if not settlement_states.has(normalized_id):
 		settlement_states[normalized_id] = {
 			"settlement_id": normalized_id,
-			"slots": SettlementGameData.create_empty_grid(),
+			"slots": SettlementGameData.create_empty_grid(get_settlement_plot_count(normalized_id)),
 		}
+	var state := _as_dictionary(settlement_states.get(normalized_id, {}))
+	state["slots"] = _normalize_loaded_slots_array(state.get("slots", []), get_settlement_plot_count(normalized_id))
+	settlement_states[normalized_id] = state
 	return _as_dictionary(settlement_states.get(normalized_id, {}))
 
 
@@ -1389,9 +1530,59 @@ func _get_settlement_slots(settlement_id: String) -> Array:
 	var settlement_slots = state.get("slots", [])
 	if settlement_slots is Array:
 		return settlement_slots
-	state["slots"] = SettlementGameData.create_empty_grid()
+	state["slots"] = SettlementGameData.create_empty_grid(get_settlement_plot_count(settlement_id))
 	settlement_states[String(settlement_id).strip_edges()] = state
 	return state["slots"]
+
+
+func _determine_zone_biome(x: int, y: int) -> String:
+	if x == 0 and y == 0:
+		return "neutral"
+	var seed_value := int((x * 92821) + (y * 68917) + (world_seed * 13))
+	var roll: int = abs(seed_value) % 10
+	if roll == 0:
+		return "neutral"
+	var biome_roll: int = int(abs(seed_value) / 10) % 4
+	match biome_roll:
+		0:
+			return "forest"
+		1:
+			return "mountain"
+		2:
+			return "plains"
+		_:
+			return "mixed"
+
+
+func _biome_plot_count(biome: String) -> int:
+	match String(biome).to_lower():
+		"neutral":
+			return 5
+		"forest", "mountain", "plains", "mixed":
+			return 3
+		_:
+			return SettlementGameData.GRID_SIZE
+
+
+func _biome_allowed_buildings(biome: String) -> Array:
+	match String(biome).to_lower():
+		"forest":
+			return ["lumber_camp"]
+		"mountain":
+			return ["quarry"]
+		"plains":
+			return ["farm"]
+		"mixed":
+			return ["farm", "lumber_camp", "quarry"]
+		"neutral":
+			return ["ALL"]
+		_:
+			return ["ALL"]
+
+
+func _reconcile_settlement_plot_counts() -> void:
+	for settlement_id in settlement_states.keys():
+		_ensure_settlement_state(String(settlement_id))
 
 
 func _sync_active_settlement_slots() -> void:

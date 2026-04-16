@@ -1,6 +1,9 @@
 extends Control
 
 const SettlementGameData = preload("res://scripts/game/settlement_game.gd")
+const MIN_MAP_ZOOM := 0.1
+const MAX_MAP_ZOOM := 1.5
+const MAP_ZOOM_STEP := 0.1
 
 signal zone_selected(zone_key: String)
 signal settlement_selected(settlement_id)
@@ -12,13 +15,14 @@ signal settlement_selected(settlement_id)
 var _world_snapshot: Dictionary = {}
 var _zone_controls: Dictionary = {}
 var _map_offset: Vector2 = Vector2.ZERO
+var _map_zoom: float = 1.0
 var _dragging: bool = false
 var _selected_zone_key: String = ""
 
 
 func _ready() -> void:
 	_map_viewport.gui_input.connect(_on_map_gui_input)
-	_hint_label.text = DataLoader.get_ui_text("world.pan_hint", {}, "Drag empty space to pan the world map.")
+	_hint_label.text = DataLoader.get_ui_text("world.pan_hint", {}, "Drag empty space to pan the world map. Use the mouse wheel to zoom.")
 	_rebuild_zone_map()
 	call_deferred("_center_map_on_origin")
 
@@ -33,7 +37,7 @@ func _center_map_on_origin() -> void:
 	var world_config := _as_dictionary(_world_snapshot.get("config", {}))
 	var zone_size := int(world_config.get("zone_size", 104))
 	_map_offset = (_map_viewport.size * 0.5) - Vector2(zone_size * 0.5, zone_size * 0.5)
-	_zones_layer.position = _map_offset
+	_update_map_transform()
 
 
 func _rebuild_zone_map() -> void:
@@ -70,7 +74,7 @@ func _make_zone_button(zone: Dictionary) -> Button:
 	button.text = _zone_button_text(zone)
 	button.disabled = state == "fog"
 	button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND if not button.disabled else Control.CURSOR_ARROW
-	_style_zone_button(button, state, String(zone.get("key", "")) == _selected_zone_key)
+	_style_zone_button(button, zone, state, String(zone.get("key", "")) == _selected_zone_key)
 	if not button.disabled:
 		button.pressed.connect(Callable(self, "_on_zone_pressed").bind(String(zone.get("key", ""))))
 	return button
@@ -79,21 +83,21 @@ func _make_zone_button(zone: Dictionary) -> Button:
 func _zone_button_text(zone: Dictionary) -> String:
 	match String(zone.get("state", "fog")):
 		"claimed":
-			return String(zone.get("settlement_name", zone.get("generated_name", "Claimed Zone")))
+			return "%s\n%s" % [String(zone.get("settlement_name", zone.get("generated_name", "Claimed Zone"))), _display_biome_name(String(zone.get("biome", "neutral")))]
 		"cleared":
-			return String(zone.get("generated_name", "Cleared Zone"))
+			return "%s\n%s" % [String(zone.get("generated_name", "Cleared Zone")), _display_biome_name(String(zone.get("biome", "neutral")))]
 		"clearing":
 			return "Clearing\n%.1fs\n%dH" % [float(int(zone.get("ticks_remaining", 0))) * SettlementGameData.TICK_SECONDS, _as_array(zone.get("assigned_hero_uids", [])).size()]
 		"discovered":
-			return "Unknown\nZone"
+			return "Unknown\n%s" % _display_biome_name(String(zone.get("biome", "neutral")))
 		_:
 			return ""
 
 
-func _style_zone_button(button: Button, state: String, selected: bool) -> void:
+func _style_zone_button(button: Button, zone: Dictionary, state: String, selected: bool) -> void:
 	var world_config := _as_dictionary(_world_snapshot.get("config", {}))
 	var color_config := _as_dictionary(world_config.get("zone_colors", {}))
-	var fill_color := Color(String(color_config.get(state, "#66686f")))
+	var fill_color := _zone_fill_color(String(zone.get("biome", "neutral")), state, String(color_config.get(state, "#66686f")))
 	var border_color := Color("d0a170") if selected else fill_color.lightened(0.18)
 	var normal := StyleBoxFlat.new()
 	normal.bg_color = fill_color
@@ -116,6 +120,44 @@ func _style_zone_button(button: Button, state: String, selected: bool) -> void:
 	button.add_theme_color_override("font_disabled_color", Color("d7d2cb"))
 
 
+func _zone_fill_color(biome: String, state: String, fallback_color: String) -> Color:
+	var biome_color := Color(fallback_color)
+	match String(biome).to_lower():
+		"forest":
+			biome_color = Color("#476b49")
+		"mountain":
+			biome_color = Color("#6b7078")
+		"plains":
+			biome_color = Color("#8c7b49")
+		"mixed":
+			biome_color = Color("#59674f")
+		_:
+			biome_color = Color("#7a6156")
+	if state == "claimed":
+		return biome_color.lightened(0.18)
+	if state == "cleared":
+		return biome_color.lightened(0.08)
+	if state == "discovered":
+		return biome_color.darkened(0.08)
+	if state == "clearing":
+		return biome_color.darkened(0.02)
+	return biome_color.darkened(0.35)
+
+
+func _display_biome_name(biome: String) -> String:
+	match String(biome).to_lower():
+		"forest":
+			return "Forest"
+		"mountain":
+			return "Mountain"
+		"plains":
+			return "Plains"
+		"mixed":
+			return "Mixed"
+		_:
+			return "Neutral"
+
+
 func _on_zone_pressed(zone_key: String) -> void:
 	var zones := _as_dictionary(_world_snapshot.get("zones", {}))
 	var zone := _as_dictionary(zones.get(zone_key, {}))
@@ -130,12 +172,36 @@ func _on_zone_pressed(zone_key: String) -> void:
 
 
 func _on_map_gui_input(event: InputEvent) -> void:
-	if event is InputEventMouseButton and (event as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT:
-		_dragging = (event as InputEventMouseButton).pressed
-		return
+	if event is InputEventMouseButton:
+		var mouse_button_event := event as InputEventMouseButton
+		if mouse_button_event.button_index == MOUSE_BUTTON_LEFT:
+			_dragging = mouse_button_event.pressed
+			return
+		if mouse_button_event.pressed:
+			if mouse_button_event.button_index == MOUSE_BUTTON_WHEEL_UP:
+				_adjust_zoom(MAP_ZOOM_STEP, mouse_button_event.position)
+				return
+			if mouse_button_event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+				_adjust_zoom(-MAP_ZOOM_STEP, mouse_button_event.position)
+				return
 	if event is InputEventMouseMotion and _dragging:
 		_map_offset += (event as InputEventMouseMotion).relative
-		_zones_layer.position = _map_offset
+		_update_map_transform()
+
+
+func _adjust_zoom(delta: float, pivot: Vector2) -> void:
+	var next_zoom := clampf(_map_zoom + delta, MIN_MAP_ZOOM, MAX_MAP_ZOOM)
+	if is_equal_approx(next_zoom, _map_zoom):
+		return
+	var map_point := (pivot - _map_offset) / _map_zoom
+	_map_zoom = next_zoom
+	_map_offset = pivot - (map_point * _map_zoom)
+	_update_map_transform()
+
+
+func _update_map_transform() -> void:
+	_zones_layer.position = _map_offset
+	_zones_layer.scale = Vector2.ONE * _map_zoom
 
 
 func _as_dictionary(value: Variant) -> Dictionary:

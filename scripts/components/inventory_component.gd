@@ -245,10 +245,10 @@ func _clear_equipment_instance_link(equipment_uid: int) -> void:
 			break
 	if equipment_index == -1:
 		return
-	var equipment_instance: Dictionary = equipment[equipment_index]
-	equipment_instance["equipped_hero_uid"] = -1
-	equipment_instance["equipped_slot"] = ""
-	equipment[equipment_index] = equipment_instance
+	var target_equipment_instance: Dictionary = equipment[equipment_index]
+	target_equipment_instance["equipped_hero_uid"] = -1
+	target_equipment_instance["equipped_slot"] = ""
+	equipment[equipment_index] = target_equipment_instance
 	_set_inventory_equipment(equipment)
 
 
@@ -298,4 +298,3 @@ func _as_array(value: Variant) -> Array:
 	if value is Array:
 		return value
 	return []
-

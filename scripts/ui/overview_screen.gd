@@ -32,7 +32,8 @@ func refresh() -> void:
 			entry,
 			Callable(self, "_on_settlement_pressed").bind(settlement_id),
 			GameManager.active_settlement_id,
-			GameManager.get_settlement_built_plot_count(settlement_id)
+			GameManager.get_settlement_built_plot_count(settlement_id),
+			GameManager.get_settlement_plot_count(settlement_id)
 		))
 
 

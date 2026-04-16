@@ -6,6 +6,10 @@ static func build_effective_combat_stats(hero_data: Dictionary, get_equipment_in
 	var bonuses: Dictionary = compute_equipment_bonuses(hero_data, get_equipment_instance)
 	for stat_key in DataLoader.DEFAULT_HERO_STATS.keys():
 		stats[stat_key] = int(stats.get(stat_key, 0)) + int(_as_dictionary(bonuses.get("stats", {})).get(stat_key, 0))
+	var base_max_health := int(_as_dictionary(hero_data.get("stats", {})).get("max_health", stats.get("health", 0)))
+	var health_bonus := int(_as_dictionary(bonuses.get("stats", {})).get("health", 0))
+	stats["max_health"] = base_max_health + health_bonus
+	stats["current_health"] = int(_as_dictionary(hero_data.get("stats", {})).get("current_health", stats.get("max_health", 0)))
 	return stats
 
 

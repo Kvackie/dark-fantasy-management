@@ -223,6 +223,7 @@ func _build_tab_content(container: VBoxContainer, hero_data: Dictionary) -> void
 					{"label": "Name", "value": String(hero_data.get("name", hero_definition.get("name", "Unknown Hero")))},
 					{"label": "Class", "value": String(hero_data.get("class", hero_definition.get("class", "Hero")))} ,
 					{"label": "Level", "value": str(int(hero_data.get("level", 1)))},
+					{"label": "Experience", "value": "%d/%d" % [int(hero_data.get("experience", 0)), GameManager.get_hero_experience_ceiling(int(hero_data.get("uid", -1)))]},
 					{"label": "Assignment", "value": assignment_name},
 					{"label": "Source", "value": _hero_source_text(hero_data)},
 				],
@@ -231,12 +232,12 @@ func _build_tab_content(container: VBoxContainer, hero_data: Dictionary) -> void
 			container.add_child(_make_hero_info_section(
 				"Combat Stats",
 				[
-					{"label": "Health", "value": str(int(combat_stats.get("health", 0)))},
-					{"label": "Sanity", "value": str(int(combat_stats.get("sanity", 0)))},
-					{"label": "Attack", "value": str(int(combat_stats.get("attack", 0)))},
-					{"label": "Defense", "value": str(int(combat_stats.get("defense", 0)))},
-					{"label": "Crit Chance", "value": str(int(combat_stats.get("critical_chance", 0)))},
-					{"label": "Crit Damage", "value": str(int(combat_stats.get("critical_damage", 0)))},
+					{"label": "Health", "value": "%d/%d" % [int(combat_stats.get("current_health", combat_stats.get("health", 0))), int(combat_stats.get("max_health", combat_stats.get("health", 0)))], "color": Color("d8847b")},
+					{"label": "Sanity", "value": str(int(combat_stats.get("sanity", 0))), "color": Color("c8b8d9")},
+					{"label": "Attack", "value": str(int(combat_stats.get("attack", 0))), "color": Color("d0a170")},
+					{"label": "Defense", "value": str(int(combat_stats.get("defense", 0))), "color": Color("88a8c8")},
+					{"label": "Crit Chance", "value": str(int(combat_stats.get("critical_chance", 0))), "color": Color("f0c96c")},
+					{"label": "Crit Damage", "value": str(int(combat_stats.get("critical_damage", 0))), "color": Color("e5b86f")},
 				],
 				Color("b76558")
 			))
@@ -470,9 +471,9 @@ func _make_hero_equipment_slot_button(hero_data: Dictionary, slot_key: String) -
 		icon.custom_minimum_size = Vector2(44, 44)
 		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		icon.texture = _load_texture_from_path(String(current_definition.get("icon_path", DataLoader.DEFAULT_CATALOG_ICON)))
+		icon.texture = UIScreenHelpers.load_texture_from_path(String(current_definition.get("icon_path", DataLoader.DEFAULT_CATALOG_ICON)))
 		if icon.texture == null:
-			icon.texture = _load_texture_from_path(DataLoader.DEFAULT_CATALOG_ICON)
+			icon.texture = UIScreenHelpers.load_texture_from_path(DataLoader.DEFAULT_CATALOG_ICON)
 		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		center.add_child(icon)
 		var name_label := UIScreenHelpers.make_label(String(current_definition.get("name", "Occupied")), 12)
@@ -736,21 +737,7 @@ func _is_selected_equipment_already_equipped(equipment_entry: Dictionary, hero_u
 
 
 func _equipment_slot_label(slot_key: String) -> String:
-	match slot_key:
-		"head":
-			return "Head"
-		"chest":
-			return "Chest"
-		"gloves":
-			return "Gloves"
-		"boots":
-			return "Boots"
-		"amulet":
-			return "Amulet"
-		"ring_1":
-			return "Ring 1"
-		_:
-			return slot_key.capitalize()
+	return UIScreenHelpers.equipment_slot_label(slot_key)
 
 
 func _make_hero_info_section(title: String, rows: Array, accent_color: Color) -> PanelContainer:
@@ -783,43 +770,13 @@ func _make_hero_info_section(title: String, rows: Array, accent_color: Color) ->
 		row.add_child(label)
 		var value := UIScreenHelpers.make_label(String((row_data as Dictionary).get("value", "")), 15)
 		value.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-		value.add_theme_color_override("font_color", Color("fff6ea"))
+		value.add_theme_color_override("font_color", (row_data as Dictionary).get("color", Color("fff6ea")))
 		row.add_child(value)
 	return panel
 
 
 func _build_inventory_tile_content(parent: Control, definition: Dictionary, footer_text: String, footer_color: Color, title_color: Color, icon_size: int, title_font_size: int, footer_font_size: int, title_override: String = "") -> void:
-	var body := VBoxContainer.new()
-	body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	body.add_theme_constant_override("separation", 8)
-	body.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	parent.add_child(body)
-	var name_label := UIScreenHelpers.make_label(title_override if not title_override.is_empty() else String(definition.get("name", "Unknown")), title_font_size)
-	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	name_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	name_label.add_theme_color_override("font_color", title_color)
-	name_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	body.add_child(name_label)
-	var icon_holder := CenterContainer.new()
-	icon_holder.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	icon_holder.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	icon_holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	body.add_child(icon_holder)
-	var icon := TextureRect.new()
-	icon.custom_minimum_size = Vector2(icon_size, icon_size)
-	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	icon.texture = _load_texture_from_path(String(definition.get("icon_path", DataLoader.DEFAULT_CATALOG_ICON)))
-	if icon.texture == null:
-		icon.texture = _load_texture_from_path(DataLoader.DEFAULT_CATALOG_ICON)
-	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	icon_holder.add_child(icon)
-	var footer_label := UIScreenHelpers.make_label(footer_text, footer_font_size)
-	footer_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	footer_label.add_theme_color_override("font_color", footer_color)
-	footer_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	body.add_child(footer_label)
+	UIScreenHelpers.build_inventory_tile_content(parent, definition, footer_text, footer_color, title_color, icon_size, title_font_size, footer_font_size, title_override)
 
 
 func _make_bonus_section(title: String, values: Dictionary, accent_color: Color) -> PanelContainer:
@@ -1007,36 +964,7 @@ func _as_dictionary(value: Variant) -> Dictionary:
 
 
 func _load_hero_texture(hero_data: Dictionary) -> Texture2D:
-	var hero_definition: Dictionary = DataLoader.get_hero_definition(String(hero_data.get("definition_id", "")))
-	var portrait_path := String(hero_definition.get("portrait_path", ""))
-	var icon_path := String(hero_definition.get("icon_path", ""))
-	var resolved_path := portrait_path
-	if resolved_path.is_empty() or resolved_path == DataLoader.DEFAULT_HERO_IMAGE:
-		if not icon_path.is_empty() and icon_path != DataLoader.DEFAULT_HERO_IMAGE:
-			resolved_path = icon_path
-	if resolved_path.is_empty():
-		resolved_path = DataLoader.DEFAULT_HERO_IMAGE
-	var texture := _load_texture_from_path(resolved_path)
-	if texture != null:
-		return texture
-	return _load_texture_from_path(DataLoader.DEFAULT_HERO_IMAGE)
-
-
-func _load_texture_from_path(path: String) -> Texture2D:
-	if path.is_empty():
-		return null
-	if path.begins_with("res://"):
-		if ResourceLoader.exists(path):
-			return load(path)
-		return null
-	if path.begins_with("user://") or path.is_absolute_path():
-		if not FileAccess.file_exists(path):
-			return null
-		var image := Image.new()
-		if image.load(path) != OK:
-			return null
-		return ImageTexture.create_from_image(image)
-	return null
+	return UIScreenHelpers.load_hero_texture(hero_data)
 
 
 func _style_panel(panel: Control, bg_color: Color, border_color: Color, corner_radius: int) -> void:

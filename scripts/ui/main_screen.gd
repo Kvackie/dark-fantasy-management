@@ -10,6 +10,7 @@ const HeroDetailScreenScene = preload("res://scenes/ui/hero_detail_screen.tscn")
 const ResourceBadgeScene = preload("res://scenes/widgets/resource_badge.tscn")
 const SettlementSlotScene = preload("res://scenes/widgets/settlement_slot.tscn")
 const MainScreenNavigation = preload("res://scripts/ui/main_screen_navigation.gd")
+const UIScreenHelpers = preload("res://scripts/ui/ui_screen_helpers.gd")
 const UITheme = preload("res://resources/themes/ui_theme.tres")
 
 const MODE_OVERVIEW := MainScreenNavigation.MODE_OVERVIEW
@@ -108,6 +109,7 @@ func _ready() -> void:
 	_refresh_settlement_title()
 	_apply_mode_layout()
 	if not GameManager.load_game(1):
+		GameManager.reset_new_game()
 		GameManager.emit_state()
 	else:
 		_selected_slot = GameManager.selected_slot
@@ -225,7 +227,7 @@ func _build_resource_bar() -> void:
 func _build_grid() -> void:
 	_clear_container(_grid_container)
 	_slot_widgets.clear()
-	for slot_index in SettlementGameData.GRID_SIZE:
+	for slot_index in GameManager.get_settlement_plot_count(GameManager.active_settlement_id):
 		var slot_button: Button = SettlementSlotScene.instantiate()
 		slot_button.slot_index = slot_index
 		slot_button.slot_selected.connect(_on_slot_selected)
@@ -288,9 +290,11 @@ func _on_settlement_changed() -> void:
 
 
 func _on_active_settlement_changed(_settlement_id: String) -> void:
+	_slots_snapshot = GameManager.get_slots_snapshot()
 	_refresh_settlement_title()
 	_refresh_resource_yields()
 	_refresh_active_page_screen()
+	_refresh_active_content()
 
 
 func _on_world_changed() -> void:
@@ -383,6 +387,8 @@ func _refresh_recruit_nav_visibility() -> void:
 func _refresh_grid() -> void:
 	if _slots_snapshot.is_empty():
 		_slots_snapshot = GameManager.get_slots_snapshot()
+	if _slot_widgets.size() != _slots_snapshot.size():
+		_build_grid()
 	for slot_index in range(_slot_widgets.size()):
 		var slot_data: Dictionary = _slots_snapshot[slot_index] if slot_index < _slots_snapshot.size() else {}
 		var building_definition: Dictionary = {}
@@ -610,7 +616,9 @@ func _build_building_panel(slot_index: int, slot_data: Dictionary) -> void:
 		_as_array(slot_data.get("assigned_hero_ids", [])).size(),
 		int(building_definition.get("worker_slots", 0)),
 	])
-	_detail_content.add_child(_make_rich_text_label("[color=#d8d1c6]%s[/color] %s" % [_txt("settlement.production", {"production": ""}).trim_suffix(" "), _format_resource_bbcode(GameManager.get_slot_production_preview(slot_index), "refund")], 15))
+	var production_preview: Dictionary = GameManager.get_slot_production_preview(slot_index)
+	if not production_preview.is_empty():
+		_detail_content.add_child(_make_rich_text_label("[color=#d8d1c6]%s[/color] %s" % [_txt("settlement.production", {"production": ""}).trim_suffix(" "), _format_resource_bbcode(production_preview, "refund")], 15))
 
 	var upgrade_cost: Dictionary = GameManager.get_upgrade_cost(slot_index)
 	var dismantle_refund: Dictionary = GameManager.get_dismantle_refund(slot_index)
@@ -762,50 +770,17 @@ func _open_settlement(settlement_id: String) -> void:
 
 
 func _build_inventory_entries(items: Array, equipment: Array) -> Array:
-	var entries: Array = []
-	for item_stack in items:
-		if item_stack is not Dictionary:
-			continue
-		var definition: Dictionary = DataLoader.get_item_definition(String((item_stack as Dictionary).get("definition_id", "")))
-		if definition.is_empty():
-			continue
-		entries.append({
-			"kind": "item",
-			"definition": definition,
-			"quantity": int((item_stack as Dictionary).get("quantity", 0)),
-		})
-	for equipment_entry in equipment:
-		if equipment_entry is not Dictionary:
-			continue
-		var definition: Dictionary = DataLoader.get_equipment_definition(String((equipment_entry as Dictionary).get("definition_id", "")))
-		if definition.is_empty():
-			continue
-		entries.append({
-			"kind": "equipment",
-			"definition": definition,
-			"uid": int((equipment_entry as Dictionary).get("uid", -1)),
-			"equipped_hero_uid": int((equipment_entry as Dictionary).get("equipped_hero_uid", -1)),
-		})
-	return entries
+	return UIScreenHelpers.build_inventory_entries(items, equipment)
 
 
 func _make_inventory_slot(entry: Dictionary) -> PanelContainer:
-	var kind := String(entry.get("kind", "item"))
-	var definition := _as_dictionary(entry.get("definition", {}))
-	var panel := PanelContainer.new()
-	panel.custom_minimum_size = Vector2(148, 148)
-	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var accent_color := Color("7a5e4b") if kind == "item" else Color("8d8478")
-	_style_panel(panel, Color("141113"), accent_color, 10)
-	var footer_text := "x%d" % int(entry.get("quantity", 0)) if kind == "item" else _inventory_equipment_footer(entry, definition)
-	_build_inventory_tile_content(panel, definition, footer_text, Color("d9cbb7") if kind == "item" else Color("b8c3d9"), Color("efe7db"), 72, 15, 14)
-	return panel
+	return UIScreenHelpers.make_inventory_slot(entry)
 
 
 func _inventory_equipment_footer(entry: Dictionary, definition: Dictionary) -> String:
 	if int(entry.get("equipped_hero_uid", -1)) > 0:
 		return "Equipped"
-	return _equipment_slot_label(String(definition.get("slot", "")))
+	return UIScreenHelpers.equipment_slot_label(String(definition.get("slot", "")))
 
 
 func _build_debug_page() -> void:
@@ -825,6 +800,8 @@ func _build_debug_page() -> void:
 	heroes_body.add_child(_make_label("Hero Recruitment", 20))
 	heroes_body.add_child(_make_label("Generates and recruits a random hero without Tavern or cost requirements.", 16))
 	heroes_body.add_child(_make_button("Recruit Random Hero", Callable(self, "_debug_recruit_hero"), false))
+	heroes_body.add_child(_make_label("Adds 100 experience to every recruited hero.", 16))
+	heroes_body.add_child(_make_button("Grant 100 XP All Heroes", Callable(self, "_debug_grant_hero_experience"), false))
 
 
 func _add_hero_entry(hero: Dictionary, assigned: bool) -> void:
@@ -916,6 +893,10 @@ func _debug_recruit_hero() -> void:
 	GameManager.debug_recruit_random_hero()
 
 
+func _debug_grant_hero_experience() -> void:
+	GameManager.debug_grant_all_hero_experience()
+
+
 func _open_hero_detail(hero_uid: int) -> void:
 	_selected_hero_uid = hero_uid
 	_apply_navigation_change(_navigation.request_hero_detail())
@@ -927,36 +908,7 @@ func _back_to_heroes() -> void:
 
 
 func _load_hero_texture(hero_data: Dictionary) -> Texture2D:
-	var hero_definition: Dictionary = DataLoader.get_hero_definition(String(hero_data.get("definition_id", "")))
-	var portrait_path := String(hero_definition.get("portrait_path", ""))
-	var icon_path := String(hero_definition.get("icon_path", ""))
-	var resolved_path := portrait_path
-	if resolved_path.is_empty() or resolved_path == DataLoader.DEFAULT_HERO_IMAGE:
-		if not icon_path.is_empty() and icon_path != DataLoader.DEFAULT_HERO_IMAGE:
-			resolved_path = icon_path
-	if resolved_path.is_empty():
-		resolved_path = DataLoader.DEFAULT_HERO_IMAGE
-	var texture := _load_texture_from_path(resolved_path)
-	if texture != null:
-		return texture
-	return _load_texture_from_path(DataLoader.DEFAULT_HERO_IMAGE)
-
-
-func _load_texture_from_path(path: String) -> Texture2D:
-	if path.is_empty():
-		return null
-	if path.begins_with("res://"):
-		if ResourceLoader.exists(path):
-			return load(path)
-		return null
-	if path.begins_with("user://") or path.is_absolute_path():
-		if not FileAccess.file_exists(path):
-			return null
-		var image := Image.new()
-		if image.load(path) != OK:
-			return null
-		return ImageTexture.create_from_image(image)
-	return null
+	return UIScreenHelpers.load_hero_texture(hero_data)
 
 
 func _refresh_settlement_title() -> void:
@@ -964,58 +916,6 @@ func _refresh_settlement_title() -> void:
 	if settlement_name.is_empty():
 		settlement_name = "Settlement"
 	_settlement_title.text = settlement_name
-
-
-func _equipment_slot_label(slot_key: String) -> String:
-	match slot_key:
-		"head":
-			return "Head"
-		"chest":
-			return "Chest"
-		"gloves":
-			return "Gloves"
-		"boots":
-			return "Boots"
-		"amulet":
-			return "Amulet"
-		"ring_1":
-			return "Ring 1"
-		_:
-			return slot_key.capitalize()
-
-
-func _build_inventory_tile_content(parent: Control, definition: Dictionary, footer_text: String, footer_color: Color, title_color: Color, icon_size: int, title_font_size: int, footer_font_size: int, title_override: String = "") -> void:
-	var body := VBoxContainer.new()
-	body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	body.add_theme_constant_override("separation", 8)
-	body.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	parent.add_child(body)
-	var name_label := _make_label(title_override if not title_override.is_empty() else String(definition.get("name", "Unknown")), title_font_size)
-	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	name_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	name_label.add_theme_color_override("font_color", title_color)
-	name_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	body.add_child(name_label)
-	var icon_holder := CenterContainer.new()
-	icon_holder.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	icon_holder.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	icon_holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	body.add_child(icon_holder)
-	var icon := TextureRect.new()
-	icon.custom_minimum_size = Vector2(icon_size, icon_size)
-	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	icon.texture = _load_texture_from_path(String(definition.get("icon_path", DataLoader.DEFAULT_CATALOG_ICON)))
-	if icon.texture == null:
-		icon.texture = _load_texture_from_path(DataLoader.DEFAULT_CATALOG_ICON)
-	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	icon_holder.add_child(icon)
-	var footer_label := _make_label(footer_text, footer_font_size)
-	footer_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	footer_label.add_theme_color_override("font_color", footer_color)
-	footer_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	body.add_child(footer_label)
 
 
 func _make_bonus_section(title: String, values: Dictionary, accent_color: Color) -> PanelContainer:

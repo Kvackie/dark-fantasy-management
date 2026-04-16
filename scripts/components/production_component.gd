@@ -67,6 +67,11 @@ func _calculate_slot_production(slot: Dictionary) -> Dictionary:
 	var building_id: String = String(slot.get("building_id", ""))
 	if building_id.is_empty():
 		return {}
+	if building_id == "triage":
+		var assigned_count := _normalize_int_array(slot.get("assigned_hero_ids", [])).size()
+		if assigned_count <= 0:
+			return {}
+		return {"gold": -3 * assigned_count}
 	var definition: Dictionary = DataLoader.get_building_definition(building_id)
 	if definition.is_empty():
 		return {}
@@ -114,4 +119,3 @@ func _normalize_int_array(value: Variant) -> Array:
 		for entry in value:
 			normalized.append(int(entry))
 	return normalized
-

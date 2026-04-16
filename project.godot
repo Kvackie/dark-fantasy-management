@@ -18,7 +18,6 @@ config/icon="res://icon.svg"
 [autoload]
 
 GameManager="*res://scripts/game/game_manager.gd"
-SettlementGame="*res://scripts/game/settlement_game.gd"
 DataLoader="*res://scripts/data/data_loader.gd"
 GameSession="*res://scripts/game/game_session.gd"
 ModBootstrap="*res://scripts/data/mod_bootstrap.gd"
