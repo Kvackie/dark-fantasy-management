@@ -648,25 +648,15 @@ func get_heroes_snapshot() -> Array:
 
 
 func add_item_to_inventory(definition_id: String, quantity: int) -> void:
-	var session := _session()
-	if session == null:
-		return
-	if session.has_method("ensure_inventory_component"):
-		session.ensure_inventory_component()
-	var component: Node = session.inventory_component
-	if component == null or not is_instance_valid(component) or not component.has_method("add_item_to_inventory"):
+	var component := _inventory_component()
+	if component == null or not component.has_method("add_item_to_inventory"):
 		return
 	component.add_item_to_inventory(definition_id, quantity)
 
 
 func add_equipment_to_inventory(definition_id: String) -> Dictionary:
-	var session := _session()
-	if session == null:
-		return {}
-	if session.has_method("ensure_inventory_component"):
-		session.ensure_inventory_component()
-	var component: Node = session.inventory_component
-	if component == null or not is_instance_valid(component) or not component.has_method("add_equipment_to_inventory"):
+	var component := _inventory_component()
+	if component == null or not component.has_method("add_equipment_to_inventory"):
 		return {}
 	return component.add_equipment_to_inventory(definition_id)
 
@@ -676,13 +666,8 @@ func get_inventory_equipment_instance(equipment_uid: int) -> Dictionary:
 
 
 func equip_equipment_to_hero(hero_uid: int, slot_key: String, equipment_uid: int) -> bool:
-	var session := _session()
-	if session == null:
-		return false
-	if session.has_method("ensure_inventory_component"):
-		session.ensure_inventory_component()
-	var component: Node = session.inventory_component
-	if component == null or not is_instance_valid(component) or not component.has_method("equip_equipment_to_hero"):
+	var component := _inventory_component()
+	if component == null or not component.has_method("equip_equipment_to_hero"):
 		return false
 	if not component.equip_equipment_to_hero(hero_uid, slot_key, equipment_uid):
 		return false
@@ -691,13 +676,8 @@ func equip_equipment_to_hero(hero_uid: int, slot_key: String, equipment_uid: int
 
 
 func unequip_hero_slot(hero_uid: int, slot_key: String) -> bool:
-	var session := _session()
-	if session == null:
-		return false
-	if session.has_method("ensure_inventory_component"):
-		session.ensure_inventory_component()
-	var component: Node = session.inventory_component
-	if component == null or not is_instance_valid(component) or not component.has_method("unequip_hero_slot"):
+	var component := _inventory_component()
+	if component == null or not component.has_method("unequip_hero_slot"):
 		return false
 	if not component.unequip_hero_slot(hero_uid, slot_key):
 		return false
@@ -851,13 +831,8 @@ func _emit_recruit_market_state(should_save: bool) -> void:
 
 
 func _seed_starting_inventory() -> void:
-	var session := _session()
-	if session == null:
-		return
-	if session.has_method("ensure_inventory_component"):
-		session.ensure_inventory_component()
-	var component: Node = session.inventory_component
-	if component == null or not is_instance_valid(component) or not component.has_method("seed_starting_inventory"):
+	var component := _inventory_component()
+	if component == null or not component.has_method("seed_starting_inventory"):
 		return
 	component.seed_starting_inventory()
 
@@ -1812,15 +1787,23 @@ func _get_hero_equipment_bonuses(hero_data: Dictionary) -> Dictionary:
 
 
 func _get_inventory_equipment_instance(equipment_uid: int) -> Dictionary:
-	var session := _session()
-	if session == null:
-		return {}
-	if session.has_method("ensure_inventory_component"):
-		session.ensure_inventory_component()
-	var component: Node = session.inventory_component
-	if component == null or not is_instance_valid(component) or not component.has_method("get_inventory_equipment_instance"):
+	var component := _inventory_component()
+	if component == null or not component.has_method("get_inventory_equipment_instance"):
 		return {}
 	return component.get_inventory_equipment_instance(equipment_uid)
+
+
+func _inventory_component() -> Node:
+	var session := _session()
+	if session == null:
+		return null
+	if session.has_method("get_inventory_component"):
+		return session.get_inventory_component()
+	if session.has_method("ensure_inventory_component"):
+		session.ensure_inventory_component()
+	if session.has("inventory_component"):
+		return session.inventory_component
+	return null
 
 
 func _get_max_hero_uid() -> int:
