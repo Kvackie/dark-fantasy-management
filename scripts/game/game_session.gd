@@ -56,6 +56,46 @@ func get_inventory_component() -> Node:
 	return inventory_component
 
 
+func get_inventory_items() -> Array:
+	return inventory_items
+
+
+func set_inventory_items(items: Array) -> void:
+	inventory_items = items
+
+
+func get_inventory_equipment() -> Array:
+	return inventory_equipment
+
+
+func set_inventory_equipment(equipment: Array) -> void:
+	inventory_equipment = equipment
+
+
+func get_heroes() -> Array:
+	return heroes
+
+
+func set_heroes(hero_list: Array) -> void:
+	heroes = hero_list
+
+
+func get_next_equipment_uid() -> int:
+	return next_equipment_uid
+
+
+func set_next_equipment_uid(value: int) -> void:
+	next_equipment_uid = value
+
+
+func get_generated_settlement_definitions() -> Dictionary:
+	return generated_settlement_definitions
+
+
+func set_generated_settlement_definitions(definitions: Dictionary) -> void:
+	generated_settlement_definitions = definitions
+
+
 func reset_runtime_state(starting_resources: Dictionary, default_settlement_id: String) -> void:
 	resources = starting_resources.duplicate(true)
 	settlement_states = {}

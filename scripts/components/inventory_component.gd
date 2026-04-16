@@ -232,38 +232,35 @@ func _clear_equipment_instance_link(equipment_uid: int) -> void:
 
 
 func _inventory_items() -> Array:
-	return _as_array(_session.get("inventory_items"))
+	return _as_array(_session.get_inventory_items())
 
 
 func _set_inventory_items(items: Array) -> void:
-	_session.set("inventory_items", items)
+	_session.set_inventory_items(items)
 
 
 func _inventory_equipment() -> Array:
-	return _as_array(_session.get("inventory_equipment"))
+	return _as_array(_session.get_inventory_equipment())
 
 
 func _set_inventory_equipment(equipment: Array) -> void:
-	_session.set("inventory_equipment", equipment)
+	_session.set_inventory_equipment(equipment)
 
 
 func _heroes() -> Array:
-	return _as_array(_session.get("heroes"))
+	return _as_array(_session.get_heroes())
 
 
 func _set_heroes(heroes: Array) -> void:
-	_session.set("heroes", heroes)
+	_session.set_heroes(heroes)
 
 
 func _next_equipment_uid() -> int:
-	var current_uid = _session.get("next_equipment_uid")
-	if current_uid == null:
-		return 1
-	return int(current_uid)
+	return _session.get_next_equipment_uid()
 
 
 func _set_next_equipment_uid(value: int) -> void:
-	_session.set("next_equipment_uid", value)
+	_session.set_next_equipment_uid(value)
 
 
 func _rebuild_equipment_compatibility() -> void:

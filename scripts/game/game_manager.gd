@@ -1644,11 +1644,11 @@ func _reconcile_generated_settlement_definitions() -> void:
 
 
 func _generated_settlement_definitions() -> Dictionary:
-	return _as_dictionary(_session().get("generated_settlement_definitions"))
+	return _session().get_generated_settlement_definitions()
 
 
 func _set_generated_settlement_definitions(value: Dictionary) -> void:
-	_session().set("generated_settlement_definitions", value)
+	_session().set_generated_settlement_definitions(value)
 
 
 func _set_generated_settlement_definition(settlement_id: String, definition: Dictionary) -> void:
