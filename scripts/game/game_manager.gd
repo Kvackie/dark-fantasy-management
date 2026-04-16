@@ -14,6 +14,11 @@ signal recruit_market_changed()
 
 const SettlementGameData = preload("res://scripts/game/settlement_game.gd")
 const ProductionComponentScript = preload("res://scripts/components/production_component.gd")
+const HeroRosterComponentScript = preload("res://scripts/components/hero_roster_component.gd")
+const RecruitmentComponentScript = preload("res://scripts/components/recruitment_component.gd")
+const HeroAssignmentComponentScript = preload("res://scripts/components/hero_assignment_component.gd")
+const WorldTaskComponentScript = preload("res://scripts/components/world_task_component.gd")
+const HeroEffectiveStatsComponentScript = preload("res://scripts/components/hero_effective_stats_component.gd")
 const RESOURCE_ID_FOOD := "food"
 const RESOURCE_ID_WOOD := "wood"
 const RESOURCE_ID_STONE := "stone"
@@ -344,24 +349,14 @@ func get_hero_effective_stats(hero_uid: int) -> Dictionary:
 	var hero_index := _find_hero_index(hero_uid)
 	if hero_index == -1:
 		return {}
-	var hero_data: Dictionary = heroes[hero_index]
-	var stats: Dictionary = _as_dictionary(hero_data.get("stats", {})).duplicate(true)
-	var bonuses: Dictionary = _get_hero_equipment_bonuses(hero_data)
-	for stat_key in DataLoader.DEFAULT_HERO_STATS.keys():
-		stats[stat_key] = int(stats.get(stat_key, 0)) + int(_as_dictionary(bonuses.get("stats", {})).get(stat_key, 0))
-	return stats
+	return HeroEffectiveStatsComponentScript.build_effective_combat_stats(heroes[hero_index], Callable(self, "_get_inventory_equipment_instance"))
 
 
 func get_hero_effective_work_stats(hero_uid: int) -> Dictionary:
 	var hero_index := _find_hero_index(hero_uid)
 	if hero_index == -1:
 		return {}
-	var hero_data: Dictionary = heroes[hero_index]
-	var work_stats: Dictionary = _as_dictionary(hero_data.get("work_stats", {})).duplicate(true)
-	var bonuses: Dictionary = _get_hero_equipment_bonuses(hero_data)
-	for stat_key in DataLoader.DEFAULT_HERO_WORK_STATS.keys():
-		work_stats[stat_key] = int(work_stats.get(stat_key, 0)) + int(_as_dictionary(bonuses.get("work_stats", {})).get(stat_key, 0))
-	return work_stats
+	return HeroEffectiveStatsComponentScript.build_effective_work_stats(heroes[hero_index], Callable(self, "_get_inventory_equipment_instance"))
 
 
 func get_slot(slot_index: int) -> Dictionary:
@@ -498,43 +493,28 @@ func get_owned_settlement_production_preview() -> Dictionary:
 
 func assign_hero_to_slot(hero_uid: int, slot_index: int) -> bool:
 	_sync_active_settlement_slots()
-	if slot_index < 0 or slot_index >= slots.size():
+	var result: Dictionary = HeroAssignmentComponentScript.assign_hero_to_active_settlement_slot(
+		heroes,
+		slots,
+		hero_uid,
+		slot_index,
+		active_settlement_id,
+		Callable(self, "get_slot_building_definition"),
+		Callable(_session(), "is_hero_world_task_idle"),
+		Callable(_session(), "refresh_slot_assignment_compatibility")
+	)
+	if not bool(result.get("ok", false)):
 		return false
-	var slot: Dictionary = slots[slot_index]
-	var definition: Dictionary = get_slot_building_definition(slot_index)
-	if definition.is_empty():
-		return false
-	var assigned_ids: Array = _normalize_int_array(slot.get("assigned_hero_ids", []))
-	if not assigned_ids.has(hero_uid) and assigned_ids.size() >= int(definition.get("worker_slots", 0)):
-		return false
-	var hero_index: int = _find_hero_index(hero_uid)
-	if hero_index == -1:
-		return false
-	var hero_data: Dictionary = heroes[hero_index]
-	if not _session().is_hero_world_task_idle(hero_uid):
-		return false
-	var previous_slot: int = int(hero_data.get("assigned_slot", -1))
-	var previous_settlement_id := String(hero_data.get("assigned_settlement_id", "")).strip_edges()
-	if previous_slot == slot_index and previous_settlement_id == active_settlement_id:
-		return true
-	_remove_hero_from_all_slots(hero_uid)
-	hero_data["assigned_settlement_id"] = active_settlement_id
-	hero_data["assigned_slot"] = slot_index
-	heroes[hero_index] = hero_data
-	_session().refresh_slot_assignment_compatibility()
-	_emit_hero_and_settlement_state(true)
+	if bool(result.get("changed", true)):
+		_session().refresh_slot_assignment_compatibility()
+		_emit_hero_and_settlement_state(true)
 	return true
 
 
 func unassign_hero(hero_uid: int) -> bool:
-	var hero_index: int = _find_hero_index(hero_uid)
-	if hero_index == -1:
+	if not HeroAssignmentComponentScript.unassign_hero_from_slots(heroes, hero_uid):
 		return false
-	var hero_data: Dictionary = heroes[hero_index]
-	var previous_slot: int = int(hero_data.get("assigned_slot", -1))
-	if previous_slot == -1:
-		return false
-	_remove_hero_from_all_slots(hero_uid)
+	_session().refresh_slot_assignment_compatibility()
 	_emit_hero_and_settlement_state(true)
 	return true
 
@@ -545,21 +525,24 @@ func refresh_recruit_offers() -> bool:
 	var refresh_cost := get_recruit_refresh_cost()
 	if not apply_cost(refresh_cost):
 		return false
-	recruit_market_offers = _generate_recruit_offer_batch(get_recruit_offer_capacity())
+	var refresh_batch: Dictionary = RecruitmentComponentScript.generate_recruit_offer_batch(get_recruit_offer_capacity(), _next_recruit_offer_id)
+	recruit_market_offers = refresh_batch["offers"]
+	_next_recruit_offer_id = int(refresh_batch["next_offer_id"])
 	recruit_market_initialized = true
 	_emit_recruit_market_state(true)
 	return true
 
 
 func recruit_hero_from_offer(offer_id: int) -> Dictionary:
-	var offer_index := _find_recruit_offer_index(offer_id)
+	var offer_index := RecruitmentComponentScript.find_recruit_offer_index(recruit_market_offers, offer_id)
 	if offer_index == -1:
 		return {}
 	var offer_data: Dictionary = recruit_market_offers[offer_index]
-	var recruit_cost := _normalize_resolved_recruit_cost(offer_data.get("recruit_cost", {}))
+	var recruit_cost := RecruitmentComponentScript.normalize_resolved_recruit_cost(offer_data.get("recruit_cost", {}))
 	if not apply_cost(recruit_cost):
 		return {}
-	var hero_instance := _create_hero_instance_from_offer(offer_data)
+	var hero_instance: Dictionary = HeroRosterComponentScript.create_hero_instance_from_offer(offer_data, _next_hero_uid)
+	_next_hero_uid += 1
 	heroes.append(hero_instance)
 	recruit_market_offers.remove_at(offer_index)
 	emit_signal("heroes_changed")
@@ -573,12 +556,22 @@ func dismiss_hero(hero_uid: int) -> bool:
 	if hero_index == -1:
 		return false
 	_remove_hero_from_all_slots(hero_uid)
-	_unequip_all_hero_equipment(hero_index)
+	var inv := _inventory_component()
+	if inv != null and inv.has_method("strip_all_equipment_from_hero"):
+		inv.strip_all_equipment_from_hero(hero_uid)
+	else:
+		var hero_data_clear: Dictionary = heroes[hero_index]
+		var hero_equipment := _as_dictionary(hero_data_clear.get("equipment", {})).duplicate(true)
+		if hero_equipment.is_empty():
+			hero_equipment = DataLoader.create_empty_hero_equipment()
+		for slot_key in DataLoader.HERO_EQUIPMENT_KEYS:
+			hero_equipment[slot_key] = ""
+		hero_data_clear["equipment"] = hero_equipment
+		heroes[hero_index] = hero_data_clear
+		_session().refresh_equipment_compatibility()
 	var world_changed := _remove_hero_from_world_tasks(hero_uid)
 	heroes.remove_at(hero_index)
 	_session().refresh_slot_assignment_compatibility()
-	_session().refresh_equipment_compatibility()
-	_session().refresh_world_task_compatibility()
 	emit_signal("heroes_changed")
 	emit_signal("settlement_changed")
 	emit_signal("inventory_changed")
@@ -597,10 +590,11 @@ func debug_grant_all_resources() -> void:
 
 
 func debug_recruit_random_hero() -> Dictionary:
-	var hero_definition: Dictionary = _roll_hero_definition()
+	var hero_definition: Dictionary = RecruitmentComponentScript.roll_hero_definition()
 	if hero_definition.is_empty():
 		return {}
-	var hero_instance: Dictionary = _create_hero_instance(hero_definition)
+	var hero_instance: Dictionary = HeroRosterComponentScript.create_hero_instance(hero_definition, _next_hero_uid)
+	_next_hero_uid += 1
 	heroes.append(hero_instance)
 	emit_signal("heroes_changed")
 	emit_signal("resources_changed")
@@ -755,10 +749,10 @@ func _apply_loaded_state(data: Dictionary) -> void:
 	heroes = []
 	for hero in data.get("heroes", []):
 		if hero is Dictionary:
-			heroes.append(_normalize_loaded_hero((hero as Dictionary).duplicate(true)))
+			heroes.append(HeroRosterComponentScript.normalize_loaded_hero((hero as Dictionary).duplicate(true), _next_hero_uid))
 	inventory_items = _normalize_loaded_item_stacks(data.get("inventory_items", []))
 	inventory_equipment = _normalize_loaded_equipment_instances(data.get("inventory_equipment", []))
-	recruit_market_offers = _normalize_loaded_recruit_market_offers(data.get("recruit_market_offers", []))
+	recruit_market_offers = RecruitmentComponentScript.normalize_loaded_recruit_market_offers(data.get("recruit_market_offers", []))
 	recruit_market_initialized = bool(data.get("recruit_market_initialized", data.has("recruit_market_offers"))) or not recruit_market_offers.is_empty()
 	_reconcile_loaded_equipment_links()
 	world_seed = int(data.get("world_seed", randi()))
@@ -828,34 +822,11 @@ func _seed_starting_inventory() -> void:
 
 
 func _find_hero_index(hero_uid: int) -> int:
-	for index in heroes.size():
-		var hero_data: Dictionary = heroes[index]
-		if int(hero_data.get("uid", -1)) == hero_uid:
-			return index
-	return -1
-
-
-func _remove_hero_from_slot(hero_uid: int, slot_index: int) -> void:
-	_sync_active_settlement_slots()
-	if slot_index < 0 or slot_index >= slots.size():
-		return
-	var slot: Dictionary = slots[slot_index]
-	var assigned_ids: Array = []
-	for assigned_id in _normalize_int_array(slot.get("assigned_hero_ids", [])):
-		if int(assigned_id) != hero_uid:
-			assigned_ids.append(int(assigned_id))
-	slot["assigned_hero_ids"] = assigned_ids
-	slots[slot_index] = slot
+	return HeroAssignmentComponentScript.find_hero_index(heroes, hero_uid)
 
 
 func _remove_hero_from_all_slots(hero_uid: int) -> void:
-	var hero_index := _find_hero_index(hero_uid)
-	if hero_index == -1:
-		return
-	var hero_data: Dictionary = heroes[hero_index]
-	hero_data["assigned_settlement_id"] = ""
-	hero_data["assigned_slot"] = -1
-	heroes[hero_index] = hero_data
+	HeroAssignmentComponentScript.clear_hero_settlement_assignment(heroes, hero_uid)
 	_session().refresh_slot_assignment_compatibility()
 
 
@@ -868,268 +839,29 @@ func _reconcile_recruit_market_state(seed_offers_if_unlocked: bool) -> bool:
 	if not recruit_market_offers.is_empty():
 		recruit_market_initialized = true
 	if seed_offers_if_unlocked and not recruit_market_initialized and recruit_market_offers.is_empty():
-		recruit_market_offers = _generate_recruit_offer_batch(get_recruit_offer_capacity())
+		var seed_batch: Dictionary = RecruitmentComponentScript.generate_recruit_offer_batch(get_recruit_offer_capacity(), _next_recruit_offer_id)
+		recruit_market_offers = seed_batch["offers"]
+		_next_recruit_offer_id = int(seed_batch["next_offer_id"])
 		recruit_market_initialized = true
 		market_changed = true
 	if recruit_market_initialized and recruit_market_offers.size() < get_recruit_offer_capacity():
-		recruit_market_offers.append_array(_generate_recruit_offer_batch_with_exclusions(get_recruit_offer_capacity() - recruit_market_offers.size(), _get_recruit_offer_definition_ids()))
+		var extra_batch: Dictionary = RecruitmentComponentScript.generate_recruit_offer_batch_with_exclusions(
+			get_recruit_offer_capacity() - recruit_market_offers.size(),
+			RecruitmentComponentScript.get_recruit_offer_definition_ids(recruit_market_offers),
+			_next_recruit_offer_id
+		)
+		recruit_market_offers.append_array(extra_batch["offers"])
+		_next_recruit_offer_id = int(extra_batch["next_offer_id"])
 		market_changed = true
 	return market_changed
 
 
-func _generate_recruit_offer_batch(offer_count: int) -> Array:
-	return _generate_recruit_offer_batch_with_exclusions(offer_count, [])
-
-
-func _generate_recruit_offer_batch_with_exclusions(offer_count: int, excluded_definition_ids: Array) -> Array:
-	var offers: Array = []
-	var hero_pool: Array = DataLoader.get_all_heroes()
-	if offer_count <= 0 or hero_pool.is_empty():
-		return offers
-	var used_definition_ids: Dictionary = {}
-	for definition_id in excluded_definition_ids:
-		used_definition_ids[String(definition_id)] = true
-	while offers.size() < offer_count:
-		var weighted_pool: Array = []
-		for entry in hero_pool:
-			var hero_definition: Dictionary = entry
-			var definition_id := String(hero_definition.get("id", ""))
-			if used_definition_ids.has(definition_id):
-				continue
-			weighted_pool.append(hero_definition)
-		if weighted_pool.is_empty():
-			weighted_pool = hero_pool
-		var selected_definition := _roll_weighted_hero_definition(weighted_pool)
-		if selected_definition.is_empty():
-			break
-		offers.append(_create_recruit_offer(selected_definition))
-		used_definition_ids[String(selected_definition.get("id", ""))] = true
-	return offers
-
-
-func _get_recruit_offer_definition_ids() -> Array:
-	var definition_ids: Array = []
-	for offer_entry in recruit_market_offers:
-		var offer_data: Dictionary = offer_entry
-		var definition_id := String(offer_data.get("definition_id", "")).strip_edges()
-		if definition_id.is_empty():
-			continue
-		definition_ids.append(definition_id)
-	return definition_ids
-
-
-func _find_recruit_offer_index(offer_id: int) -> int:
-	for offer_index in range(recruit_market_offers.size()):
-		var offer_data: Dictionary = recruit_market_offers[offer_index]
-		if int(offer_data.get("offer_id", -1)) == offer_id:
-			return offer_index
-	return -1
-
-
-func _unequip_all_hero_equipment(hero_index: int) -> void:
-	if hero_index < 0 or hero_index >= heroes.size():
-		return
-	var hero_data: Dictionary = heroes[hero_index]
-	var hero_equipment := _as_dictionary(hero_data.get("equipment", {})).duplicate(true)
-	if hero_equipment.is_empty():
-		hero_equipment = DataLoader.create_empty_hero_equipment()
-	for slot_key in DataLoader.HERO_EQUIPMENT_KEYS:
-		hero_equipment[slot_key] = ""
-	hero_data["equipment"] = hero_equipment
-	heroes[hero_index] = hero_data
-	_session().refresh_equipment_compatibility()
-
-
 func _remove_hero_from_world_tasks(hero_uid: int) -> bool:
-	var world_state_changed := false
-	for zone_key in world_zones.keys():
-		var zone := _as_dictionary(world_zones.get(zone_key, {})).duplicate(true)
-		var assigned_ids := _normalize_int_array(zone.get("assigned_hero_uids", []))
-		if not assigned_ids.has(hero_uid):
-			continue
-		var remaining_ids: Array = []
-		for assigned_id in assigned_ids:
-			if int(assigned_id) != hero_uid:
-				remaining_ids.append(int(assigned_id))
-		zone["assigned_hero_uids"] = remaining_ids
-		if String(zone.get("state", "")) == "clearing" and remaining_ids.is_empty():
-			zone["state"] = "discovered"
-			zone["ticks_remaining"] = 0
-		world_zones[zone_key] = zone
-		world_state_changed = true
+	var world_state_changed := WorldTaskComponentScript.remove_hero_from_world_zones(world_zones, hero_uid)
 	if world_state_changed:
 		_apply_world_visibility()
 	_session().refresh_world_task_compatibility()
 	return world_state_changed
-
-
-func _roll_hero_definition() -> Dictionary:
-	return _roll_weighted_hero_definition(DataLoader.get_all_heroes())
-
-
-func _roll_weighted_hero_definition(roster: Array) -> Dictionary:
-	if roster.is_empty():
-		return {}
-	var total_weight: int = 0
-	for hero_definition in roster:
-		var hero_data: Dictionary = hero_definition
-		total_weight += max(1, int(hero_data.get("recruitment_weight", 1)))
-	var roll: int = randi_range(1, total_weight)
-	var cursor: int = 0
-	for hero_definition in roster:
-		var hero_data: Dictionary = hero_definition
-		cursor += max(1, int(hero_data.get("recruitment_weight", 1)))
-		if roll <= cursor:
-			return hero_data.duplicate(true)
-	return (roster[0] as Dictionary).duplicate(true)
-
-
-func _create_recruit_offer(hero_definition: Dictionary) -> Dictionary:
-	var hero_level := clampi(int(hero_definition.get("level", 1)), 1, 9999)
-	var offer_data: Dictionary = {
-		"offer_id": _next_recruit_offer_id,
-		"definition_id": String(hero_definition.get("id", "")),
-		"name": String(hero_definition.get("name", "Unknown Hero")),
-		"class": String(hero_definition.get("class", "Supporter")),
-		"level": hero_level,
-		"recruit_cost": _resolve_recruit_cost(hero_definition, hero_level),
-		"stats": _normalize_runtime_stats(hero_definition.get("stats", {}), DataLoader.DEFAULT_HERO_STATS),
-		"work_stats": _normalize_runtime_stats(hero_definition.get("work_stats", {}), DataLoader.DEFAULT_HERO_WORK_STATS),
-		"source": String(hero_definition.get("source", "core")),
-		"mod_id": String(hero_definition.get("mod_id", "")),
-	}
-	_next_recruit_offer_id += 1
-	return offer_data
-
-
-func _resolve_recruit_cost(hero_definition: Dictionary, hero_level: int) -> Dictionary:
-	var resolved_cost: Dictionary = {}
-	for cost_entry in _as_array(hero_definition.get("recruit_cost", [])):
-		var entry := _as_dictionary(cost_entry)
-		var resource_id := String(entry.get("resource", "")).strip_edges()
-		if resource_id.is_empty():
-			continue
-		var base_amount := 0
-		if entry.has("min_amount") or entry.has("max_amount"):
-			var min_amount := int(entry.get("min_amount", 0))
-			var max_amount := int(entry.get("max_amount", min_amount))
-			if max_amount < min_amount:
-				var swap_amount := min_amount
-				min_amount = max_amount
-				max_amount = swap_amount
-			base_amount = randi_range(min_amount, max_amount)
-		else:
-			base_amount = int(entry.get("amount", 0))
-		var final_amount: int = max(0, base_amount + max(hero_level - 1, 0) * int(entry.get("per_level", 0)))
-		if final_amount <= 0:
-			continue
-		resolved_cost[resource_id] = int(resolved_cost.get(resource_id, 0)) + final_amount
-	return resolved_cost
-
-
-func _normalize_resolved_recruit_cost(value: Variant) -> Dictionary:
-	var normalized_cost: Dictionary = {}
-	var source_cost := _as_dictionary(value)
-	for resource_id in source_cost.keys():
-		normalized_cost[String(resource_id)] = max(0, int(source_cost.get(resource_id, 0)))
-	return normalized_cost
-
-
-func _create_hero_instance(hero_definition: Dictionary) -> Dictionary:
-	var hero_instance: Dictionary = {
-		"uid": _next_hero_uid,
-		"definition_id": String(hero_definition.get("id", "")),
-		"name": String(hero_definition.get("name", "Unknown Hero")),
-		"class": String(hero_definition.get("class", "Supporter")),
-		"assigned_settlement_id": "",
-		"assigned_slot": -1,
-		"level": clampi(int(hero_definition.get("level", 1)), 1, 9999),
-		"stats": _normalize_runtime_stats(hero_definition.get("stats", {}), DataLoader.DEFAULT_HERO_STATS),
-		"work_stats": _normalize_runtime_stats(hero_definition.get("work_stats", {}), DataLoader.DEFAULT_HERO_WORK_STATS),
-		"equipment": DataLoader.create_empty_hero_equipment(),
-		"world_task": _create_idle_world_task(),
-		"source": String(hero_definition.get("source", "core")),
-		"mod_id": String(hero_definition.get("mod_id", "")),
-	}
-	_next_hero_uid += 1
-	return hero_instance
-
-
-func _create_hero_instance_from_offer(offer_data: Dictionary) -> Dictionary:
-	var hero_instance: Dictionary = {
-		"uid": _next_hero_uid,
-		"definition_id": String(offer_data.get("definition_id", "")),
-		"name": String(offer_data.get("name", "Unknown Hero")),
-		"class": String(offer_data.get("class", "Supporter")),
-		"assigned_settlement_id": "",
-		"assigned_slot": -1,
-		"level": clampi(int(offer_data.get("level", 1)), 1, 9999),
-		"stats": _normalize_runtime_stats(offer_data.get("stats", {}), DataLoader.DEFAULT_HERO_STATS),
-		"work_stats": _normalize_runtime_stats(offer_data.get("work_stats", {}), DataLoader.DEFAULT_HERO_WORK_STATS),
-		"equipment": DataLoader.create_empty_hero_equipment(),
-		"world_task": _create_idle_world_task(),
-		"source": String(offer_data.get("source", "core")),
-		"mod_id": String(offer_data.get("mod_id", "")),
-	}
-	_next_hero_uid += 1
-	return hero_instance
-
-
-func _normalize_loaded_hero(hero_data: Dictionary) -> Dictionary:
-	var definition_id := String(hero_data.get("definition_id", ""))
-	var hero_definition: Dictionary = DataLoader.get_hero_definition(definition_id)
-	var normalized: Dictionary = {
-		"uid": int(hero_data.get("uid", _next_hero_uid)),
-		"definition_id": definition_id,
-		"name": String(hero_data.get("name", hero_definition.get("name", "Unknown Hero"))),
-		"class": String(hero_definition.get("class", DataLoader.normalize_hero_class(String(hero_data.get("class", "Supporter"))))),
-		"level": clampi(int(hero_data.get("level", 1)), 1, 9999),
-		"assigned_settlement_id": String(hero_data.get("assigned_settlement_id", "")).strip_edges(),
-		"assigned_slot": int(hero_data.get("assigned_slot", -1)),
-		"stats": _normalize_runtime_stats(hero_data.get("stats", {}), hero_definition.get("stats", DataLoader.DEFAULT_HERO_STATS)),
-		"work_stats": _normalize_runtime_stats(hero_data.get("work_stats", {}), hero_definition.get("work_stats", DataLoader.DEFAULT_HERO_WORK_STATS)),
-		"equipment": _normalize_runtime_equipment(hero_data.get("equipment", {})),
-		"world_task": _normalize_world_task(hero_data.get("world_task", {})),
-		"source": String(hero_data.get("source", hero_definition.get("source", "core"))),
-		"mod_id": String(hero_data.get("mod_id", hero_definition.get("mod_id", ""))),
-	}
-	if normalized["name"] == "Unknown Hero" and not hero_definition.is_empty():
-		normalized["name"] = String(hero_definition.get("name", "Unknown Hero"))
-	return normalized
-
-
-func _normalize_runtime_stats(value: Variant, fallback_value: Variant) -> Dictionary:
-	var source_data: Dictionary = _as_dictionary(value)
-	var fallback: Dictionary = _as_dictionary(fallback_value)
-	if fallback.is_empty():
-		fallback = DataLoader.DEFAULT_HERO_STATS
-	var normalized: Dictionary = {}
-	for stat_key in fallback.keys():
-		normalized[stat_key] = int(source_data.get(stat_key, fallback[stat_key]))
-	return normalized
-
-
-func _normalize_runtime_equipment(value: Variant) -> Dictionary:
-	var source_data: Dictionary = _as_dictionary(value)
-	var equipment: Dictionary = DataLoader.create_empty_hero_equipment()
-	for slot_key in equipment.keys():
-		equipment[slot_key] = String(source_data.get(slot_key, "")).strip_edges()
-	return equipment
-
-
-func _create_idle_world_task() -> Dictionary:
-	return {
-		"type": "",
-		"zone_key": "",
-	}
-
-
-func _normalize_world_task(value: Variant) -> Dictionary:
-	var task_data := _as_dictionary(value)
-	return {
-		"type": String(task_data.get("type", "")).strip_edges(),
-		"zone_key": String(task_data.get("zone_key", "")).strip_edges(),
-	}
 
 
 func _normalize_loaded_item_stacks(value: Variant) -> Array:
@@ -1242,33 +974,6 @@ func _normalize_loaded_slots_array(value: Variant) -> Array:
 		slot_data["assigned_hero_ids"] = _normalize_int_array(slot_data.get("assigned_hero_ids", []))
 		normalized_slots[index] = slot_data
 	return normalized_slots
-
-
-func _normalize_loaded_recruit_market_offers(value: Variant) -> Array:
-	var normalized_offers: Array = []
-	if value is not Array:
-		return normalized_offers
-	for offer_entry in value:
-		if offer_entry is not Dictionary:
-			continue
-		var offer_data: Dictionary = (offer_entry as Dictionary).duplicate(true)
-		var definition_id := String(offer_data.get("definition_id", "")).strip_edges()
-		if definition_id.is_empty():
-			continue
-		var hero_definition := DataLoader.get_hero_definition(definition_id)
-		normalized_offers.append({
-			"offer_id": max(1, int(offer_data.get("offer_id", normalized_offers.size() + 1))),
-			"definition_id": definition_id,
-			"name": String(offer_data.get("name", hero_definition.get("name", "Unknown Hero"))),
-			"class": String(offer_data.get("class", hero_definition.get("class", "Supporter"))),
-			"level": clampi(int(offer_data.get("level", 1)), 1, 9999),
-			"recruit_cost": _normalize_resolved_recruit_cost(offer_data.get("recruit_cost", _resolve_recruit_cost(hero_definition, clampi(int(offer_data.get("level", 1)), 1, 9999)))),
-			"stats": _normalize_runtime_stats(offer_data.get("stats", {}), hero_definition.get("stats", DataLoader.DEFAULT_HERO_STATS)),
-			"work_stats": _normalize_runtime_stats(offer_data.get("work_stats", {}), hero_definition.get("work_stats", DataLoader.DEFAULT_HERO_WORK_STATS)),
-			"source": String(offer_data.get("source", hero_definition.get("source", "core"))),
-			"mod_id": String(offer_data.get("mod_id", hero_definition.get("mod_id", ""))),
-		})
-	return normalized_offers
 
 
 func _reconcile_loaded_equipment_links() -> void:
@@ -1728,36 +1433,6 @@ func _append_item_stacks(target: Array, definition_id: String, quantity: int, ma
 			"quantity": stack_quantity,
 		})
 		remaining -= stack_quantity
-
-
-func _get_hero_equipment_bonuses(hero_data: Dictionary) -> Dictionary:
-	var bonuses := {
-		"stats": {},
-		"work_stats": {},
-	}
-	var hero_equipment := _as_dictionary(hero_data.get("equipment", {}))
-	for slot_key in DataLoader.HERO_EQUIPMENT_KEYS:
-		var equipment_uid := int(String(hero_equipment.get(slot_key, "")).strip_edges())
-		if equipment_uid <= 0:
-			continue
-		var equipment_instance := _get_inventory_equipment_instance(equipment_uid)
-		if equipment_instance.is_empty():
-			continue
-		if int(equipment_instance.get("equipped_hero_uid", -1)) != int(hero_data.get("uid", -1)):
-			continue
-		var equipment_definition := DataLoader.get_equipment_definition(String(equipment_instance.get("definition_id", "")))
-		var definition_bonuses := _as_dictionary(equipment_definition.get("bonuses", {}))
-		for stat_key in DataLoader.DEFAULT_HERO_STATS.keys():
-			var current_stat := int(_as_dictionary(bonuses.get("stats", {})).get(stat_key, 0))
-			var added_stat := int(_as_dictionary(definition_bonuses.get("stats", {})).get(stat_key, 0))
-			if added_stat != 0:
-				bonuses["stats"][stat_key] = current_stat + added_stat
-		for stat_key in DataLoader.DEFAULT_HERO_WORK_STATS.keys():
-			var current_work := int(_as_dictionary(bonuses.get("work_stats", {})).get(stat_key, 0))
-			var added_work := int(_as_dictionary(definition_bonuses.get("work_stats", {})).get(stat_key, 0))
-			if added_work != 0:
-				bonuses["work_stats"][stat_key] = current_work + added_work
-	return bonuses
 
 
 func _get_inventory_equipment_instance(equipment_uid: int) -> Dictionary:

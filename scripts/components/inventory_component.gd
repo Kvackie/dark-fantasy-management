@@ -109,6 +109,27 @@ func unequip_hero_slot(hero_uid: int, slot_key: String) -> bool:
 	return true
 
 
+func strip_all_equipment_from_hero(hero_uid: int) -> void:
+	if hero_uid <= 0 or _session == null:
+		return
+	var hero_index := _find_hero_index(hero_uid)
+	if hero_index == -1:
+		return
+	var heroes: Array = _heroes()
+	if hero_index < 0 or hero_index >= heroes.size():
+		return
+	var hero_data: Dictionary = heroes[hero_index]
+	var hero_equipment := _as_dictionary(hero_data.get("equipment", {})).duplicate(true)
+	if hero_equipment.is_empty():
+		hero_equipment = DataLoader.create_empty_hero_equipment()
+	for slot_key in DataLoader.HERO_EQUIPMENT_KEYS:
+		hero_equipment[slot_key] = ""
+	hero_data["equipment"] = hero_equipment
+	heroes[hero_index] = hero_data
+	_set_heroes(heroes)
+	_rebuild_equipment_compatibility()
+
+
 func seed_starting_inventory() -> void:
 	for entry in [
 		{"definition_id": "rations", "quantity": 24},

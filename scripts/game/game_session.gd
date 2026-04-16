@@ -3,6 +3,7 @@ extends Node
 
 const SettlementGameData = preload("res://scripts/game/settlement_game.gd")
 const InventoryComponentScript = preload("res://scripts/components/inventory_component.gd")
+const WorldTaskComponentScript = preload("res://scripts/components/world_task_component.gd")
 
 
 const SAVE_SLOT_MANIFEST_PATH := "user://save_slots_manifest.json"
@@ -594,43 +595,11 @@ func rebuild_equipment_compatibility(hero_list: Array, equipment_list: Array, eq
 
 
 func rebuild_world_task_compatibility(hero_list: Array, zone_state: Dictionary) -> void:
-	for hero_index in range(hero_list.size()):
-		var hero_data: Dictionary = _as_dictionary(hero_list[hero_index]).duplicate(true)
-		hero_data["world_task"] = _create_idle_world_task()
-		hero_list[hero_index] = hero_data
-	var hero_index_by_uid: Dictionary = {}
-	for hero_index in range(hero_list.size()):
-		hero_index_by_uid[int(_as_dictionary(hero_list[hero_index]).get("uid", -1))] = hero_index
-	for zone_key in zone_state.keys():
-		var zone := _as_dictionary(zone_state.get(zone_key, {})).duplicate(true)
-		if String(zone.get("state", "")) != "clearing":
-			zone["assigned_hero_uids"] = []
-			zone_state[zone_key] = zone
-			continue
-		var valid_hero_ids: Array = []
-		for hero_uid in _normalize_int_array(zone.get("assigned_hero_uids", [])):
-			var hero_index := int(hero_index_by_uid.get(hero_uid, -1))
-			if hero_index == -1:
-				continue
-			var hero_data: Dictionary = _as_dictionary(hero_list[hero_index]).duplicate(true)
-			hero_data["world_task"] = {
-				"type": "clearing",
-				"zone_key": String(zone_key),
-			}
-			hero_list[hero_index] = hero_data
-			valid_hero_ids.append(hero_uid)
-		zone["assigned_hero_uids"] = valid_hero_ids
-		zone_state[zone_key] = zone
+	WorldTaskComponentScript.rebuild_world_task_compatibility(hero_list, zone_state)
 
 
 func hero_world_task_is_idle(hero_uid: int, zone_state: Dictionary) -> bool:
-	for zone_key in zone_state.keys():
-		var zone := _as_dictionary(zone_state.get(zone_key, {}))
-		if String(zone.get("state", "")) != "clearing":
-			continue
-		if _normalize_int_array(zone.get("assigned_hero_uids", [])).has(hero_uid):
-			return false
-	return true
+	return WorldTaskComponentScript.hero_world_task_is_idle(hero_uid, zone_state)
 
 
 func refresh_slot_assignment_compatibility() -> void:
@@ -813,10 +782,3 @@ func _normalize_int_array(value: Variant) -> Array:
 		for entry in value:
 			normalized.append(int(entry))
 	return normalized
-
-
-func _create_idle_world_task() -> Dictionary:
-	return {
-		"type": "",
-		"zone_key": "",
-	}
