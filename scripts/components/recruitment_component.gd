@@ -5,6 +5,24 @@ static func roll_hero_definition() -> Dictionary:
 	return roll_weighted_hero_definition(DataLoader.get_all_heroes())
 
 
+static func hero_definition_has_gem_cost(hero_definition: Dictionary) -> bool:
+	for cost_entry in _as_array(hero_definition.get("recruit_cost", [])):
+		var entry := _as_dictionary(cost_entry)
+		if String(entry.get("resource", "")).strip_edges() == "gems":
+			return true
+	return false
+
+
+static func build_recruitable_hero_pool(include_gem_cost_heroes: bool) -> Array:
+	var recruitable_pool: Array = []
+	for hero_definition in DataLoader.get_all_heroes():
+		var hero_data: Dictionary = hero_definition
+		if not include_gem_cost_heroes and hero_definition_has_gem_cost(hero_data):
+			continue
+		recruitable_pool.append(hero_data)
+	return recruitable_pool
+
+
 static func roll_weighted_hero_definition(roster: Array) -> Dictionary:
 	if roster.is_empty():
 		return {}
@@ -72,9 +90,8 @@ static func create_recruit_offer(hero_definition: Dictionary, offer_id: int) -> 
 	return offer_data
 
 
-static func generate_recruit_offer_batch_with_exclusions(offer_count: int, excluded_definition_ids: Array, start_offer_id: int) -> Dictionary:
+static func generate_recruit_offer_batch_from_pool_with_exclusions(hero_pool: Array, offer_count: int, excluded_definition_ids: Array, start_offer_id: int) -> Dictionary:
 	var offers: Array = []
-	var hero_pool: Array = DataLoader.get_all_heroes()
 	var next_offer_id: int = start_offer_id
 	if offer_count <= 0 or hero_pool.is_empty():
 		return {"offers": offers, "next_offer_id": next_offer_id}
@@ -98,6 +115,10 @@ static func generate_recruit_offer_batch_with_exclusions(offer_count: int, exclu
 		next_offer_id += 1
 		used_definition_ids[String(selected_definition.get("id", ""))] = true
 	return {"offers": offers, "next_offer_id": next_offer_id}
+
+
+static func generate_recruit_offer_batch_with_exclusions(offer_count: int, excluded_definition_ids: Array, start_offer_id: int) -> Dictionary:
+	return generate_recruit_offer_batch_from_pool_with_exclusions(DataLoader.get_all_heroes(), offer_count, excluded_definition_ids, start_offer_id)
 
 
 static func generate_recruit_offer_batch(offer_count: int, start_offer_id: int) -> Dictionary:

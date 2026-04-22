@@ -233,7 +233,7 @@ func _build_tab_content(container: VBoxContainer, hero_data: Dictionary) -> void
 				"Combat Stats",
 				[
 					{"label": "Health", "value": "%d/%d" % [int(combat_stats.get("current_health", combat_stats.get("health", 0))), int(combat_stats.get("max_health", combat_stats.get("health", 0)))], "color": Color("d8847b")},
-					{"label": "Sanity", "value": str(int(combat_stats.get("sanity", 0))), "color": Color("c8b8d9")},
+					{"label": "Sanity", "value": "%d/%d" % [int(combat_stats.get("current_sanity", combat_stats.get("sanity", 0))), int(combat_stats.get("max_sanity", combat_stats.get("sanity", 0)))], "color": Color("c8b8d9")},
 					{"label": "Attack", "value": str(int(combat_stats.get("attack", 0))), "color": Color("d0a170")},
 					{"label": "Defense", "value": str(int(combat_stats.get("defense", 0))), "color": Color("88a8c8")},
 					{"label": "Crit Chance", "value": str(int(combat_stats.get("critical_chance", 0))), "color": Color("f0c96c")},

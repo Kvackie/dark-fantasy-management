@@ -21,6 +21,7 @@ var heroes: Array = []
 var inventory_items: Array = []
 var inventory_equipment: Array = []
 var recruit_market_offers: Array = []
+var queued_bonus_recruit_offers: Array = []
 var recruit_market_initialized: bool = false
 var owned_settlement_ids: Array = []
 var active_settlement_id: String = ""
@@ -129,6 +130,14 @@ func set_recruit_market_offers_state(value: Array) -> void:
 	recruit_market_offers = value
 
 
+func get_queued_bonus_recruit_offers_state() -> Array:
+	return queued_bonus_recruit_offers
+
+
+func set_queued_bonus_recruit_offers_state(value: Array) -> void:
+	queued_bonus_recruit_offers = value
+
+
 func is_recruit_market_initialized_state() -> bool:
 	return recruit_market_initialized
 
@@ -214,6 +223,7 @@ func reset_runtime_state(starting_resources: Dictionary, default_settlement_id: 
 	inventory_items = []
 	inventory_equipment = []
 	recruit_market_offers = []
+	queued_bonus_recruit_offers = []
 	recruit_market_initialized = false
 	owned_settlement_ids = []
 	if not default_settlement_id.is_empty():
@@ -430,6 +440,7 @@ func build_serialized_state(settlement_states_snapshot: Dictionary, generated_se
 		"inventory_items": duplicate_dict_array(inventory_items),
 		"inventory_equipment": duplicate_dict_array(inventory_equipment),
 		"recruit_market_offers": duplicate_dict_array(recruit_market_offers),
+		"queued_bonus_recruit_offers": duplicate_dict_array(queued_bonus_recruit_offers),
 		"recruit_market_initialized": recruit_market_initialized,
 		"owned_settlement_ids": owned_settlement_ids.duplicate(),
 		"active_settlement_id": active_settlement_id,
@@ -887,10 +898,14 @@ func _build_world_zone_snapshot(zone_key: String, zone_value: Variant) -> Dictio
 	zone_data["state"] = String(zone_data.get("state", "fog")).strip_edges()
 	zone_data["ticks_remaining"] = max(0, int(zone_data.get("ticks_remaining", 0)))
 	zone_data["clear_duration"] = max(0, int(zone_data.get("clear_duration", 0)))
+	zone_data["clear_started_unix"] = float(zone_data.get("clear_started_unix", 0.0))
+	zone_data["clear_end_unix"] = float(zone_data.get("clear_end_unix", 0.0))
 	zone_data["assigned_hero_uids"] = assigned_hero_uids
 	zone_data["assigned_hero_count"] = assigned_hero_uids.size()
 	zone_data["generated_name"] = String(zone_data.get("generated_name", "")).strip_edges()
 	zone_data["biome"] = String(zone_data.get("biome", "neutral")).strip_edges().to_lower()
+	zone_data["requirements"] = _as_dictionary(zone_data.get("requirements", {})).duplicate(true)
+	zone_data["sanity_loss"] = max(0, int(zone_data.get("sanity_loss", 0)))
 	zone_data["claim_cost"] = _as_dictionary(zone_data.get("claim_cost", {})).duplicate(true)
 	zone_data["settlement_id"] = String(zone_data.get("settlement_id", "")).strip_edges()
 	zone_data["settlement_name"] = String(zone_data.get("settlement_name", "")).strip_edges()

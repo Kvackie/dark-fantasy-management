@@ -18,6 +18,7 @@ var _map_offset: Vector2 = Vector2.ZERO
 var _map_zoom: float = 1.0
 var _dragging: bool = false
 var _selected_zone_key: String = ""
+var _countdown_refresh_elapsed: float = 0.0
 
 
 func _ready() -> void:
@@ -25,6 +26,16 @@ func _ready() -> void:
 	_hint_label.text = DataLoader.get_ui_text("world.pan_hint", {}, "Drag empty space to pan the world map. Use the mouse wheel to zoom.")
 	_rebuild_zone_map()
 	center_on_origin()
+
+
+func _process(delta: float) -> void:
+	if not _snapshot_has_clearing_zone():
+		return
+	_countdown_refresh_elapsed += delta
+	if _countdown_refresh_elapsed < 0.25:
+		return
+	_countdown_refresh_elapsed = 0.0
+	_refresh_clearing_zone_labels()
 
 
 func set_world_snapshot(world_snapshot: Dictionary) -> void:
@@ -96,7 +107,7 @@ func _zone_button_text(zone: Dictionary) -> String:
 		"cleared":
 			return "%s\n%s" % [String(zone.get("generated_name", "Cleared Zone")), _display_biome_name(String(zone.get("biome", "neutral")))]
 		"clearing":
-			return "Clearing\n%.1fs\n%dH" % [float(int(zone.get("ticks_remaining", 0))) * SettlementGameData.TICK_SECONDS, _as_array(zone.get("assigned_hero_uids", [])).size()]
+			return "Clearing\n%s" % SettlementGameData.format_duration_label(_get_zone_display_remaining_seconds(zone))
 		"discovered":
 			return "Unknown\n%s" % _display_biome_name(String(zone.get("biome", "neutral")))
 		_:
@@ -127,6 +138,34 @@ func _style_zone_button(button: Button, zone: Dictionary, state: String, selecte
 	button.add_theme_color_override("font_hover_color", Color("ffffff"))
 	button.add_theme_color_override("font_pressed_color", Color("f4f1e8"))
 	button.add_theme_color_override("font_disabled_color", Color("d7d2cb"))
+
+
+func _snapshot_has_clearing_zone() -> bool:
+	for zone_data in _as_dictionary(_world_snapshot.get("zones", {})).values():
+		if String(_as_dictionary(zone_data).get("state", "")) == "clearing":
+			return true
+	return false
+
+
+func _refresh_clearing_zone_labels() -> void:
+	for zone_key in _zone_controls.keys():
+		var zone := GameManager.get_world_zone(String(zone_key))
+		if String(zone.get("state", "")) != "clearing":
+			continue
+		var button := _zone_controls.get(zone_key, null) as Button
+		if button == null or not is_instance_valid(button):
+			continue
+		var snapshot_zones := _as_dictionary(_world_snapshot.get("zones", {}))
+		snapshot_zones[String(zone_key)] = zone.duplicate(true)
+		_world_snapshot["zones"] = snapshot_zones
+		button.text = _zone_button_text(zone)
+
+
+func _get_zone_display_remaining_seconds(zone: Dictionary) -> float:
+	var clear_end_unix := float(zone.get("clear_end_unix", 0.0))
+	if clear_end_unix > 0.0:
+		return max(0.0, clear_end_unix - Time.get_unix_time_from_system())
+	return float(int(zone.get("ticks_remaining", 0))) * SettlementGameData.TICK_SECONDS
 
 
 func _zone_fill_color(biome: String, state: String, fallback_color: String) -> Color:

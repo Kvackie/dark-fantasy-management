@@ -10,6 +10,10 @@ static func build_effective_combat_stats(hero_data: Dictionary, get_equipment_in
 	var health_bonus := int(_as_dictionary(bonuses.get("stats", {})).get("health", 0))
 	stats["max_health"] = base_max_health + health_bonus
 	stats["current_health"] = int(_as_dictionary(hero_data.get("stats", {})).get("current_health", stats.get("max_health", 0)))
+	var base_max_sanity := int(_as_dictionary(hero_data.get("stats", {})).get("max_sanity", stats.get("sanity", 0)))
+	var sanity_bonus := int(_as_dictionary(bonuses.get("stats", {})).get("sanity", 0))
+	stats["max_sanity"] = base_max_sanity + sanity_bonus
+	stats["current_sanity"] = min(int(_as_dictionary(hero_data.get("stats", {})).get("current_sanity", stats.get("max_sanity", 0))), int(stats.get("max_sanity", 0)))
 	return stats
 
 

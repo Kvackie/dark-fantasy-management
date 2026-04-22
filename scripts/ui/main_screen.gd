@@ -111,6 +111,10 @@ var _main_menu_mode: String = MAIN_MENU_ROOT
 var _main_menu_mod_category: String = ""
 var _main_menu_pending_action: String = ""
 var _main_menu_pending_slot: int = -1
+var _zone_reward_toast: PanelContainer = null
+var _zone_reward_toast_title: Label = null
+var _zone_reward_toast_body: Label = null
+var _zone_reward_toast_tween: Tween = null
 
 
 func _ready() -> void:
@@ -122,6 +126,7 @@ func _ready() -> void:
 	_build_resource_bar()
 	_build_grid()
 	_connect_game_manager()
+	_setup_zone_reward_toast()
 	_setup_main_menu_overlay()
 	_refresh_settlement_title()
 	_apply_mode_layout()
@@ -222,6 +227,34 @@ func _connect_game_manager() -> void:
 	GameManager.save_slots_changed.connect(_on_save_slots_changed)
 	GameManager.save_loaded.connect(_on_save_loaded)
 	GameManager.tick_processed.connect(_on_tick_processed)
+	GameManager.zone_reward_notification_added.connect(_on_zone_reward_notification_added)
+
+
+func _setup_zone_reward_toast() -> void:
+	if _zone_reward_toast != null and is_instance_valid(_zone_reward_toast):
+		return
+	var toast := PanelContainer.new()
+	toast.visible = false
+	toast.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	toast.anchor_left = 0.5
+	toast.anchor_top = 0.02
+	toast.anchor_right = 0.5
+	toast.anchor_bottom = 0.02
+	toast.offset_left = -230.0
+	toast.offset_top = 0.0
+	toast.offset_right = 230.0
+	toast.offset_bottom = 120.0
+	_style_panel(toast, Color("1b1718", 0.96), Color("8f6e54"), 12)
+	add_child(toast)
+	var body := VBoxContainer.new()
+	body.add_theme_constant_override("separation", 6)
+	toast.add_child(body)
+	_zone_reward_toast_title = _make_label("", 18)
+	body.add_child(_zone_reward_toast_title)
+	_zone_reward_toast_body = _make_label("", 14)
+	_zone_reward_toast_body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	body.add_child(_zone_reward_toast_body)
+	_zone_reward_toast = toast
 
 
 func _build_resource_bar() -> void:
@@ -404,6 +437,28 @@ func _enter_game_session() -> void:
 
 func _on_tick_processed(_tick_count: int, _production_delta: Dictionary) -> void:
 	_refresh_resource_yields()
+
+
+func _on_zone_reward_notification_added(reward_notification: Dictionary) -> void:
+	if _zone_reward_toast == null or not is_instance_valid(_zone_reward_toast):
+		return
+	_zone_reward_toast_title.text = String(reward_notification.get("title", "Zone Cleared"))
+	var lines: Array[String] = []
+	for line in _as_array(reward_notification.get("lines", [])):
+		lines.append(String(line))
+	_zone_reward_toast_body.text = "\n".join(lines)
+	if _zone_reward_toast_tween != null and is_instance_valid(_zone_reward_toast_tween):
+		_zone_reward_toast_tween.kill()
+	_zone_reward_toast.modulate = Color(1, 1, 1, 0)
+	_zone_reward_toast.visible = true
+	_zone_reward_toast_tween = create_tween()
+	_zone_reward_toast_tween.tween_property(_zone_reward_toast, "modulate:a", 1.0, 0.18)
+	_zone_reward_toast_tween.tween_interval(3.6)
+	_zone_reward_toast_tween.tween_property(_zone_reward_toast, "modulate:a", 0.0, 0.3)
+	_zone_reward_toast_tween.finished.connect(func() -> void:
+		if _zone_reward_toast != null and is_instance_valid(_zone_reward_toast):
+			_zone_reward_toast.visible = false
+	)
 
 
 func _sync_top_bar_yields_after_state_load() -> void:
@@ -1502,7 +1557,7 @@ func _format_work_stats_bbcode(work_stats: Dictionary) -> String:
 func _format_recruit_combat_stats_bbcode(stats: Dictionary) -> String:
 	var parts: Array[String] = [
 		"[color=#d8847b]HP %d[/color]" % int(stats.get("health", 0)),
-		"[color=#c8b8d9]SAN %d[/color]" % int(stats.get("sanity", 0)),
+		"[color=#c8b8d9]SAN %d/%d[/color]" % [int(stats.get("current_sanity", stats.get("sanity", 0))), int(stats.get("max_sanity", stats.get("sanity", 0)))],
 		"[color=#d0a170]ATK %d[/color]" % int(stats.get("attack", 0)),
 		"[color=#88a8c8]DEF %d[/color]" % int(stats.get("defense", 0)),
 		"[color=#f0c96c]CRIT %d%%[/color]" % int(stats.get("critical_chance", 0)),

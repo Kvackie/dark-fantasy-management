@@ -75,3 +75,14 @@ static func scale_resource_dictionary(values: Dictionary, multiplier: float) -> 
 	for resource_id in values.keys():
 		scaled[String(resource_id)] = int(round(float(values[resource_id]) * multiplier))
 	return scaled
+
+
+static func format_duration_label(total_seconds: float) -> String:
+	var clamped_seconds: float = max(0.0, total_seconds)
+	var whole_seconds: int = maxi(0, int(floor(clamped_seconds)))
+	var hours: int = whole_seconds / 3600
+	var minutes: int = (whole_seconds % 3600) / 60
+	var seconds: int = whole_seconds % 60
+	if hours > 0:
+		return "%02d:%02d:%02d" % [hours, minutes, seconds]
+	return "%02d:%02d" % [minutes, seconds]
