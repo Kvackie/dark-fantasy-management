@@ -58,6 +58,17 @@
 				""
 			]
 		},
+		"special_biomes": {
+			"crystal_cavern": {
+				"spawn_chance": 20,
+				"no_settlement": true,
+				"claimed_reward": {
+					"resource": "gems",
+					"amount": 1,
+					"interval": 10
+				}
+			}
+		},
 		"overrides": {
 			"0,0": {
 				"state": "claimed",

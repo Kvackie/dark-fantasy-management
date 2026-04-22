@@ -5,16 +5,12 @@ const UIScreenHelpers = preload("res://scripts/ui/ui_screen_helpers.gd")
 
 
 signal save_requested(slot_index: int)
-signal load_requested(slot_index: int)
-signal reset_requested(slot_index: int)
 signal save_name_submitted(submitted_text: String, slot_index: int, line_edit: LineEdit)
 signal save_name_focus_exited(slot_index: int, line_edit: LineEdit)
 
 
 var _slots: Array = []
-var _save_slot_labels: Dictionary = {}
 var _save_slot_name_inputs: Dictionary = {}
-var _save_slot_load_buttons: Dictionary = {}
 var _confirmation_overlay: ColorRect = null
 var _confirmation_message: Label = null
 var _confirmation_confirm_button: Button = null
@@ -31,9 +27,7 @@ func refresh() -> void:
 		if child == _confirmation_overlay:
 			continue
 		child.queue_free()
-	_save_slot_labels.clear()
 	_save_slot_name_inputs.clear()
-	_save_slot_load_buttons.clear()
 	_ensure_confirmation_dialog()
 	add_child(UIScreenHelpers.make_label(UIScreenHelpers.txt("save.description"), 16))
 	for slot_info in _slots:
@@ -43,15 +37,9 @@ func refresh() -> void:
 			continue
 		var entry := slot_info as Dictionary
 		var slot_index := int(entry.get("slot", 0))
-		var label := _save_slot_labels.get(slot_index, null) as Label
-		if label != null and is_instance_valid(label):
-			label.text = "%s%s" % [UIScreenHelpers.txt("save.slot_heading", {"slot": slot_index}), UIScreenHelpers.txt("save.active_suffix") if bool(entry.get("active", false)) else ""]
 		var input := _save_slot_name_inputs.get(slot_index, null) as LineEdit
 		if input != null and is_instance_valid(input) and not input.has_focus():
 			input.text = String(entry.get("name", ""))
-		var load_button := _save_slot_load_buttons.get(slot_index, null) as Button
-		if load_button != null and is_instance_valid(load_button):
-			load_button.disabled = not bool(entry.get("exists", false))
 
 
 func _ensure_confirmation_dialog() -> void:
@@ -107,36 +95,25 @@ func _make_save_slot_entry(slot_info: Dictionary) -> PanelContainer:
 	var body := VBoxContainer.new()
 	body.add_theme_constant_override("separation", 8)
 	panel.add_child(body)
-	var row: HBoxContainer = HBoxContainer.new()
-	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	row.add_theme_constant_override("separation", 10)
-	body.add_child(row)
-	var slot_label: Label = UIScreenHelpers.make_label(
-		"%s%s" % [UIScreenHelpers.txt("save.slot_heading", {"slot": int(entry.get("slot", 0))}), UIScreenHelpers.txt("save.active_suffix") if bool(entry.get("active", false)) else ""],
-		16
-	)
-	slot_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	row.add_child(slot_label)
+	var autosave_timestamp := String(entry.get("autosave_timestamp", "")).strip_edges()
 	var slot_index := int(entry.get("slot", 1))
-	_save_slot_labels[slot_index] = slot_label
 	var name_input := LineEdit.new()
 	name_input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	name_input.placeholder_text = UIScreenHelpers.txt("save.name_placeholder")
+	name_input.custom_minimum_size = Vector2(0, 42)
+	name_input.add_theme_font_size_override("font_size", 16)
+	name_input.placeholder_text = UIScreenHelpers.txt("save.slot_heading", {"slot": slot_index})
 	name_input.text = String(entry.get("name", ""))
 	name_input.text_submitted.connect(_on_name_submitted.bind(slot_index, name_input))
 	name_input.focus_exited.connect(_on_name_focus_exited.bind(slot_index, name_input))
 	body.add_child(name_input)
 	_save_slot_name_inputs[slot_index] = name_input
+	if not autosave_timestamp.is_empty():
+		body.add_child(UIScreenHelpers.make_label("Last Autosave %s" % autosave_timestamp, 14))
 	var action_row := HBoxContainer.new()
 	action_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	action_row.add_theme_constant_override("separation", 10)
 	body.add_child(action_row)
 	action_row.add_child(UIScreenHelpers.make_small_action_button(UIScreenHelpers.txt("save.button_save"), _on_save_requested.bind(slot_index)))
-	var load_button: Button = UIScreenHelpers.make_small_action_button(UIScreenHelpers.txt("save.button_load"), _on_load_requested.bind(slot_index))
-	load_button.disabled = not bool(entry.get("exists", false))
-	action_row.add_child(load_button)
-	_save_slot_load_buttons[slot_index] = load_button
-	action_row.add_child(UIScreenHelpers.make_small_action_button(UIScreenHelpers.txt("save.button_reset"), _on_reset_requested.bind(slot_index)))
 	return panel
 
 
@@ -150,16 +127,6 @@ func _on_name_focus_exited(slot_index: int, line_edit: LineEdit) -> void:
 
 func _on_save_requested(slot_index: int) -> void:
 	_show_confirmation("save", slot_index)
-
-
-func _on_load_requested(slot_index: int) -> void:
-	_show_confirmation("load", slot_index)
-
-
-func _on_reset_requested(slot_index: int) -> void:
-	_show_confirmation("reset", slot_index)
-
-
 func _show_confirmation(action: String, slot_index: int) -> void:
 	_ensure_confirmation_dialog()
 	_pending_action = action
@@ -168,12 +135,6 @@ func _show_confirmation(action: String, slot_index: int) -> void:
 		"save":
 			_confirmation_message.text = "Save to slot %d?\n" % slot_index
 			_confirmation_confirm_button.text = UIScreenHelpers.txt("save.button_save")
-		"load":
-			_confirmation_message.text = "Load slot %d?\nUnsaved progress will be lost." % slot_index
-			_confirmation_confirm_button.text = UIScreenHelpers.txt("save.button_load")
-		"reset":
-			_confirmation_message.text = "Reset slot %d?\nThis cannot be undone." % slot_index
-			_confirmation_confirm_button.text = UIScreenHelpers.txt("save.button_reset")
 		_:
 			_confirmation_message.text = "Continue?"
 			_confirmation_confirm_button.text = "Confirm"
@@ -184,10 +145,6 @@ func _on_confirmation_confirmed() -> void:
 	match _pending_action:
 		"save":
 			emit_signal("save_requested", _pending_slot_index)
-		"load":
-			emit_signal("load_requested", _pending_slot_index)
-		"reset":
-			emit_signal("reset_requested", _pending_slot_index)
 	_hide_confirmation()
 
 

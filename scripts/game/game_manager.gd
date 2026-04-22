@@ -349,14 +349,16 @@ func claim_world_zone(zone_key: String) -> bool:
 		zone["settlement_id"] = _generated_settlement_id(int(zone.get("x", 0)), int(zone.get("y", 0)))
 	if String(zone.get("settlement_name", "")).is_empty():
 		zone["settlement_name"] = String(zone.get("generated_name", _generate_zone_name(int(zone.get("x", 0)), int(zone.get("y", 0)))))
-	zone["generated_name"] = String(zone.get("settlement_name", ""))
+	if not bool(zone.get("no_settlement", false)):
+		zone["generated_name"] = String(zone.get("settlement_name", ""))
 	world_zones[zone_key] = zone
 	var settlement_id := String(zone.get("settlement_id", ""))
-	_register_generated_settlement_definition(zone)
-	if not settlement_id.is_empty() and not owned_settlement_ids.has(settlement_id):
-		owned_settlement_ids.append(settlement_id)
-	if not settlement_id.is_empty():
-		_ensure_settlement_state(settlement_id)
+	if not bool(zone.get("no_settlement", false)):
+		_register_generated_settlement_definition(zone)
+		if not settlement_id.is_empty() and not owned_settlement_ids.has(settlement_id):
+			owned_settlement_ids.append(settlement_id)
+		if not settlement_id.is_empty():
+			_ensure_settlement_state(settlement_id)
 	_apply_world_visibility()
 	_emit_world_state(true)
 	return true
@@ -510,6 +512,14 @@ func get_owned_settlement_production_preview() -> Dictionary:
 	return _production_component.get_owned_settlement_production_preview()
 
 
+func get_resource_yield_preview() -> Dictionary:
+	var preview := get_owned_settlement_production_preview().duplicate(true)
+	var special_preview := _get_claimed_special_zone_yield_preview()
+	for resource_id in special_preview.keys():
+		preview[String(resource_id)] = float(preview.get(resource_id, 0.0)) + float(special_preview.get(resource_id, 0.0))
+	return preview
+
+
 func assign_hero_to_slot(hero_uid: int, slot_index: int) -> bool:
 	_sync_active_settlement_slots()
 	var result: Dictionary = HeroAssignmentComponentScript.assign_hero_to_active_settlement_slot(
@@ -645,8 +655,11 @@ func process_tick() -> Dictionary:
 	var production_delta := get_owned_settlement_production_preview()
 	if not production_delta.is_empty():
 		add_resources(production_delta)
+	var special_zone_result := _process_claimed_special_zone_tick()
 	var building_result := _process_special_building_tick()
 	var world_result := _process_world_tick()
+	if bool(special_zone_result.get("resources_changed", false)):
+		emit_signal("resources_changed")
 	if bool(building_result.get("heroes_changed", false)):
 		emit_signal("heroes_changed")
 	if bool(world_result.get("heroes_changed", false)):
@@ -659,6 +672,44 @@ func process_tick() -> Dictionary:
 	if tick_count > 0:
 		_request_persistence_update()
 	return production_delta
+
+
+func _process_claimed_special_zone_tick() -> Dictionary:
+	var did_change_resources := false
+	for zone_data in world_zones.values():
+		var zone := _as_dictionary(zone_data)
+		if String(zone.get("state", "")) != "claimed":
+			continue
+		var reward := _as_dictionary(zone.get("claimed_reward", {}))
+		if reward.is_empty():
+			continue
+		var interval: int = max(1, int(reward.get("interval", 1)))
+		if tick_count % interval != 0:
+			continue
+		var resource_id := String(reward.get("resource", "")).strip_edges()
+		if resource_id.is_empty():
+			continue
+		resources[resource_id] = SettlementGameData.clamp_resource(int(resources.get(resource_id, 0)) + int(reward.get("amount", 0)))
+		did_change_resources = true
+	return {"resources_changed": did_change_resources}
+
+
+func _get_claimed_special_zone_yield_preview() -> Dictionary:
+	var preview: Dictionary = {}
+	for zone_data in world_zones.values():
+		var zone := _as_dictionary(zone_data)
+		if String(zone.get("state", "")) != "claimed":
+			continue
+		var reward := _as_dictionary(zone.get("claimed_reward", {}))
+		if reward.is_empty():
+			continue
+		var resource_id := String(reward.get("resource", "")).strip_edges()
+		if resource_id.is_empty():
+			continue
+		var interval: int = max(1, int(reward.get("interval", 1)))
+		var amount: float = float(reward.get("amount", 0)) / float(interval)
+		preview[resource_id] = float(preview.get(resource_id, 0.0)) + amount
+	return preview
 
 
 func _process_special_building_tick() -> Dictionary:
@@ -816,6 +867,18 @@ func add_resources(delta: Dictionary) -> void:
 
 func get_save_slot_metadata() -> Array:
 	return _session().get_save_slot_metadata(SettlementGameData.SAVE_SLOT_COUNT)
+
+
+func get_save_slot_summary(slot_index: int) -> Dictionary:
+	return _session().get_save_slot_summary(slot_index)
+
+
+func get_last_played_save_slot() -> int:
+	return _session().get_last_played_save_slot()
+
+
+func get_next_new_save_slot() -> int:
+	return _session().get_next_new_save_slot(SettlementGameData.SAVE_SLOT_COUNT)
 
 
 func set_save_slot_name(slot_index: int, slot_name: String) -> void:
@@ -1051,6 +1114,8 @@ func _normalize_loaded_world_zones(value: Variant) -> Dictionary:
 			"assigned_hero_uids": _normalize_int_array(zone_data.get("assigned_hero_uids", [])),
 			"generated_name": String(zone_data.get("generated_name", "")).strip_edges(),
 			"biome": String(zone_data.get("biome", _determine_zone_biome(x, y))).strip_edges().to_lower(),
+			"no_settlement": bool(zone_data.get("no_settlement", false)),
+			"claimed_reward": _duplicate_optional_dict(zone_data.get("claimed_reward", {})),
 			"claim_cost": _duplicate_optional_dict(zone_data.get("claim_cost", {})),
 			"settlement_id": String(zone_data.get("settlement_id", "")).strip_edges(),
 			"settlement_name": String(zone_data.get("settlement_name", "")).strip_edges(),
@@ -1119,7 +1184,7 @@ func _normalize_owned_settlement_ids(value: Variant) -> Array:
 func _initialize_world_state() -> void:
 	world_zones.clear()
 	var start_zone := _create_world_zone(0, 0, "claimed")
-	start_zone["biome"] = "neutral"
+	start_zone["biome"] = "starting_zone"
 	start_zone["settlement_id"] = DataLoader.get_default_settlement_id()
 	start_zone["settlement_name"] = _starting_settlement_name()
 	start_zone["generated_name"] = _starting_settlement_name()
@@ -1135,7 +1200,7 @@ func _reconcile_loaded_world_state() -> void:
 	for zone_key in world_zones.keys():
 		var zone := _as_dictionary(world_zones.get(zone_key, {})).duplicate(true)
 		if zone_key == _world_zone_key(0, 0) and String(zone.get("state", "")) == "claimed":
-			zone["biome"] = "neutral"
+			zone["biome"] = "starting_zone"
 			if String(zone.get("settlement_id", "")).is_empty():
 				zone["settlement_id"] = DataLoader.get_default_settlement_id()
 			if String(zone.get("settlement_name", "")).is_empty():
@@ -1257,11 +1322,15 @@ func _create_world_zone(x: int, y: int, state: String) -> Dictionary:
 		"assigned_hero_uids": [],
 		"generated_name": "",
 		"biome": _determine_zone_biome(x, y),
+		"no_settlement": false,
+		"claimed_reward": {},
 		"claim_cost": {},
 		"settlement_id": "",
 		"settlement_name": "",
 	}
-	return _apply_world_override(zone)
+	zone = _apply_biome_defaults(zone)
+	zone = _apply_world_override(zone)
+	return _apply_biome_defaults(zone)
 
 
 func _apply_world_override(zone: Dictionary) -> Dictionary:
@@ -1274,6 +1343,10 @@ func _apply_world_override(zone: Dictionary) -> Dictionary:
 		zone["generated_name"] = String(override.get("name", "")).strip_edges()
 	if override.has("biome"):
 		zone["biome"] = String(override.get("biome", zone.get("biome", "neutral"))).strip_edges().to_lower()
+	if override.has("no_settlement"):
+		zone["no_settlement"] = bool(override.get("no_settlement", false))
+	if override.has("claimed_reward"):
+		zone["claimed_reward"] = _duplicate_optional_dict(override.get("claimed_reward", {}))
 	if override.has("clear_duration"):
 		zone["clear_duration"] = max(0, int(override.get("clear_duration", zone.get("clear_duration", 0))))
 	if override.has("claim_cost"):
@@ -1283,6 +1356,25 @@ func _apply_world_override(zone: Dictionary) -> Dictionary:
 	if override.has("settlement_name"):
 		zone["settlement_name"] = String(override.get("settlement_name", "")).strip_edges()
 	return zone
+
+
+func _apply_biome_defaults(zone: Dictionary) -> Dictionary:
+	var biome_config := _get_special_biome_config(String(zone.get("biome", "")))
+	if biome_config.is_empty():
+		return zone
+	if bool(biome_config.get("no_settlement", false)):
+		zone["no_settlement"] = true
+	if _as_dictionary(zone.get("claimed_reward", {})).is_empty() and biome_config.has("claimed_reward"):
+		zone["claimed_reward"] = _duplicate_optional_dict(biome_config.get("claimed_reward", {}))
+	if int(zone.get("clear_duration", 0)) <= 0 and biome_config.has("clear_duration"):
+		zone["clear_duration"] = max(0, int(biome_config.get("clear_duration", 0)))
+	return zone
+
+
+func _get_special_biome_config(biome: String) -> Dictionary:
+	var world_config := DataLoader.get_world_config()
+	var special_biomes := _as_dictionary(world_config.get("special_biomes", {}))
+	return _as_dictionary(special_biomes.get(String(biome).to_lower(), {})).duplicate(true)
 
 
 func _world_zone_key(x: int, y: int) -> String:
@@ -1539,10 +1631,13 @@ func _determine_zone_biome(x: int, y: int) -> String:
 	if x == 0 and y == 0:
 		return "neutral"
 	var seed_value := int((x * 92821) + (y * 68917) + (world_seed * 13))
-	var roll: int = abs(seed_value) % 10
-	if roll == 0:
+	var roll: int = abs(seed_value)
+	var special_biome := _roll_special_biome(roll)
+	if not special_biome.is_empty():
+		return special_biome
+	if roll % 20 <= 2:
 		return "neutral"
-	var biome_roll: int = int(abs(seed_value) / 10) % 4
+	var biome_roll: int = int(roll / 10) % 4
 	match biome_roll:
 		0:
 			return "forest"
@@ -1554,8 +1649,26 @@ func _determine_zone_biome(x: int, y: int) -> String:
 			return "mixed"
 
 
+func _roll_special_biome(roll: int) -> String:
+	var world_config := DataLoader.get_world_config()
+	var special_biomes := _as_dictionary(world_config.get("special_biomes", {}))
+	var biome_ids := special_biomes.keys()
+	biome_ids.sort()
+	for biome_id_variant in biome_ids:
+		var biome_id := String(biome_id_variant).strip_edges().to_lower()
+		if biome_id.is_empty():
+			continue
+		var biome_config := _as_dictionary(special_biomes.get(biome_id, {}))
+		var spawn_chance: int = max(0, int(biome_config.get("spawn_chance", 0)))
+		if spawn_chance > 0 and roll % spawn_chance == 0:
+			return biome_id
+	return ""
+
+
 func _biome_plot_count(biome: String) -> int:
 	match String(biome).to_lower():
+		"starting_zone":
+			return 8
 		"neutral":
 			return 5
 		"forest", "mountain", "plains", "mixed":
@@ -1566,6 +1679,10 @@ func _biome_plot_count(biome: String) -> int:
 
 func _biome_allowed_buildings(biome: String) -> Array:
 	match String(biome).to_lower():
+		"crystal_cavern":
+			return []
+		"starting_zone":
+			return ["ALL"]
 		"forest":
 			return ["lumber_camp"]
 		"mountain":

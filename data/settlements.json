@@ -5,8 +5,8 @@
 			"id": "hollow_march",
 			"name": "The Hollow March",
 			"icon_path": "res://icon.svg",
-			"biome": "neutral",
-			"plot_count": 5,
+			"biome": "starting_zone",
+			"plot_count": 8,
 			"allowed_buildings": ["ALL"]
 		}
 	]
