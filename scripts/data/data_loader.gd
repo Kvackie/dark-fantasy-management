@@ -176,6 +176,61 @@ func get_all_equipment() -> Array:
 	return _duplicate_dictionary_array(equipment_pool)
 
 
+func get_mod_category_summaries(category: String) -> Array:
+	var normalized_category := String(category).strip_edges().to_lower()
+	var root_path := ""
+	var json_file_name := ""
+	var includes_portrait := false
+	var definitions: Array = []
+	match normalized_category:
+		"heroes":
+			root_path = HERO_MODS_ROOT
+			json_file_name = "hero.json"
+			includes_portrait = true
+			definitions = hero_pool
+		"items":
+			root_path = ITEM_MODS_ROOT
+			json_file_name = "item.json"
+			definitions = item_pool
+		"equipment":
+			root_path = EQUIPMENT_MODS_ROOT
+			json_file_name = "equipment.json"
+			definitions = equipment_pool
+		_:
+			return []
+	var summaries: Array = []
+	for folder_name in _get_mod_folders(root_path):
+		var mod_folder_path := root_path.path_join(folder_name)
+		var loaded_count := 0
+		for definition_value in definitions:
+			var definition := _as_dictionary(definition_value)
+			if String(definition.get("source", "")) == "mod" and String(definition.get("mod_id", "")) == folder_name:
+				loaded_count += 1
+		var includes: Array = []
+		var missing: Array = []
+		if FileAccess.file_exists(mod_folder_path.path_join(json_file_name)):
+			includes.append(json_file_name)
+		else:
+			missing.append(json_file_name)
+		if FileAccess.file_exists(mod_folder_path.path_join("icon.png")):
+			includes.append("icon.png")
+		else:
+			missing.append("icon.png")
+		if includes_portrait:
+			if FileAccess.file_exists(mod_folder_path.path_join("portrait.png")):
+				includes.append("portrait.png")
+			else:
+				missing.append("portrait.png")
+		summaries.append({
+			"id": folder_name,
+			"category": normalized_category,
+			"loaded_count": loaded_count,
+			"includes": includes,
+			"missing": missing,
+		})
+	return summaries
+
+
 func create_empty_hero_equipment() -> Dictionary:
 	var equipment: Dictionary = {}
 	for slot_key in HERO_EQUIPMENT_KEYS:

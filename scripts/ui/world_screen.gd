@@ -52,6 +52,12 @@ func refresh() -> void:
 	_refresh_popup()
 
 
+func center_on_origin() -> void:
+	_ensure_world_view()
+	if _world_view != null and is_instance_valid(_world_view) and _world_view.has_method("center_on_origin"):
+		_world_view.center_on_origin()
+
+
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_RESIZED and is_node_ready():
 		_layout_hover_panel()
@@ -122,6 +128,8 @@ func _refresh_popup(preserve_scroll: bool = false) -> void:
 			_build_clearing_popup(zone)
 		"cleared":
 			_build_cleared_popup(zone)
+		"claimed":
+			_build_claimed_popup(zone)
 		_:
 			_close_popup()
 	if _modal_overlay.visible:
@@ -167,11 +175,30 @@ func _build_cleared_popup(zone: Dictionary) -> void:
 		zone_name
 	)
 	_popup_body.add_child(_make_popup_label(zone_name, 18, false))
+	if bool(zone.get("no_settlement", false)):
+		_popup_body.add_child(_make_popup_label("Special area. No settlement can be founded here.", 15, false))
 	_popup_body.add_child(_make_popup_label(DataLoader.get_ui_text("world.claim_cost", {}, "Claim Cost"), 15, false))
 	_popup_body.add_child(_make_popup_label(_format_resource_dict(claim_cost), 15, false))
-	var claim_button := _make_popup_button(DataLoader.get_ui_text("world.button_claim", {}, "Claim Settlement"), Callable(self, "_claim_selected_zone"))
+	var claim_button_text := "Claim Area" if bool(zone.get("no_settlement", false)) else DataLoader.get_ui_text("world.button_claim", {}, "Claim Settlement")
+	var claim_button := _make_popup_button(claim_button_text, Callable(self, "_claim_selected_zone"))
 	claim_button.disabled = not GameManager.can_afford(claim_cost)
 	_popup_footer.add_child(claim_button)
+	_popup_footer.add_child(_make_popup_button(DataLoader.get_ui_text("world.button_close", {}, "Close"), Callable(self, "_close_popup")))
+
+
+func _build_claimed_popup(zone: Dictionary) -> void:
+	if not bool(zone.get("no_settlement", false)):
+		_close_popup()
+		return
+	var zone_name := String(zone.get("generated_name", "Claimed Area"))
+	var reward := _as_dictionary(zone.get("claimed_reward", {}))
+	var reward_text := "No passive reward."
+	if not reward.is_empty():
+		reward_text = "%d %s every %d ticks." % [int(reward.get("amount", 0)), String(reward.get("resource", "resource")).capitalize(), max(1, int(reward.get("interval", 1)))]
+	_set_popup_header(zone_name, "Claimed Special Area")
+	_popup_body.add_child(_make_popup_label(zone_name, 18, false))
+	_popup_body.add_child(_make_popup_label("Special area. No settlement can be founded here.", 15, false))
+	_popup_body.add_child(_make_popup_label(reward_text, 15, false))
 	_popup_footer.add_child(_make_popup_button(DataLoader.get_ui_text("world.button_close", {}, "Close"), Callable(self, "_close_popup")))
 
 

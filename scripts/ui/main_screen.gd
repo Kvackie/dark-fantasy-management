@@ -22,6 +22,11 @@ const MODE_INVENTORY := MainScreenNavigation.MODE_INVENTORY
 const MODE_HERO_DETAIL := MainScreenNavigation.MODE_HERO_DETAIL
 const MODE_DEBUG := MainScreenNavigation.MODE_DEBUG
 
+const MAIN_MENU_ROOT := "root"
+const MAIN_MENU_SAVES := "saves"
+const MAIN_MENU_MODS := "mods"
+const MAIN_MENU_MODS_CATEGORY := "mods_category"
+
 const RESOURCE_ID_WOOD := "wood"
 const RESOURCE_ID_FOOD := "food"
 const RESOURCE_ID_STONE := "stone"
@@ -95,6 +100,17 @@ var _inventory_snapshot: Dictionary = {"items": [], "equipment": []}
 var _resource_values: Dictionary = {}
 var _resource_yields: Dictionary = {}
 var _recruit_market_snapshot: Dictionary = {}
+var _main_menu_overlay: ColorRect = null
+var _main_menu_panel: PanelContainer = null
+var _main_menu_title: Label = null
+var _main_menu_content: VBoxContainer = null
+var _main_menu_confirmation_overlay: ColorRect = null
+var _main_menu_confirmation_message: Label = null
+var _main_menu_confirmation_confirm_button: Button = null
+var _main_menu_mode: String = MAIN_MENU_ROOT
+var _main_menu_mod_category: String = ""
+var _main_menu_pending_action: String = ""
+var _main_menu_pending_slot: int = -1
 
 
 func _ready() -> void:
@@ -106,14 +122,10 @@ func _ready() -> void:
 	_build_resource_bar()
 	_build_grid()
 	_connect_game_manager()
+	_setup_main_menu_overlay()
 	_refresh_settlement_title()
 	_apply_mode_layout()
-	if not GameManager.load_game(1):
-		GameManager.reset_new_game()
-		GameManager.emit_state()
-	else:
-		_selected_slot = GameManager.selected_slot
-	_sync_top_bar_yields_after_state_load()
+	_show_main_menu()
 	_refresh_recruit_nav_visibility()
 
 
@@ -179,7 +191,7 @@ func _apply_ui_text_bundle() -> void:
 	_inventory_button.text = _txt("nav.inventory")
 	_debug_button.text = _txt("nav.debug")
 	_saves_button.text = _txt("nav.saves")
-	_back_button.text = _txt("nav.home")
+	_back_button.text = _txt("nav.home", {}, "Main Menu")
 
 
 func _wire_navigation() -> void:
@@ -240,7 +252,7 @@ func _set_detail_mode(mode: String) -> void:
 
 
 func _on_back_pressed() -> void:
-	_apply_navigation_change(_navigation.request_back_to_world())
+	_return_to_main_menu()
 
 
 func _request_navigation_mode(mode: String) -> void:
@@ -333,10 +345,10 @@ func _on_recruit_market_changed() -> void:
 func _refresh_resource_yields() -> void:
 	_resource_yields.clear()
 	for resource_id in SettlementGameData.RESOURCE_ORDER:
-		_resource_yields[resource_id] = 0
-	var production := GameManager.get_owned_settlement_production_preview()
+		_resource_yields[resource_id] = 0.0
+	var production := GameManager.get_resource_yield_preview()
 	for resource_id in production.keys():
-		_resource_yields[resource_id] = int(_resource_yields.get(resource_id, 0)) + int(production[resource_id])
+		_resource_yields[resource_id] = float(_resource_yields.get(resource_id, 0.0)) + float(production[resource_id])
 	_refresh_resource_badges()
 
 
@@ -346,7 +358,7 @@ func _refresh_resource_badges() -> void:
 			_resource_badges[resource_id].set_badge(
 				resource_id,
 				int(_resource_values.get(resource_id, 0)),
-				int(_resource_yields.get(resource_id, 0)),
+				float(_resource_yields.get(resource_id, 0.0)),
 				String(RESOURCE_ICONS.get(resource_id, ""))
 			)
 
@@ -365,8 +377,29 @@ func _on_save_slots_changed() -> void:
 
 
 func _on_save_loaded(_slot_index: int) -> void:
-	_selected_slot = GameManager.selected_slot
+	_enter_game_session()
+
+
+func _enter_game_session() -> void:
+	_resource_values = GameManager.get_resource_snapshot()
+	_slots_snapshot = GameManager.get_slots_snapshot()
+	_heroes_snapshot = GameManager.get_heroes_snapshot()
+	_inventory_snapshot = GameManager.get_inventory_snapshot()
+	_recruit_market_snapshot = GameManager.get_recruit_market_snapshot()
+	_detail_mode = MODE_WORLD
+	_selected_slot = -1
+	GameManager.select_slot(-1)
+	_apply_mode_layout()
+	_refresh_resource_badges()
+	_refresh_settlement_title()
+	_refresh_grid()
+	_refresh_recruit_nav_visibility()
+	_refresh_active_content()
 	_sync_top_bar_yields_after_state_load()
+	var world_screen := _scene_backed_page_screens.get(MODE_WORLD, null) as Control
+	if world_screen != null and is_instance_valid(world_screen) and world_screen.has_method("center_on_origin"):
+		world_screen.center_on_origin()
+	_hide_main_menu()
 
 
 func _on_tick_processed(_tick_count: int, _production_delta: Dictionary) -> void:
@@ -375,6 +408,300 @@ func _on_tick_processed(_tick_count: int, _production_delta: Dictionary) -> void
 
 func _sync_top_bar_yields_after_state_load() -> void:
 	_refresh_resource_yields.call_deferred()
+
+
+func _return_to_main_menu() -> void:
+	_show_main_menu()
+
+
+func _setup_main_menu_overlay() -> void:
+	if _main_menu_overlay != null and is_instance_valid(_main_menu_overlay):
+		return
+	_main_menu_overlay = ColorRect.new()
+	_main_menu_overlay.visible = false
+	_main_menu_overlay.color = Color(0, 0, 0, 0.74)
+	_main_menu_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	_main_menu_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_main_menu_overlay.offset_left = 0.0
+	_main_menu_overlay.offset_top = 0.0
+	_main_menu_overlay.offset_right = 0.0
+	_main_menu_overlay.offset_bottom = 0.0
+	add_child(_main_menu_overlay)
+	var center := CenterContainer.new()
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	center.offset_left = 0.0
+	center.offset_top = 0.0
+	center.offset_right = 0.0
+	center.offset_bottom = 0.0
+	_main_menu_overlay.add_child(center)
+	_main_menu_panel = _make_panel()
+	_main_menu_panel.custom_minimum_size = Vector2(620, 0)
+	center.add_child(_main_menu_panel)
+	var body := VBoxContainer.new()
+	body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	body.add_theme_constant_override("separation", 14)
+	_main_menu_panel.add_child(body)
+	_main_menu_title = _make_label("Main Menu", 28)
+	_main_menu_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	body.add_child(_main_menu_title)
+	var scroll := ScrollContainer.new()
+	scroll.custom_minimum_size = Vector2(0, 360)
+	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	body.add_child(scroll)
+	_main_menu_content = VBoxContainer.new()
+	_main_menu_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_main_menu_content.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_main_menu_content.add_theme_constant_override("separation", 12)
+	scroll.add_child(_main_menu_content)
+	_setup_main_menu_confirmation_overlay()
+
+
+func _setup_main_menu_confirmation_overlay() -> void:
+	if _main_menu_confirmation_overlay != null and is_instance_valid(_main_menu_confirmation_overlay):
+		return
+	_main_menu_confirmation_overlay = ColorRect.new()
+	_main_menu_confirmation_overlay.visible = false
+	_main_menu_confirmation_overlay.color = Color(0, 0, 0, 0.55)
+	_main_menu_confirmation_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	_main_menu_confirmation_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_main_menu_confirmation_overlay.offset_left = 0.0
+	_main_menu_confirmation_overlay.offset_top = 0.0
+	_main_menu_confirmation_overlay.offset_right = 0.0
+	_main_menu_confirmation_overlay.offset_bottom = 0.0
+	_main_menu_overlay.add_child(_main_menu_confirmation_overlay)
+	var center := CenterContainer.new()
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	center.offset_left = 0.0
+	center.offset_top = 0.0
+	center.offset_right = 0.0
+	center.offset_bottom = 0.0
+	_main_menu_confirmation_overlay.add_child(center)
+	var panel := _make_panel()
+	panel.custom_minimum_size = Vector2(400, 0)
+	center.add_child(panel)
+	var body := VBoxContainer.new()
+	body.add_theme_constant_override("separation", 12)
+	panel.add_child(body)
+	_main_menu_confirmation_message = _make_label("", 16)
+	_main_menu_confirmation_message.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	body.add_child(_main_menu_confirmation_message)
+	var action_row := HBoxContainer.new()
+	action_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	action_row.add_theme_constant_override("separation", 10)
+	body.add_child(action_row)
+	action_row.add_child(_make_small_action_button("Back", Callable(self, "_hide_main_menu_confirmation")))
+	_main_menu_confirmation_confirm_button = _make_small_action_button("Confirm", Callable(self, "_confirm_main_menu_action"))
+	action_row.add_child(_main_menu_confirmation_confirm_button)
+
+
+func _show_main_menu(mode: String = MAIN_MENU_ROOT, mod_category: String = "") -> void:
+	_setup_main_menu_overlay()
+	_main_menu_mode = mode
+	_main_menu_mod_category = mod_category
+	_main_menu_overlay.visible = true
+	_shell.visible = false
+	_refresh_main_menu()
+
+
+func _hide_main_menu() -> void:
+	if _main_menu_overlay != null and is_instance_valid(_main_menu_overlay):
+		_main_menu_overlay.visible = false
+	_shell.visible = true
+
+
+func _refresh_main_menu() -> void:
+	_clear_container(_main_menu_content)
+	match _main_menu_mode:
+		MAIN_MENU_SAVES:
+			_main_menu_title.text = "Load Save"
+			_build_main_menu_saves()
+		MAIN_MENU_MODS:
+			_main_menu_title.text = "Mods"
+			_build_main_menu_mods_root()
+		MAIN_MENU_MODS_CATEGORY:
+			_main_menu_title.text = "%s Mods" % _main_menu_mod_category.capitalize()
+			_build_main_menu_mods_category(_main_menu_mod_category)
+		_:
+			_main_menu_title.text = "Main Menu"
+			_build_main_menu_root()
+
+
+func _build_main_menu_root() -> void:
+	var last_played_slot := GameManager.get_last_played_save_slot()
+	_add_main_menu_centered_control(_make_main_menu_choice_button("New Game", Callable(self, "_start_new_game_from_menu"), false))
+	_add_main_menu_centered_control(_make_main_menu_choice_button("Continue", Callable(self, "_continue_from_main_menu"), last_played_slot <= 0))
+	_add_main_menu_centered_control(_make_main_menu_choice_button("Load Save", Callable(self, "_open_main_menu_saves"), false))
+	_add_main_menu_centered_control(_make_main_menu_choice_button("Mods", Callable(self, "_open_main_menu_mods"), false))
+	_add_main_menu_centered_control(_make_main_menu_choice_button("Exit", Callable(self, "_exit_from_main_menu"), false))
+
+
+func _build_main_menu_saves() -> void:
+	var save_entries: Array = []
+	for slot_data in GameManager.get_save_slot_metadata():
+		var entry := _as_dictionary(slot_data)
+		if not bool(entry.get("exists", false)):
+			continue
+		save_entries.append(GameManager.get_save_slot_summary(int(entry.get("slot", 0))))
+	if save_entries.is_empty():
+		_add_main_menu_centered_label("No saves found.", 16)
+	else:
+		for save_entry in save_entries:
+			_add_main_menu_centered_control(_build_main_menu_save_card(save_entry))
+	_add_main_menu_centered_control(_make_small_action_button("Back", Callable(self, "_back_to_main_menu_root")))
+
+
+func _build_main_menu_save_card(save_entry: Dictionary) -> PanelContainer:
+	var panel := _make_panel()
+	panel.custom_minimum_size = Vector2(520, 0)
+	var body := VBoxContainer.new()
+	body.add_theme_constant_override("separation", 8)
+	panel.add_child(body)
+	var title := _make_label(String(save_entry.get("name", "Unnamed Save")), 18)
+	body.add_child(title)
+	if bool(save_entry.get("last_played", false)):
+		var last_played_timestamp := String(save_entry.get("last_played_timestamp", "")).strip_edges()
+		body.add_child(_make_label("Last Played%s" % (" %s" % last_played_timestamp if not last_played_timestamp.is_empty() else ""), 14))
+	body.add_child(_make_label("Ticks %d  |  Heroes %d  |  Settlements %d" % [int(save_entry.get("tick_count", 0)), int(save_entry.get("hero_count", 0)), int(save_entry.get("claimed_area_count", 0))], 14))
+	var action_row := HBoxContainer.new()
+	action_row.add_theme_constant_override("separation", 10)
+	body.add_child(action_row)
+	action_row.add_child(_make_small_action_button("Load", Callable(self, "_prompt_main_menu_load_save").bind(int(save_entry.get("slot", 0)))))
+	action_row.add_child(_make_danger_button("Delete", Callable(self, "_prompt_main_menu_delete_save").bind(int(save_entry.get("slot", 0)))))
+	return panel
+
+
+func _build_main_menu_mods_root() -> void:
+	_add_main_menu_centered_control(_make_main_menu_choice_button("Heroes", Callable(self, "_open_main_menu_mod_category").bind("heroes"), false))
+	_add_main_menu_centered_control(_make_main_menu_choice_button("Items", Callable(self, "_open_main_menu_mod_category").bind("items"), false))
+	_add_main_menu_centered_control(_make_main_menu_choice_button("Equipment", Callable(self, "_open_main_menu_mod_category").bind("equipment"), false))
+	_add_main_menu_centered_control(_make_small_action_button("Back", Callable(self, "_back_to_main_menu_root")))
+
+
+func _build_main_menu_mods_category(category: String) -> void:
+	var mod_summaries := DataLoader.get_mod_category_summaries(category)
+	if mod_summaries.is_empty():
+		_add_main_menu_centered_label("No %s mods found." % category, 16)
+	else:
+		for mod_summary in mod_summaries:
+			_add_main_menu_centered_control(_build_main_menu_mod_card(_as_dictionary(mod_summary)))
+	_add_main_menu_centered_control(_make_small_action_button("Back", Callable(self, "_open_main_menu_mods")))
+
+
+func _build_main_menu_mod_card(mod_summary: Dictionary) -> PanelContainer:
+	var panel := _make_panel()
+	panel.custom_minimum_size = Vector2(520, 0)
+	var body := VBoxContainer.new()
+	body.add_theme_constant_override("separation", 8)
+	panel.add_child(body)
+	body.add_child(_make_label(String(mod_summary.get("id", "Unknown Mod")), 18))
+	body.add_child(_make_label("Loaded entries: %d" % int(mod_summary.get("loaded_count", 0)), 14))
+	body.add_child(_make_label("Includes: %s" % _format_main_menu_list(_as_array(mod_summary.get("includes", []))), 14))
+	body.add_child(_make_label("Missing: %s" % _format_main_menu_list(_as_array(mod_summary.get("missing", []))), 14))
+	return panel
+
+
+func _add_main_menu_centered_control(control: Control) -> void:
+	var row := HBoxContainer.new()
+	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_child(control)
+	_main_menu_content.add_child(row)
+
+
+func _make_main_menu_choice_button(text: String, callback: Callable, disabled: bool) -> Button:
+	var button := _make_button(text, callback, disabled)
+	button.custom_minimum_size = Vector2(320, 0)
+	button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	return button
+
+
+func _add_main_menu_centered_label(text: String, font_size: int) -> void:
+	var label := _make_label(text, font_size)
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_add_main_menu_centered_control(label)
+
+
+func _start_new_game_from_menu() -> void:
+	var slot_index := GameManager.get_next_new_save_slot()
+	GameManager.reset_new_game()
+	GameManager.emit_state()
+	GameManager.save_game(slot_index)
+	_enter_game_session()
+
+
+func _continue_from_main_menu() -> void:
+	var slot_index := GameManager.get_last_played_save_slot()
+	if slot_index <= 0:
+		return
+	GameManager.load_game(slot_index)
+
+
+func _open_main_menu_saves() -> void:
+	_show_main_menu(MAIN_MENU_SAVES)
+
+
+func _open_main_menu_mods() -> void:
+	_show_main_menu(MAIN_MENU_MODS)
+
+
+func _open_main_menu_mod_category(category: String) -> void:
+	_show_main_menu(MAIN_MENU_MODS_CATEGORY, category)
+
+
+func _back_to_main_menu_root() -> void:
+	_show_main_menu(MAIN_MENU_ROOT)
+
+
+func _exit_from_main_menu() -> void:
+	get_tree().quit()
+
+
+func _prompt_main_menu_load_save(slot_index: int) -> void:
+	var save_name := String(GameManager.get_save_slot_summary(slot_index).get("name", "Unnamed Save"))
+	_show_main_menu_confirmation("load_save", slot_index, "Load %s?\nUnsaved progress will be lost." % save_name, "Load")
+
+
+func _prompt_main_menu_delete_save(slot_index: int) -> void:
+	var save_name := String(GameManager.get_save_slot_summary(slot_index).get("name", "Unnamed Save"))
+	_show_main_menu_confirmation("delete_save", slot_index, "Delete %s?\nThis cannot be undone." % save_name, "Delete")
+
+
+func _show_main_menu_confirmation(action: String, slot_index: int, message: String, confirm_text: String) -> void:
+	_main_menu_pending_action = action
+	_main_menu_pending_slot = slot_index
+	_main_menu_confirmation_message.text = message
+	_main_menu_confirmation_confirm_button.text = confirm_text
+	_main_menu_confirmation_overlay.visible = true
+
+
+func _hide_main_menu_confirmation() -> void:
+	if _main_menu_confirmation_overlay != null and is_instance_valid(_main_menu_confirmation_overlay):
+		_main_menu_confirmation_overlay.visible = false
+	_main_menu_pending_action = ""
+	_main_menu_pending_slot = -1
+
+
+func _confirm_main_menu_action() -> void:
+	match _main_menu_pending_action:
+		"load_save":
+			GameManager.load_game(_main_menu_pending_slot)
+		"delete_save":
+			GameManager.reset_save_slot(_main_menu_pending_slot)
+			_refresh_main_menu()
+	_hide_main_menu_confirmation()
+
+
+func _format_main_menu_list(values: Array) -> String:
+	if values.is_empty():
+		return "none"
+	var text_values: Array[String] = []
+	for value in values:
+		text_values.append(String(value))
+	return ", ".join(text_values)
+
+
 
 
 func _refresh_recruit_nav_visibility() -> void:
@@ -525,8 +852,6 @@ func _setup_scene_backed_page_screen(screen: Control, mode: String) -> void:
 			screen.hero_selected.connect(_open_hero_detail)
 		MODE_SAVES:
 			screen.save_requested.connect(_save_to_slot)
-			screen.load_requested.connect(_load_from_slot)
-			screen.reset_requested.connect(_reset_save_slot)
 			screen.save_name_submitted.connect(_on_save_slot_name_submitted)
 			screen.save_name_focus_exited.connect(_on_save_slot_name_focus_exited)
 		MODE_HERO_DETAIL:

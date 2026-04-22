@@ -24,7 +24,7 @@ func _ready() -> void:
 	_map_viewport.gui_input.connect(_on_map_gui_input)
 	_hint_label.text = DataLoader.get_ui_text("world.pan_hint", {}, "Drag empty space to pan the world map. Use the mouse wheel to zoom.")
 	_rebuild_zone_map()
-	call_deferred("_center_map_on_origin")
+	center_on_origin()
 
 
 func set_world_snapshot(world_snapshot: Dictionary) -> void:
@@ -38,6 +38,15 @@ func _center_map_on_origin() -> void:
 	var zone_size := int(world_config.get("zone_size", 104))
 	_map_offset = (_map_viewport.size * 0.5) - Vector2(zone_size * 0.5, zone_size * 0.5)
 	_update_map_transform()
+
+
+func center_on_origin() -> void:
+	call_deferred("_center_map_on_origin_after_layout")
+
+
+func _center_map_on_origin_after_layout() -> void:
+	await get_tree().process_frame
+	_center_map_on_origin()
 
 
 func _rebuild_zone_map() -> void:
@@ -123,39 +132,49 @@ func _style_zone_button(button: Button, zone: Dictionary, state: String, selecte
 func _zone_fill_color(biome: String, state: String, fallback_color: String) -> Color:
 	var biome_color := Color(fallback_color)
 	match String(biome).to_lower():
+		"starting_zone":
+			biome_color = Color("#4f3426")
 		"forest":
-			biome_color = Color("#476b49")
+			biome_color = Color("#4f8a4f")
 		"mountain":
-			biome_color = Color("#6b7078")
+			biome_color = Color("#4b4f57")
 		"plains":
-			biome_color = Color("#8c7b49")
+			biome_color = Color("#c8b64f")
 		"mixed":
-			biome_color = Color("#59674f")
+			biome_color = Color("#7fb7d9")
+		"crystal_cavern":
+			biome_color = Color("#8d7be0")
 		_:
-			biome_color = Color("#7a6156")
-	if state == "claimed":
-		return biome_color.lightened(0.18)
-	if state == "cleared":
-		return biome_color.lightened(0.08)
+			biome_color = Color("#b28a6a")
+	if state == "fog":
+		return Color("#efefec")
 	if state == "discovered":
-		return biome_color.darkened(0.08)
+		return Color("#a84a46")
 	if state == "clearing":
-		return biome_color.darkened(0.02)
-	return biome_color.darkened(0.35)
+		return Color("#c98142")
+	if state == "claimed":
+		return biome_color.lightened(0.08) if String(biome).to_lower() != "starting_zone" else biome_color
+	if state == "cleared":
+		return biome_color
+	return biome_color
 
 
 func _display_biome_name(biome: String) -> String:
 	match String(biome).to_lower():
+		"starting_zone":
+			return ""
 		"forest":
-			return "Forest"
+			return "<FOREST>"
 		"mountain":
-			return "Mountain"
+			return "<MOUNTAIN>"
 		"plains":
-			return "Plains"
+			return "<PLAINS>"
 		"mixed":
-			return "Mixed"
+			return "<MIXED>"
+		"crystal_cavern":
+			return "<CRYSTAL CAVERN>"
 		_:
-			return "Neutral"
+			return "<NEUTRAL>"
 
 
 func _on_zone_pressed(zone_key: String) -> void:

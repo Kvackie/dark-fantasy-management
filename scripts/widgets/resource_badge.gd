@@ -20,14 +20,14 @@ func _ready() -> void:
 	_yield_label.modulate = Color(1, 1, 1)
 
 
-func set_badge(resource_id: String, amount: int, per_tick_yield: int, icon_path: String) -> void:
+func set_badge(resource_id: String, amount: int, per_tick_yield: float, icon_path: String) -> void:
 	_name_label.text = resource_id.capitalize()
 	_value_label.text = str(amount)
-	if per_tick_yield == 0:
+	if is_zero_approx(per_tick_yield):
 		_yield_label.text = ""
 		_yield_label.visible = false
 	else:
-		_yield_label.text = "%+d/t" % per_tick_yield
+		_yield_label.text = "%+.1f/t" % per_tick_yield if not is_equal_approx(per_tick_yield, roundf(per_tick_yield)) else "%+d/t" % int(roundf(per_tick_yield))
 		_yield_label.add_theme_color_override("font_color", Color("7edc9a") if per_tick_yield > 0 else Color("eb7d7d"))
 		_yield_label.visible = true
 	if ResourceLoader.exists(icon_path):

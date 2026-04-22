@@ -207,7 +207,7 @@ func reset_runtime_state(starting_resources: Dictionary, default_settlement_id: 
 	if not default_settlement_id.is_empty():
 		settlement_states[default_settlement_id] = {
 			"settlement_id": default_settlement_id,
-			"slots": SettlementGameData.create_empty_grid(5),
+			"slots": SettlementGameData.create_empty_grid(8),
 		}
 	generated_settlement_definitions = {}
 	heroes = []
@@ -251,6 +251,7 @@ func save_serialized_state(slot_index: int, state: Dictionary) -> bool:
 		return false
 	file.store_string(JSON.stringify(state))
 	file.close()
+	_set_last_played_save_slot(slot_index)
 	autosave_elapsed = 0.0
 	pending_save = false
 	return true
@@ -265,6 +266,7 @@ func load_serialized_state(slot_index: int) -> Dictionary:
 	if parsed is not Dictionary:
 		return {}
 	active_save_slot = slot_index
+	_set_last_played_save_slot(slot_index)
 	autosave_elapsed = 0.0
 	pending_save = false
 	return (parsed as Dictionary).duplicate(true)
@@ -286,25 +288,72 @@ func clear_pending_save() -> void:
 	pending_save = false
 
 
-func get_save_slot_metadata(slot_count: int, resolve_name: Callable = Callable()) -> Array:
+func get_save_slot_metadata(_slot_count: int, resolve_name: Callable = Callable()) -> Array:
 	var manifest := _load_save_slot_manifest()
 	var manifest_slots := _as_dictionary(manifest.get("slots", {}))
+	var last_played_slot := int(manifest.get("last_played_slot", 0))
+	var effective_slot_count: int = _get_highest_known_save_slot(manifest)
 	var slot_info: Array = []
-	for slot_index in range(1, slot_count + 1):
+	for slot_index in range(1, effective_slot_count + 1):
 		var path := _save_path(slot_index)
+		if not FileAccess.file_exists(path):
+			continue
 		var metadata := _as_dictionary(manifest_slots.get(str(slot_index), {}))
 		var resolved_name := ""
 		if resolve_name.is_valid():
 			resolved_name = str(resolve_name.call(slot_index, metadata))
 		else:
 			resolved_name = _default_save_slot_name(slot_index, metadata)
-		slot_info.append({
-			"slot": slot_index,
-			"exists": FileAccess.file_exists(path),
-			"active": slot_index == active_save_slot,
-			"name": resolved_name,
-		})
+			slot_info.append({
+				"slot": slot_index,
+				"exists": FileAccess.file_exists(path),
+				"active": slot_index == active_save_slot,
+				"last_played": slot_index == last_played_slot,
+				"last_played_timestamp": _format_unix_timestamp(int(manifest.get("last_played_timestamp", 0))) if slot_index == last_played_slot else "",
+				"name": resolved_name,
+				"autosave_timestamp": _format_save_timestamp(path),
+			})
 	return slot_info
+
+
+func get_last_played_save_slot() -> int:
+	var manifest := _load_save_slot_manifest()
+	var slot_index := int(manifest.get("last_played_slot", 0))
+	if slot_index <= 0 or not FileAccess.file_exists(_save_path(slot_index)):
+		return 0
+	return slot_index
+
+
+func get_next_new_save_slot(_slot_count: int) -> int:
+	return max(1, _get_highest_known_save_slot(_load_save_slot_manifest()) + 1)
+
+
+func get_save_slot_summary(slot_index: int, resolve_name: Callable = Callable()) -> Dictionary:
+	var manifest := _load_save_slot_manifest()
+	var manifest_slots := _as_dictionary(manifest.get("slots", {}))
+	var metadata := _as_dictionary(manifest_slots.get(str(slot_index), {}))
+	var summary := {
+		"slot": slot_index,
+		"exists": FileAccess.file_exists(_save_path(slot_index)),
+		"active": slot_index == active_save_slot,
+		"last_played": slot_index == int(manifest.get("last_played_slot", 0)),
+		"last_played_timestamp": _format_unix_timestamp(int(manifest.get("last_played_timestamp", 0))) if slot_index == int(manifest.get("last_played_slot", 0)) else "",
+		"name": resolve_name.call(slot_index, metadata) if resolve_name.is_valid() else _default_save_slot_name(slot_index, metadata),
+		"active_settlement_id": "",
+		"tick_count": 0,
+		"hero_count": 0,
+		"claimed_area_count": 0,
+	}
+	if not bool(summary.get("exists", false)):
+		return summary
+	var parsed := _read_save_file(slot_index)
+	if parsed.is_empty():
+		return summary
+	summary["active_settlement_id"] = String(parsed.get("active_settlement_id", "")).strip_edges()
+	summary["tick_count"] = int(parsed.get("tick_count", 0))
+	summary["hero_count"] = _count_array_entries(parsed.get("heroes", []))
+	summary["claimed_area_count"] = _count_array_entries(parsed.get("owned_settlement_ids", []))
+	return summary
 
 
 func _default_save_slot_name(slot_index: int, metadata: Dictionary) -> String:
@@ -394,8 +443,8 @@ func build_serialized_state(settlement_states_snapshot: Dictionary, generated_se
 	}
 
 
-func set_save_slot_name(slot_index: int, slot_count: int, slot_name: String) -> bool:
-	if slot_index < 1 or slot_index > slot_count:
+func set_save_slot_name(slot_index: int, _slot_count: int, slot_name: String) -> bool:
+	if slot_index < 1:
 		return false
 	var manifest := _load_save_slot_manifest()
 	var manifest_slots := _as_dictionary(manifest.get("slots", {}))
@@ -415,9 +464,16 @@ func set_save_slot_name(slot_index: int, slot_count: int, slot_name: String) -> 
 	return true
 
 
-func reset_save_slot_file(slot_index: int, slot_count: int) -> bool:
-	if slot_index < 1 or slot_index > slot_count:
+func reset_save_slot_file(slot_index: int, _slot_count: int) -> bool:
+	if slot_index < 1:
 		return false
+	var manifest := _load_save_slot_manifest()
+	var manifest_slots := _as_dictionary(manifest.get("slots", {}))
+	manifest_slots.erase(str(slot_index))
+	manifest["slots"] = manifest_slots
+	if int(manifest.get("last_played_slot", 0)) == slot_index:
+		manifest.erase("last_played_slot")
+	_save_save_slot_manifest(manifest)
 	var absolute_path := ProjectSettings.globalize_path(_save_path(slot_index))
 	if FileAccess.file_exists(_save_path(slot_index)):
 		var error := DirAccess.remove_absolute(absolute_path)
@@ -672,6 +728,76 @@ func _load_save_slot_manifest() -> Dictionary:
 	if parsed is Dictionary:
 		return (parsed as Dictionary).duplicate(true)
 	return {}
+
+
+func _set_last_played_save_slot(slot_index: int) -> void:
+	if slot_index < 1:
+		return
+	var manifest := _load_save_slot_manifest()
+	manifest["last_played_slot"] = slot_index
+	manifest["last_played_timestamp"] = int(Time.get_unix_time_from_system())
+	_save_save_slot_manifest(manifest)
+
+
+func _get_highest_known_save_slot(manifest: Dictionary) -> int:
+	var highest_slot := 0
+	var manifest_slots := _as_dictionary(manifest.get("slots", {}))
+	for slot_key in manifest_slots.keys():
+		var slot_index := int(String(slot_key))
+		if slot_index > highest_slot:
+			highest_slot = slot_index
+	var save_dir := DirAccess.open("user://")
+	if save_dir == null:
+		return highest_slot
+	save_dir.list_dir_begin()
+	var entry_name := save_dir.get_next()
+	while not entry_name.is_empty():
+		if not save_dir.current_is_dir() and entry_name.begins_with("save_slot_") and entry_name.ends_with(".json"):
+			var slot_text := entry_name.trim_prefix("save_slot_").trim_suffix(".json")
+			if slot_text.is_valid_int():
+				highest_slot = max(highest_slot, int(slot_text))
+		entry_name = save_dir.get_next()
+	save_dir.list_dir_end()
+	return highest_slot
+
+
+func _read_save_file(slot_index: int) -> Dictionary:
+	var path := _save_path(slot_index)
+	if not FileAccess.file_exists(path):
+		return {}
+	var raw_text := FileAccess.get_file_as_string(path)
+	if raw_text.is_empty():
+		return {}
+	var parsed = JSON.parse_string(raw_text)
+	if parsed is Dictionary:
+		return (parsed as Dictionary).duplicate(true)
+	return {}
+
+
+func _count_array_entries(value: Variant) -> int:
+	return (value as Array).size() if value is Array else 0
+
+
+func _format_save_timestamp(path: String) -> String:
+	if not FileAccess.file_exists(path):
+		return ""
+	var unix_time: int = int(FileAccess.get_modified_time(path))
+	return _format_unix_timestamp(unix_time)
+
+
+func _format_unix_timestamp(unix_time: int) -> String:
+	if unix_time <= 0:
+		return ""
+	var time_zone := _as_dictionary(Time.get_time_zone_from_system())
+	var local_unix_time: int = unix_time + (int(time_zone.get("bias", 0)) * 60)
+	var datetime := Time.get_datetime_dict_from_unix_time(local_unix_time)
+	return "%04d-%02d-%02d %02d:%02d" % [
+		int(datetime.get("year", 0)),
+		int(datetime.get("month", 0)),
+		int(datetime.get("day", 0)),
+		int(datetime.get("hour", 0)),
+		int(datetime.get("minute", 0)),
+	]
 
 
 func _save_save_slot_manifest(manifest: Dictionary) -> void:

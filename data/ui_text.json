@@ -1,14 +1,14 @@
 {
 	"texts": {
 		"nav.world": "World",
-		"nav.settlements": "Claimed Areas",
+		"nav.settlements": "Settlements",
 		"nav.recruit": "Recruit",
 		"nav.heroes": "Heroes",
 		"nav.inventory": "Inventory",
 		"nav.debug": "Debug",
 		"nav.saves": "Saves",
-		"nav.home": "Home",
-		"page.settlements": "Claimed Areas",
+		"nav.home": "Main Menu",
+		"page.settlements": "Settlements",
 		"page.save_vault": "Save Vault",
 		"page.hero_inventory": "Hero Inventory",
 		"page.recruit": "Recruit",
