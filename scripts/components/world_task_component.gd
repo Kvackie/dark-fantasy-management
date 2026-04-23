@@ -16,6 +16,8 @@ static func remove_hero_from_world_zones(world_zones: Dictionary, hero_uid: int)
 		if String(zone.get("state", "")) == "clearing" and remaining_ids.is_empty():
 			zone["state"] = "discovered"
 			zone["ticks_remaining"] = 0
+			zone["clear_started_unix"] = 0.0
+			zone["clear_end_unix"] = 0.0
 		world_zones[zone_key] = zone
 		world_state_changed = true
 	return world_state_changed

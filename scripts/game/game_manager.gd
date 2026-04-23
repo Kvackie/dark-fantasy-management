@@ -11,6 +11,7 @@ signal tick_processed(tick_count, production_delta)
 signal save_loaded(slot_index)
 signal world_changed()
 signal recruit_market_changed()
+signal zone_reward_notification_added(notification: Dictionary)
 
 const SettlementGameData = preload("res://scripts/game/settlement_game.gd")
 const ProductionComponentScript = preload("res://scripts/components/production_component.gd")
@@ -59,6 +60,11 @@ var recruit_market_offers: Array:
 		return _session().get_recruit_market_offers_state()
 	set(value):
 		_session().set_recruit_market_offers_state(value)
+var queued_bonus_recruit_offers: Array:
+	get:
+		return _session().get_queued_bonus_recruit_offers_state()
+	set(value):
+		_session().set_queued_bonus_recruit_offers_state(value)
 var recruit_market_initialized: bool:
 	get:
 		return _session().is_recruit_market_initialized_state()
@@ -140,7 +146,6 @@ func reset_new_game() -> void:
 	world_seed = randi()
 	world_zones = {}
 	_initialize_world_state()
-	_seed_starting_inventory()
 
 
 func emit_state() -> void:
@@ -198,6 +203,7 @@ func get_recruit_market_snapshot() -> Dictionary:
 	return {
 		"unlocked": is_recruitment_unlocked(),
 		"tavern_count": get_built_tavern_count(),
+		"gem_heroes_unlocked": are_gem_recruits_unlocked(),
 		"offer_capacity": get_recruit_offer_capacity(),
 		"refresh_cost": get_recruit_refresh_cost(),
 		"initialized": recruit_market_initialized,
@@ -216,6 +222,20 @@ func get_built_tavern_count() -> int:
 			if String((slot as Dictionary).get("building_id", "")) == "tavern":
 				tavern_count += 1
 	return tavern_count
+
+
+func get_highest_tavern_level() -> int:
+	var highest_level := 0
+	for settlement_id in owned_settlement_ids:
+		for slot in _get_settlement_slots(String(settlement_id)):
+			if String((slot as Dictionary).get("building_id", "")) != "tavern":
+				continue
+			highest_level = max(highest_level, int((slot as Dictionary).get("level", 1)))
+	return highest_level
+
+
+func are_gem_recruits_unlocked() -> bool:
+	return get_highest_tavern_level() >= 3
 
 
 func get_recruit_offer_capacity() -> int:
@@ -304,6 +324,59 @@ func get_available_heroes_for_world_zone(_zone_key: String) -> Array:
 	return available
 
 
+func get_world_zone_party_preview(zone_key: String, hero_uids: Array) -> Dictionary:
+	var zone := _as_dictionary(world_zones.get(zone_key, {}))
+	if zone.is_empty():
+		return {
+			"requirements": {},
+			"totals": {},
+			"meets_requirements": false,
+			"failure_reasons": ["Zone not found."],
+		}
+	var selected_uids: Array = []
+	var totals := {
+		"level": 0,
+		"sanity": 0,
+		"attack": 0,
+		"defense": 0,
+		"farming": 0,
+		"mining": 0,
+		"lumbering": 0,
+	}
+	for hero_uid in hero_uids:
+		var normalized_uid := int(hero_uid)
+		if normalized_uid <= 0 or selected_uids.has(normalized_uid):
+			continue
+		selected_uids.append(normalized_uid)
+		var hero_index := _find_hero_index(normalized_uid)
+		if hero_index == -1:
+			continue
+		var hero_data: Dictionary = heroes[hero_index]
+		totals["level"] += max(1, int(hero_data.get("level", 1)))
+		var combat_stats := HeroEffectiveStatsComponentScript.build_effective_combat_stats(hero_data, Callable(self, "_get_inventory_equipment_instance"))
+		var work_stats := HeroEffectiveStatsComponentScript.build_effective_work_stats(hero_data, Callable(self, "_get_inventory_equipment_instance"))
+		totals["sanity"] += max(0, int(combat_stats.get("current_sanity", combat_stats.get("sanity", 0))))
+		totals["attack"] += max(0, int(combat_stats.get("attack", 0)))
+		totals["defense"] += max(0, int(combat_stats.get("defense", 0)))
+		for stat_key in DataLoader.DEFAULT_HERO_WORK_STATS.keys():
+			totals[stat_key] = int(totals.get(stat_key, 0)) + max(0, int(work_stats.get(stat_key, 0)))
+	var requirements := _normalize_zone_requirements(zone.get("requirements", {}))
+	var failure_reasons: Array = []
+	for requirement_key in requirements.keys():
+		var required_amount := int(requirements.get(requirement_key, 0))
+		if required_amount <= 0:
+			continue
+		var current_total := int(totals.get(requirement_key, 0))
+		if current_total < required_amount:
+			failure_reasons.append("%s %d/%d" % [_display_requirement_name(requirement_key), current_total, required_amount])
+	return {
+		"requirements": requirements,
+		"totals": totals,
+		"meets_requirements": failure_reasons.is_empty(),
+		"failure_reasons": failure_reasons,
+	}
+
+
 func start_zone_clearing(zone_key: String, hero_uids: Array) -> bool:
 	var zone := _as_dictionary(world_zones.get(zone_key, {})).duplicate(true)
 	if zone.is_empty() or String(zone.get("state", "")) != "discovered":
@@ -326,11 +399,17 @@ func start_zone_clearing(zone_key: String, hero_uids: Array) -> bool:
 		selected_heroes.append(normalized_uid)
 	if selected_heroes.is_empty():
 		return false
+	var party_preview := get_world_zone_party_preview(zone_key, selected_heroes)
+	if not bool(party_preview.get("meets_requirements", false)):
+		return false
 	var duration := _get_zone_clear_duration(zone)
+	var now_unix := Time.get_unix_time_from_system()
 	zone["state"] = "clearing"
 	zone["assigned_hero_uids"] = selected_heroes.duplicate()
 	zone["ticks_remaining"] = duration
 	zone["clear_duration"] = duration
+	zone["clear_started_unix"] = now_unix
+	zone["clear_end_unix"] = now_unix + (float(duration) * SettlementGameData.TICK_SECONDS)
 	world_zones[zone_key] = zone
 	_session().refresh_world_task_compatibility()
 	_emit_world_and_hero_state(true)
@@ -554,7 +633,13 @@ func refresh_recruit_offers() -> bool:
 	var refresh_cost := get_recruit_refresh_cost()
 	if not apply_cost(refresh_cost):
 		return false
-	var refresh_batch: Dictionary = RecruitmentComponentScript.generate_recruit_offer_batch(get_recruit_offer_capacity(), _next_recruit_offer_id)
+	queued_bonus_recruit_offers = []
+	var refresh_batch: Dictionary = RecruitmentComponentScript.generate_recruit_offer_batch_from_pool_with_exclusions(
+		_get_recruitable_hero_pool(),
+		get_recruit_offer_capacity(),
+		[],
+		_next_recruit_offer_id
+	)
 	recruit_market_offers = refresh_batch["offers"]
 	_next_recruit_offer_id = int(refresh_batch["next_offer_id"])
 	recruit_market_initialized = true
@@ -666,8 +751,16 @@ func process_tick() -> Dictionary:
 		emit_signal("heroes_changed")
 	if bool(building_result.get("resources_changed", false)):
 		emit_signal("resources_changed")
+	if bool(world_result.get("resources_changed", false)):
+		emit_signal("resources_changed")
+	if bool(world_result.get("inventory_changed", false)):
+		emit_signal("inventory_changed")
+	if bool(world_result.get("recruit_market_changed", false)):
+		emit_signal("recruit_market_changed")
 	if bool(world_result.get("world_changed", false)):
 		emit_signal("world_changed")
+	for reward_notification in _as_array(world_result.get("notifications", [])):
+		emit_signal("zone_reward_notification_added", (reward_notification as Dictionary).duplicate(true))
 	emit_signal("tick_processed", tick_count, production_delta)
 	if tick_count > 0:
 		_request_persistence_update()
@@ -934,6 +1027,7 @@ func _apply_loaded_state(data: Dictionary) -> void:
 	inventory_items = _normalize_loaded_item_stacks(data.get("inventory_items", []))
 	inventory_equipment = _normalize_loaded_equipment_instances(data.get("inventory_equipment", []))
 	recruit_market_offers = RecruitmentComponentScript.normalize_loaded_recruit_market_offers(data.get("recruit_market_offers", []))
+	queued_bonus_recruit_offers = RecruitmentComponentScript.normalize_loaded_recruit_market_offers(data.get("queued_bonus_recruit_offers", []))
 	recruit_market_initialized = bool(data.get("recruit_market_initialized", data.has("recruit_market_offers"))) or not recruit_market_offers.is_empty()
 	_reconcile_loaded_equipment_links()
 	world_seed = int(data.get("world_seed", randi()))
@@ -955,8 +1049,6 @@ func _apply_loaded_state(data: Dictionary) -> void:
 	_reconcile_generated_settlement_definitions()
 	_reconcile_settlement_plot_counts()
 	_sync_active_settlement_slots()
-	if inventory_items.is_empty() and inventory_equipment.is_empty():
-		_seed_starting_inventory()
 	_session().repair_loaded_slot_assignment_state(heroes, settlement_states, owned_settlement_ids, DataLoader.get_default_settlement_id())
 	selected_slot = int(data.get("selected_slot", -1))
 	tick_count = int(data.get("tick_count", 0))
@@ -1018,22 +1110,48 @@ func _reconcile_recruit_market_state(seed_offers_if_unlocked: bool) -> bool:
 	if not is_recruitment_unlocked():
 		return false
 	var market_changed := false
+	if not are_gem_recruits_unlocked():
+		var filtered_offers: Array = []
+		for offer_data in recruit_market_offers:
+			if RecruitmentComponentScript.hero_definition_has_gem_cost(DataLoader.get_hero_definition(String((offer_data as Dictionary).get("definition_id", "")))):
+				market_changed = true
+				continue
+			filtered_offers.append((offer_data as Dictionary).duplicate(true))
+		recruit_market_offers = filtered_offers
+		var filtered_queued_offers: Array = []
+		for offer_data in queued_bonus_recruit_offers:
+			if RecruitmentComponentScript.hero_definition_has_gem_cost(DataLoader.get_hero_definition(String((offer_data as Dictionary).get("definition_id", "")))):
+				market_changed = true
+				continue
+			filtered_queued_offers.append((offer_data as Dictionary).duplicate(true))
+		queued_bonus_recruit_offers = filtered_queued_offers
 	if not recruit_market_offers.is_empty():
 		recruit_market_initialized = true
 	if seed_offers_if_unlocked and not recruit_market_initialized and recruit_market_offers.is_empty():
-		var seed_batch: Dictionary = RecruitmentComponentScript.generate_recruit_offer_batch(get_recruit_offer_capacity(), _next_recruit_offer_id)
+		var seed_batch: Dictionary = RecruitmentComponentScript.generate_recruit_offer_batch_from_pool_with_exclusions(
+			_get_recruitable_hero_pool(),
+			get_recruit_offer_capacity(),
+			[],
+			_next_recruit_offer_id
+		)
 		recruit_market_offers = seed_batch["offers"]
 		_next_recruit_offer_id = int(seed_batch["next_offer_id"])
 		recruit_market_initialized = true
 		market_changed = true
 	if recruit_market_initialized and recruit_market_offers.size() < get_recruit_offer_capacity():
-		var extra_batch: Dictionary = RecruitmentComponentScript.generate_recruit_offer_batch_with_exclusions(
+		var extra_batch: Dictionary = RecruitmentComponentScript.generate_recruit_offer_batch_from_pool_with_exclusions(
+			_get_recruitable_hero_pool(),
 			get_recruit_offer_capacity() - recruit_market_offers.size(),
 			RecruitmentComponentScript.get_recruit_offer_definition_ids(recruit_market_offers),
 			_next_recruit_offer_id
 		)
 		recruit_market_offers.append_array(extra_batch["offers"])
 		_next_recruit_offer_id = int(extra_batch["next_offer_id"])
+		market_changed = true
+	if not queued_bonus_recruit_offers.is_empty():
+		for queued_offer in queued_bonus_recruit_offers:
+			recruit_market_offers.append((queued_offer as Dictionary).duplicate(true))
+		queued_bonus_recruit_offers = []
 		market_changed = true
 	return market_changed
 
@@ -1111,9 +1229,13 @@ func _normalize_loaded_world_zones(value: Variant) -> Dictionary:
 			"state": state,
 			"ticks_remaining": max(0, int(zone_data.get("ticks_remaining", 0))),
 			"clear_duration": max(0, int(zone_data.get("clear_duration", 0))),
+			"clear_started_unix": float(zone_data.get("clear_started_unix", 0.0)),
+			"clear_end_unix": float(zone_data.get("clear_end_unix", 0.0)),
 			"assigned_hero_uids": _normalize_int_array(zone_data.get("assigned_hero_uids", [])),
 			"generated_name": String(zone_data.get("generated_name", "")).strip_edges(),
 			"biome": String(zone_data.get("biome", _determine_zone_biome(x, y))).strip_edges().to_lower(),
+			"requirements": _normalize_zone_requirements(zone_data.get("requirements", _generate_zone_requirements(x, y))),
+			"sanity_loss": max(0, int(zone_data.get("sanity_loss", _get_zone_sanity_loss({"x": x, "y": y})))),
 			"no_settlement": bool(zone_data.get("no_settlement", false)),
 			"claimed_reward": _duplicate_optional_dict(zone_data.get("claimed_reward", {})),
 			"claim_cost": _duplicate_optional_dict(zone_data.get("claim_cost", {})),
@@ -1209,7 +1331,11 @@ func _reconcile_loaded_world_state() -> void:
 				zone["generated_name"] = String(zone.get("settlement_name", ""))
 		if String(zone.get("biome", "")).is_empty():
 			zone["biome"] = _determine_zone_biome(int(zone.get("x", 0)), int(zone.get("y", 0)))
+		zone["requirements"] = _normalize_zone_requirements(zone.get("requirements", _generate_zone_requirements(int(zone.get("x", 0)), int(zone.get("y", 0)))))
+		zone["sanity_loss"] = max(0, int(zone.get("sanity_loss", _get_zone_sanity_loss(zone))))
 		if String(zone.get("state", "")) != "clearing":
+			zone["clear_started_unix"] = 0.0
+			zone["clear_end_unix"] = 0.0
 			zone["assigned_hero_uids"] = []
 			if String(zone.get("state", "")) == "cleared":
 				zone["generated_name"] = _ensure_zone_generated_name(zone)
@@ -1224,9 +1350,15 @@ func _reconcile_loaded_world_state() -> void:
 			valid_hero_ids.append(hero_uid)
 		zone["assigned_hero_uids"] = valid_hero_ids
 		zone["clear_duration"] = max(1, int(zone.get("clear_duration", _get_zone_clear_duration(zone))))
+		if float(zone.get("clear_end_unix", 0.0)) <= 0.0:
+			var now_unix := Time.get_unix_time_from_system()
+			zone["clear_started_unix"] = now_unix
+			zone["clear_end_unix"] = now_unix + (float(int(zone.get("ticks_remaining", 0))) * SettlementGameData.TICK_SECONDS)
 		if valid_hero_ids.is_empty():
 			zone["state"] = "discovered"
 			zone["ticks_remaining"] = 0
+			zone["clear_started_unix"] = 0.0
+			zone["clear_end_unix"] = 0.0
 		world_zones[zone_key] = zone
 	if not world_zones.has(_world_zone_key(0, 0)):
 		_initialize_world_state()
@@ -1238,6 +1370,10 @@ func _reconcile_loaded_world_state() -> void:
 func _process_world_tick() -> Dictionary:
 	var world_state_changed := false
 	var hero_state_changed := false
+	var resource_state_changed := false
+	var inventory_state_changed := false
+	var recruit_market_state_changed := false
+	var notifications: Array = []
 	for zone_key in world_zones.keys():
 		var previous_zone := _as_dictionary(world_zones.get(zone_key, {})).duplicate(true)
 		if String(previous_zone.get("state", "")) != "clearing":
@@ -1246,11 +1382,23 @@ func _process_world_tick() -> Dictionary:
 		zone["ticks_remaining"] = max(0, int(zone.get("ticks_remaining", 0)) - 1)
 		world_state_changed = true
 		if int(zone.get("ticks_remaining", 0)) <= 0:
+			var assigned_hero_uids := _normalize_int_array(previous_zone.get("assigned_hero_uids", []))
 			zone["state"] = "cleared"
 			zone["assigned_hero_uids"] = []
+			zone["clear_started_unix"] = 0.0
+			zone["clear_end_unix"] = 0.0
 			zone["generated_name"] = _ensure_zone_generated_name(zone)
 			zone["claim_cost"] = _ensure_zone_claim_cost(zone)
+			zone["requirements"] = _normalize_zone_requirements(zone.get("requirements", _generate_zone_requirements(int(zone.get("x", 0)), int(zone.get("y", 0)))))
+			zone["sanity_loss"] = max(0, int(zone.get("sanity_loss", _get_zone_sanity_loss(zone))))
+			var clear_result := _resolve_zone_clear_rewards(zone, assigned_hero_uids)
 			hero_state_changed = true
+			resource_state_changed = resource_state_changed or bool(clear_result.get("resources_changed", false))
+			inventory_state_changed = inventory_state_changed or bool(clear_result.get("inventory_changed", false))
+			recruit_market_state_changed = recruit_market_state_changed or bool(clear_result.get("recruit_market_changed", false))
+			hero_state_changed = hero_state_changed or bool(clear_result.get("heroes_changed", false))
+			if clear_result.has("notification"):
+				notifications.append(_as_dictionary(clear_result.get("notification", {})))
 		world_zones[zone_key] = zone
 	if world_state_changed:
 		_apply_world_visibility()
@@ -1258,7 +1406,161 @@ func _process_world_tick() -> Dictionary:
 		_session().refresh_world_task_compatibility()
 	return {
 		"world_changed": world_state_changed,
+		"resources_changed": resource_state_changed,
+		"inventory_changed": inventory_state_changed,
+		"recruit_market_changed": recruit_market_state_changed,
 		"heroes_changed": hero_state_changed,
+		"notifications": notifications,
+	}
+
+
+func _resolve_zone_clear_rewards(zone: Dictionary, hero_uids: Array) -> Dictionary:
+	var hero_result := _apply_zone_clear_hero_rewards(hero_uids, zone)
+	var reward_roll := _roll_zone_clear_rewards(zone)
+	var seeded_offer := _seed_zone_clear_bonus_offer()
+	if not seeded_offer.is_empty():
+		reward_roll["bonus_recruit_offer"] = seeded_offer.duplicate(true)
+	var summary := _build_zone_clear_notification(zone, hero_result, reward_roll)
+	return {
+		"resources_changed": bool(reward_roll.get("resources_changed", false)),
+		"inventory_changed": bool(reward_roll.get("inventory_changed", false)),
+		"recruit_market_changed": not seeded_offer.is_empty(),
+		"heroes_changed": bool(hero_result.get("heroes_changed", false)),
+		"notification": summary,
+	}
+
+
+func _apply_zone_clear_hero_rewards(hero_uids: Array, zone: Dictionary) -> Dictionary:
+	var did_change_heroes := false
+	var resolved_names: Array[String] = []
+	var experience_gain: int = _get_zone_experience_reward(zone)
+	var sanity_loss: int = max(0, int(zone.get("sanity_loss", _get_zone_sanity_loss(zone))))
+	for hero_uid in hero_uids:
+		var hero_index := _find_hero_index(int(hero_uid))
+		if hero_index == -1:
+			continue
+		var hero_data: Dictionary = heroes[hero_index]
+		var hero_stats := _as_dictionary(hero_data.get("stats", {})).duplicate(true)
+		hero_stats["current_sanity"] = max(0, int(hero_stats.get("current_sanity", hero_stats.get("max_sanity", hero_stats.get("sanity", 0)))) - sanity_loss)
+		hero_data["stats"] = hero_stats
+		var current_experience: int = int(hero_data.get("experience", 0)) + experience_gain
+		var current_level: int = max(1, int(hero_data.get("level", 1)))
+		while current_experience >= _hero_level_experience_ceiling(current_level):
+			hero_data = HeroRosterComponentScript.level_up_hero(hero_data)
+			current_level += 1
+		hero_data["experience"] = current_experience
+		hero_data["level"] = current_level
+		heroes[hero_index] = hero_data
+		resolved_names.append(String(hero_data.get("name", "Unknown Hero")))
+		did_change_heroes = true
+	return {
+		"heroes_changed": did_change_heroes,
+		"hero_names": resolved_names,
+		"experience_gain": experience_gain,
+		"sanity_loss": sanity_loss,
+	}
+
+
+func _roll_zone_clear_rewards(zone: Dictionary) -> Dictionary:
+	var reward_table := _get_zone_clear_reward_table(zone)
+	var resources_delta: Dictionary = {}
+	var item_rewards: Array = []
+	var equipment_rewards: Array = []
+	for resource_entry in _as_array(reward_table.get("resources", [])):
+		var entry := _as_dictionary(resource_entry)
+		if not _reward_entry_succeeds(zone, entry):
+			continue
+		var resource_id := String(entry.get("resource", "")).strip_edges()
+		if resource_id.is_empty():
+			continue
+		var quantity := _roll_reward_quantity(zone, entry, resource_id.hash())
+		if quantity <= 0:
+			continue
+		resources_delta[resource_id] = int(resources_delta.get(resource_id, 0)) + quantity
+	for item_entry in _as_array(reward_table.get("items", [])):
+		var entry := _as_dictionary(item_entry)
+		if not _reward_entry_succeeds(zone, entry):
+			continue
+		var definition_id := String(entry.get("definition_id", "")).strip_edges()
+		var quantity := _roll_reward_quantity(zone, entry, definition_id.hash())
+		if definition_id.is_empty() or quantity <= 0:
+			continue
+		add_item_to_inventory(definition_id, quantity)
+		item_rewards.append({"definition_id": definition_id, "quantity": quantity})
+	for equipment_entry in _as_array(reward_table.get("equipment", [])):
+		var entry := _as_dictionary(equipment_entry)
+		if not _reward_entry_succeeds(zone, entry):
+			continue
+		var definition_id := String(entry.get("definition_id", "")).strip_edges()
+		if definition_id.is_empty():
+			continue
+		var equipment_instance := add_equipment_to_inventory(definition_id)
+		if equipment_instance.is_empty():
+			continue
+		equipment_rewards.append({"definition_id": definition_id, "name": _resolve_equipment_name(definition_id)})
+	for resource_id_variant in resources_delta.keys():
+		var resource_id := String(resource_id_variant)
+		resources[resource_id] = SettlementGameData.clamp_resource(int(resources.get(resource_id, 0)) + int(resources_delta[resource_id]))
+	return {
+		"resources_changed": not resources_delta.is_empty(),
+		"inventory_changed": not item_rewards.is_empty() or not equipment_rewards.is_empty(),
+		"resources": resources_delta,
+		"items": item_rewards,
+		"equipment": equipment_rewards,
+	}
+
+
+func _seed_zone_clear_bonus_offer() -> Dictionary:
+	var hero_pool := _get_recruitable_hero_pool()
+	if hero_pool.is_empty():
+		return {}
+	var excluded_definition_ids := RecruitmentComponentScript.get_recruit_offer_definition_ids(recruit_market_offers)
+	excluded_definition_ids.append_array(RecruitmentComponentScript.get_recruit_offer_definition_ids(queued_bonus_recruit_offers))
+	var batch := RecruitmentComponentScript.generate_recruit_offer_batch_from_pool_with_exclusions(hero_pool, 1, excluded_definition_ids, _next_recruit_offer_id)
+	var offers := _as_array(batch.get("offers", []))
+	if offers.is_empty():
+		return {}
+	var bonus_offer: Dictionary = (offers[0] as Dictionary).duplicate(true)
+	bonus_offer["offer_source"] = "zone_bonus"
+	_next_recruit_offer_id = int(batch.get("next_offer_id", _next_recruit_offer_id))
+	if is_recruitment_unlocked():
+		recruit_market_offers.append(bonus_offer)
+	else:
+		queued_bonus_recruit_offers.append(bonus_offer)
+	return bonus_offer
+
+
+func _build_zone_clear_notification(zone: Dictionary, hero_result: Dictionary, reward_roll: Dictionary) -> Dictionary:
+	var lines: Array[String] = []
+	var hero_names := _string_array(hero_result.get("hero_names", []))
+	if not hero_names.is_empty():
+		lines.append("Heroes: %s" % ", ".join(hero_names))
+	var experience_gain := int(hero_result.get("experience_gain", 0))
+	if experience_gain > 0:
+		lines.append("XP: +%d each" % experience_gain)
+	var sanity_loss := int(hero_result.get("sanity_loss", 0))
+	if sanity_loss > 0:
+		lines.append("Sanity: -%d each" % sanity_loss)
+	var resource_text := _format_resource_dict(_as_dictionary(reward_roll.get("resources", {})))
+	if resource_text != DataLoader.get_ui_text("common.none", {}, "none"):
+		lines.append("Resources: %s" % resource_text)
+	var item_lines: Array[String] = []
+	for item_entry in _as_array(reward_roll.get("items", [])):
+		var entry := _as_dictionary(item_entry)
+		item_lines.append("%s x%d" % [_resolve_item_name(String(entry.get("definition_id", ""))), int(entry.get("quantity", 0))])
+	if not item_lines.is_empty():
+		lines.append("Items: %s" % ", ".join(item_lines))
+	var equipment_lines: Array[String] = []
+	for equipment_entry in _as_array(reward_roll.get("equipment", [])):
+		equipment_lines.append(String(_as_dictionary(equipment_entry).get("name", "Equipment")))
+	if not equipment_lines.is_empty():
+		lines.append("Equipment: %s" % ", ".join(equipment_lines))
+	if reward_roll.has("bonus_recruit_offer"):
+		lines.append("Recruit Pool: +1 bonus hero")
+	return {
+		"title": "Zone Cleared: %s" % String(zone.get("generated_name", _ensure_zone_generated_name(zone))),
+		"lines": lines,
+		"zone_key": String(zone.get("key", "")),
 	}
 
 
@@ -1319,9 +1621,13 @@ func _create_world_zone(x: int, y: int, state: String) -> Dictionary:
 		"state": state,
 		"ticks_remaining": 0,
 		"clear_duration": _get_zone_clear_duration({"key": zone_key, "x": x, "y": y}),
+		"clear_started_unix": 0.0,
+		"clear_end_unix": 0.0,
 		"assigned_hero_uids": [],
 		"generated_name": "",
 		"biome": _determine_zone_biome(x, y),
+		"requirements": _generate_zone_requirements(x, y),
+		"sanity_loss": _get_zone_sanity_loss({"x": x, "y": y}),
 		"no_settlement": false,
 		"claimed_reward": {},
 		"claim_cost": {},
@@ -1349,6 +1655,10 @@ func _apply_world_override(zone: Dictionary) -> Dictionary:
 		zone["claimed_reward"] = _duplicate_optional_dict(override.get("claimed_reward", {}))
 	if override.has("clear_duration"):
 		zone["clear_duration"] = max(0, int(override.get("clear_duration", zone.get("clear_duration", 0))))
+	if override.has("requirements"):
+		zone["requirements"] = _normalize_zone_requirements(override.get("requirements", zone.get("requirements", {})))
+	if override.has("sanity_loss"):
+		zone["sanity_loss"] = max(0, int(override.get("sanity_loss", zone.get("sanity_loss", 0))))
 	if override.has("claim_cost"):
 		zone["claim_cost"] = _duplicate_optional_dict(override.get("claim_cost", {}))
 	if override.has("settlement_id"):
@@ -1407,6 +1717,137 @@ func _get_zone_clear_duration(zone: Dictionary) -> int:
 		return max(1, int(override.get("clear_duration", 1)))
 	var world_config := DataLoader.get_world_config()
 	return max(1, int(world_config.get("default_clear_duration", 3)))
+
+
+func _get_recruitable_hero_pool() -> Array:
+	return RecruitmentComponentScript.build_recruitable_hero_pool(are_gem_recruits_unlocked())
+
+
+func _get_zone_distance(x: int, y: int) -> int:
+	return max(abs(x), abs(y))
+
+
+func _normalize_zone_requirements(value: Variant) -> Dictionary:
+	var source := _as_dictionary(value)
+	var normalized := {
+		"level": max(0, int(source.get("level", 0))),
+		"sanity": max(0, int(source.get("sanity", 0))),
+		"attack": max(0, int(source.get("attack", 0))),
+		"defense": max(0, int(source.get("defense", 0))),
+	}
+	for stat_key in DataLoader.DEFAULT_HERO_WORK_STATS.keys():
+		normalized[stat_key] = max(0, int(source.get(stat_key, 0)))
+	return normalized
+
+
+func _generate_zone_requirements(x: int, y: int) -> Dictionary:
+	var world_config := DataLoader.get_world_config()
+	var requirement_config := _as_dictionary(world_config.get("clear_requirements", {}))
+	var distance := _get_zone_distance(x, y)
+	var safe_radius: int = max(0, int(requirement_config.get("safe_radius", 2)))
+	var scaled_distance: int = max(0, distance - safe_radius)
+	return _normalize_zone_requirements({
+		"attack": int(requirement_config.get("attack_base", 0)) + scaled_distance * int(requirement_config.get("attack_growth", 3)),
+		"defense": int(requirement_config.get("defense_base", 0)) + scaled_distance * int(requirement_config.get("defense_growth", 2)),
+	})
+
+
+func _get_zone_sanity_loss(zone: Dictionary) -> int:
+	var world_config := DataLoader.get_world_config()
+	var requirement_config := _as_dictionary(world_config.get("clear_requirements", {}))
+	var distance := _get_zone_distance(int(zone.get("x", 0)), int(zone.get("y", 0)))
+	var safe_radius: int = max(0, int(requirement_config.get("safe_radius", 2)))
+	var scaled_distance: int = max(0, distance - safe_radius)
+	return max(0, int(requirement_config.get("sanity_loss_base", 0)) + scaled_distance * int(requirement_config.get("sanity_loss_growth", 1)))
+
+
+func _get_zone_experience_reward(zone: Dictionary) -> int:
+	var world_config := DataLoader.get_world_config()
+	var reward_config := _as_dictionary(world_config.get("clear_rewards", {}))
+	var distance := _get_zone_distance(int(zone.get("x", 0)), int(zone.get("y", 0)))
+	var safe_radius: int = max(0, int(_as_dictionary(world_config.get("clear_requirements", {})).get("safe_radius", 2)))
+	var scaled_distance: int = max(0, distance - safe_radius)
+	return max(0, int(reward_config.get("experience_base", 2)) + scaled_distance * int(reward_config.get("experience_growth", 1)))
+
+
+func _get_zone_clear_reward_table(zone: Dictionary) -> Dictionary:
+	var world_config := DataLoader.get_world_config()
+	var reward_config := _as_dictionary(world_config.get("clear_rewards", {}))
+	var distance := _get_zone_distance(int(zone.get("x", 0)), int(zone.get("y", 0)))
+	for table_entry in _as_array(reward_config.get("tables", [])):
+		var table := _as_dictionary(table_entry)
+		var min_distance := int(table.get("min_distance", 0))
+		var max_distance := int(table.get("max_distance", 999999))
+		if distance < min_distance or distance > max_distance:
+			continue
+		return table.duplicate(true)
+	return {}
+
+
+func _reward_entry_succeeds(zone: Dictionary, entry: Dictionary) -> bool:
+	var chance := clampi(int(entry.get("chance", 100)), 0, 100)
+	if chance >= 100:
+		return true
+	if chance <= 0:
+		return false
+	return _coord_random_range(int(zone.get("x", 0)), int(zone.get("y", 0)), JSON.stringify(entry).hash(), 1, 100) <= chance
+
+
+func _roll_reward_quantity(zone: Dictionary, entry: Dictionary, salt: int) -> int:
+	var min_quantity: int = max(0, int(entry.get("min", entry.get("amount", 0))))
+	var max_quantity: int = max(min_quantity, int(entry.get("max", min_quantity)))
+	return _coord_random_range(int(zone.get("x", 0)), int(zone.get("y", 0)), salt, min_quantity, max_quantity)
+
+
+func _display_requirement_name(requirement_key: String) -> String:
+	match requirement_key:
+		"attack":
+			return "ATK REQ"
+		"defense":
+			return "DEF REQ"
+		"sanity":
+			return "Sanity Req"
+		"level":
+			return "Level Req"
+		"farming":
+			return "Farming Req"
+		"mining":
+			return "Mining Req"
+		"lumbering":
+			return "Lumbering Req"
+		_:
+			return String(requirement_key).capitalize()
+
+
+func _resolve_item_name(definition_id: String) -> String:
+	var item_definition := DataLoader.get_item_definition(definition_id)
+	if item_definition.is_empty():
+		return definition_id
+	return String(item_definition.get("name", definition_id))
+
+
+func _resolve_equipment_name(definition_id: String) -> String:
+	var equipment_definition := DataLoader.get_equipment_definition(definition_id)
+	if equipment_definition.is_empty():
+		return definition_id
+	return String(equipment_definition.get("name", definition_id))
+
+
+func _format_resource_dict(values: Dictionary) -> String:
+	if values.is_empty():
+		return DataLoader.get_ui_text("common.none", {}, "none")
+	var parts: Array[String] = []
+	for resource_id in SettlementGameData.RESOURCE_ORDER:
+		if values.has(resource_id) and int(values[resource_id]) != 0:
+			parts.append("%s %d" % [DataLoader.get_ui_text("resource.%s" % resource_id, {}, String(resource_id).capitalize()), int(values[resource_id])])
+	return ", ".join(parts)
+
+
+func _string_array(value: Variant) -> Array[String]:
+	var strings: Array[String] = []
+	for entry in _as_array(value):
+		strings.append(String(entry))
+	return strings
 
 
 func _ensure_zone_generated_name(zone: Dictionary) -> String:
@@ -1637,7 +2078,7 @@ func _determine_zone_biome(x: int, y: int) -> String:
 		return special_biome
 	if roll % 20 <= 2:
 		return "neutral"
-	var biome_roll: int = int(roll / 10) % 4
+	var biome_roll: int = int(float(roll) / 10.0) % 4
 	match biome_roll:
 		0:
 			return "forest"
@@ -1780,6 +2221,8 @@ func _get_max_equipment_uid() -> int:
 func _get_max_recruit_offer_id() -> int:
 	var max_offer_id := 0
 	for offer_data in recruit_market_offers:
+		max_offer_id = max(max_offer_id, int((offer_data as Dictionary).get("offer_id", 0)))
+	for offer_data in queued_bonus_recruit_offers:
 		max_offer_id = max(max_offer_id, int((offer_data as Dictionary).get("offer_id", 0)))
 	return max_offer_id
 

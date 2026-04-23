@@ -93,10 +93,13 @@ static func level_up_hero(hero_data: Dictionary) -> Dictionary:
 	var work_stat_growth := _normalize_resolved_growth_block(leveled_hero.get("work_stat_growth", hero_definition.get("work_stat_growth", {})), DataLoader.DEFAULT_HERO_WORK_STAT_GROWTH)
 	var stats := _as_dictionary(leveled_hero.get("stats", {})).duplicate(true)
 	var previous_max_health := int(stats.get("max_health", stats.get("health", 0)))
+	var previous_max_sanity := int(stats.get("max_sanity", stats.get("sanity", 0)))
 	for stat_key in DataLoader.DEFAULT_HERO_STATS.keys():
 		stats[stat_key] = int(stats.get(stat_key, 0)) + int(stat_growth.get(stat_key, 0))
 	stats["max_health"] = int(stats.get("health", 0))
 	stats["current_health"] = min(int(stats.get("current_health", previous_max_health)) + int(stat_growth.get("health", 0)), int(stats.get("max_health", 0)))
+	stats["max_sanity"] = int(stats.get("sanity", 0))
+	stats["current_sanity"] = min(int(stats.get("current_sanity", previous_max_sanity)) + int(stat_growth.get("sanity", 0)), int(stats.get("max_sanity", 0)))
 	leveled_hero["stats"] = stats
 	var work_stats := _as_dictionary(leveled_hero.get("work_stats", {})).duplicate(true)
 	for stat_key in DataLoader.DEFAULT_HERO_WORK_STATS.keys():
@@ -115,8 +118,11 @@ static func _normalize_runtime_stats(value: Variant, fallback_value: Variant) ->
 	for stat_key in fallback.keys():
 		normalized[stat_key] = int(source_data.get(stat_key, fallback[stat_key]))
 	var base_health := int(normalized.get("health", 0))
+	var base_sanity := int(normalized.get("sanity", 0))
 	normalized["max_health"] = int(source_data.get("max_health", base_health))
 	normalized["current_health"] = int(source_data.get("current_health", normalized.get("max_health", base_health)))
+	normalized["max_sanity"] = int(source_data.get("max_sanity", base_sanity))
+	normalized["current_sanity"] = int(source_data.get("current_sanity", normalized.get("max_sanity", base_sanity)))
 	return normalized
 
 
@@ -137,11 +143,15 @@ static func _build_runtime_stats(source_data: Dictionary, stat_growth: Dictionar
 	for stat_key in DataLoader.DEFAULT_HERO_STATS.keys():
 		stats[stat_key] = int(stats.get(stat_key, 0)) + (max(level - 1, 0) * int(stat_growth.get(stat_key, 0)))
 	stats["max_health"] = int(stats.get("health", 0))
+	stats["max_sanity"] = int(stats.get("sanity", 0))
 	if existing_stats.is_empty():
 		stats["current_health"] = int(stats.get("max_health", 0))
+		stats["current_sanity"] = int(stats.get("max_sanity", 0))
 	else:
 		var current_health := int(existing_stats.get("current_health", int(existing_stats.get("max_health", stats.get("max_health", 0)))))
+		var current_sanity := int(existing_stats.get("current_sanity", int(existing_stats.get("max_sanity", stats.get("max_sanity", 0)))))
 		stats["current_health"] = min(current_health, int(stats.get("max_health", 0)))
+		stats["current_sanity"] = min(current_sanity, int(stats.get("max_sanity", 0)))
 	return stats
 
 

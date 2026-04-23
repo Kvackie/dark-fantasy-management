@@ -3,7 +3,6 @@
 [ext_resource type="Script" uid="uid://mki6ou8o2j3" path="res://scripts/ui/main_screen.gd" id="1_hyk8p"]
 
 [node name="MainScreen" type="Control" unique_id=117136162]
-custom_minimum_size = Vector2(1152, 648)
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -114,7 +113,6 @@ theme_override_constants/separation = 12
 
 [node name="DetailsPanel" type="PanelContainer" parent="Shell/MainRow" unique_id=1189235611]
 visible = false
-custom_minimum_size = Vector2(320, 0)
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3

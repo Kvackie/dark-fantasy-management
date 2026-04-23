@@ -78,6 +78,7 @@ const WORK_STAT_COLORS := {
 @onready var _settlement_panel: Control = get_node("Shell/MainRow/SettlementPanel")
 @onready var _details_panel_node: Control = get_node("Shell/MainRow/DetailsPanel")
 @onready var _bottom_bar: Control = get_node("Shell/BottomBar")
+@onready var _nav_row: HBoxContainer = get_node("Shell/BottomBar/BottomBarMargin/NavRow")
 @onready var _world_button: Button = get_node("Shell/BottomBar/BottomBarMargin/NavRow/WorldButton")
 @onready var _overview_button: Button = get_node("Shell/BottomBar/BottomBarMargin/NavRow/OverviewButton")
 @onready var _heroes_button: Button = get_node("Shell/BottomBar/BottomBarMargin/NavRow/HeroesButton")
@@ -111,6 +112,10 @@ var _main_menu_mode: String = MAIN_MENU_ROOT
 var _main_menu_mod_category: String = ""
 var _main_menu_pending_action: String = ""
 var _main_menu_pending_slot: int = -1
+var _zone_reward_toast: PanelContainer = null
+var _zone_reward_toast_title: Label = null
+var _zone_reward_toast_body: Label = null
+var _zone_reward_toast_tween: Tween = null
 
 
 func _ready() -> void:
@@ -122,9 +127,11 @@ func _ready() -> void:
 	_build_resource_bar()
 	_build_grid()
 	_connect_game_manager()
+	_setup_zone_reward_toast()
 	_setup_main_menu_overlay()
 	_refresh_settlement_title()
 	_apply_mode_layout()
+	_apply_responsive_layout()
 	_show_main_menu()
 	_refresh_recruit_nav_visibility()
 
@@ -136,9 +143,6 @@ func _configure_root_layout() -> void:
 	offset_top = 0.0
 	offset_right = 0.0
 	offset_bottom = 0.0
-	var window: Window = get_window()
-	if window != null:
-		window.min_size = Vector2i(1152, 648)
 	_background.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_background.offset_left = 0.0
 	_background.offset_top = 0.0
@@ -154,6 +158,11 @@ func _configure_root_layout() -> void:
 	_shell.offset_bottom = 0.0
 	_settlement_panel.size_flags_stretch_ratio = 1.6
 	_details_panel_node.size_flags_stretch_ratio = 1.0
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_RESIZED and is_node_ready():
+		_apply_responsive_layout()
 
 
 func _apply_theme() -> void:
@@ -181,6 +190,31 @@ func _apply_theme() -> void:
 	_style_label(_page_title, 24, true)
 	_settlement_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	_page_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+
+
+func _apply_responsive_layout() -> void:
+	var viewport_size := get_viewport_rect().size
+	var width := viewport_size.x
+	var height := viewport_size.y
+	var narrow_width := width < 900.0
+	var compact_width := width < 1280.0
+	var wide_width := width >= 1900.0
+	_settlement_panel.size_flags_stretch_ratio = 1.5 if compact_width else (1.9 if wide_width else 1.7)
+	_details_panel_node.size_flags_stretch_ratio = 1.05 if compact_width else (1.2 if wide_width else 1.1)
+	_details_panel_node.custom_minimum_size = Vector2(280, 0) if compact_width else (Vector2(430, 0) if wide_width else Vector2(360, 0))
+	_grid_container.columns = 2 if narrow_width else (3 if compact_width else 4)
+	_top_bar.custom_minimum_size = Vector2(0, 78) if compact_width else (Vector2(0, 92) if wide_width else Vector2(0, 82))
+	_bottom_bar.custom_minimum_size = Vector2(0, 70) if compact_width else (Vector2(0, 84) if wide_width else Vector2(0, 74))
+	_nav_row.add_theme_constant_override("separation", 10 if compact_width else (14 if wide_width else 12))
+	var title_font_size := 26 if compact_width else (32 if wide_width else 28)
+	_style_label(_settlement_title, title_font_size, true)
+	_style_label(_page_title, title_font_size, true)
+	if _main_menu_panel != null and is_instance_valid(_main_menu_panel):
+		_main_menu_panel.custom_minimum_size = Vector2(clampf(width * 0.94, 420.0, 920.0), clampf(height * 0.88, 520.0, 980.0))
+	if _main_menu_confirmation_overlay != null and is_instance_valid(_main_menu_confirmation_overlay):
+		var confirmation_panel := _main_menu_confirmation_overlay.get_child(0).get_child(0) as PanelContainer
+		if confirmation_panel != null and is_instance_valid(confirmation_panel):
+			confirmation_panel.custom_minimum_size = Vector2(clampf(width * 0.88, 340.0, 520.0), 0)
 
 
 func _apply_ui_text_bundle() -> void:
@@ -222,6 +256,34 @@ func _connect_game_manager() -> void:
 	GameManager.save_slots_changed.connect(_on_save_slots_changed)
 	GameManager.save_loaded.connect(_on_save_loaded)
 	GameManager.tick_processed.connect(_on_tick_processed)
+	GameManager.zone_reward_notification_added.connect(_on_zone_reward_notification_added)
+
+
+func _setup_zone_reward_toast() -> void:
+	if _zone_reward_toast != null and is_instance_valid(_zone_reward_toast):
+		return
+	var toast := PanelContainer.new()
+	toast.visible = false
+	toast.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	toast.anchor_left = 0.5
+	toast.anchor_top = 0.02
+	toast.anchor_right = 0.5
+	toast.anchor_bottom = 0.02
+	toast.offset_left = -230.0
+	toast.offset_top = 0.0
+	toast.offset_right = 230.0
+	toast.offset_bottom = 120.0
+	_style_panel(toast, Color("1b1718", 0.96), Color("8f6e54"), 12)
+	add_child(toast)
+	var body := VBoxContainer.new()
+	body.add_theme_constant_override("separation", 6)
+	toast.add_child(body)
+	_zone_reward_toast_title = _make_label("", 18)
+	body.add_child(_zone_reward_toast_title)
+	_zone_reward_toast_body = _make_label("", 14)
+	_zone_reward_toast_body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	body.add_child(_zone_reward_toast_body)
+	_zone_reward_toast = toast
 
 
 func _build_resource_bar() -> void:
@@ -297,7 +359,10 @@ func _on_settlement_changed() -> void:
 	_refresh_settlement_title()
 	_refresh_resource_yields()
 	_refresh_grid()
-	if not _refresh_active_page_screen():
+	if _is_full_page_mode():
+		if _detail_mode == MODE_OVERVIEW:
+			_refresh_active_page_screen()
+	else:
 		_refresh_active_content()
 
 
@@ -305,16 +370,19 @@ func _on_active_settlement_changed(_settlement_id: String) -> void:
 	_slots_snapshot = GameManager.get_slots_snapshot()
 	_refresh_settlement_title()
 	_refresh_resource_yields()
-	_refresh_active_page_screen()
-	_refresh_active_content()
+	if _is_full_page_mode():
+		if _detail_mode == MODE_OVERVIEW:
+			_refresh_active_page_screen()
+	else:
+		_refresh_active_content()
 
 
 func _on_world_changed() -> void:
 	_refresh_resource_yields()
 	if _detail_mode == MODE_WORLD:
 		return
-	if not _refresh_active_page_screen():
-		_refresh_active_content()
+	if _detail_mode == MODE_OVERVIEW:
+		_refresh_active_page_screen()
 
 
 func _on_heroes_changed() -> void:
@@ -324,7 +392,10 @@ func _on_heroes_changed() -> void:
 	_refresh_resource_yields()
 	if _detail_mode == MODE_WORLD:
 		return
-	if not _refresh_active_page_screen():
+	if _is_full_page_mode():
+		if _detail_mode in [MODE_HEROES, MODE_HERO_DETAIL, MODE_OVERVIEW]:
+			_refresh_active_page_screen()
+	else:
 		_refresh_active_content()
 
 
@@ -367,7 +438,8 @@ func _on_selection_changed(slot_index: int) -> void:
 	_selected_slot = slot_index
 	_apply_mode_layout()
 	_refresh_grid()
-	_refresh_active_content()
+	if not _is_full_page_mode():
+		_refresh_active_content()
 
 
 
@@ -404,6 +476,28 @@ func _enter_game_session() -> void:
 
 func _on_tick_processed(_tick_count: int, _production_delta: Dictionary) -> void:
 	_refresh_resource_yields()
+
+
+func _on_zone_reward_notification_added(reward_notification: Dictionary) -> void:
+	if _zone_reward_toast == null or not is_instance_valid(_zone_reward_toast):
+		return
+	_zone_reward_toast_title.text = String(reward_notification.get("title", "Zone Cleared"))
+	var lines: Array[String] = []
+	for line in _as_array(reward_notification.get("lines", [])):
+		lines.append(String(line))
+	_zone_reward_toast_body.text = "\n".join(lines)
+	if _zone_reward_toast_tween != null and is_instance_valid(_zone_reward_toast_tween):
+		_zone_reward_toast_tween.kill()
+	_zone_reward_toast.modulate = Color(1, 1, 1, 0)
+	_zone_reward_toast.visible = true
+	_zone_reward_toast_tween = create_tween()
+	_zone_reward_toast_tween.tween_property(_zone_reward_toast, "modulate:a", 1.0, 0.18)
+	_zone_reward_toast_tween.tween_interval(3.6)
+	_zone_reward_toast_tween.tween_property(_zone_reward_toast, "modulate:a", 0.0, 0.3)
+	_zone_reward_toast_tween.finished.connect(func() -> void:
+		if _zone_reward_toast != null and is_instance_valid(_zone_reward_toast):
+			_zone_reward_toast.visible = false
+	)
 
 
 func _sync_top_bar_yields_after_state_load() -> void:
@@ -502,6 +596,7 @@ func _show_main_menu(mode: String = MAIN_MENU_ROOT, mod_category: String = "") -
 	_main_menu_mod_category = mod_category
 	_main_menu_overlay.visible = true
 	_shell.visible = false
+	_apply_responsive_layout()
 	_refresh_main_menu()
 
 
@@ -554,7 +649,7 @@ func _build_main_menu_saves() -> void:
 
 func _build_main_menu_save_card(save_entry: Dictionary) -> PanelContainer:
 	var panel := _make_panel()
-	panel.custom_minimum_size = Vector2(520, 0)
+	panel.custom_minimum_size = Vector2(_responsive_main_menu_card_width(), 0)
 	var body := VBoxContainer.new()
 	body.add_theme_constant_override("separation", 8)
 	panel.add_child(body)
@@ -591,7 +686,7 @@ func _build_main_menu_mods_category(category: String) -> void:
 
 func _build_main_menu_mod_card(mod_summary: Dictionary) -> PanelContainer:
 	var panel := _make_panel()
-	panel.custom_minimum_size = Vector2(520, 0)
+	panel.custom_minimum_size = Vector2(_responsive_main_menu_card_width(), 0)
 	var body := VBoxContainer.new()
 	body.add_theme_constant_override("separation", 8)
 	panel.add_child(body)
@@ -612,9 +707,18 @@ func _add_main_menu_centered_control(control: Control) -> void:
 
 func _make_main_menu_choice_button(text: String, callback: Callable, disabled: bool) -> Button:
 	var button := _make_button(text, callback, disabled)
-	button.custom_minimum_size = Vector2(320, 0)
+	button.custom_minimum_size = Vector2(_responsive_main_menu_button_width(), 84)
 	button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	button.add_theme_font_size_override("font_size", 24)
 	return button
+
+
+func _responsive_main_menu_card_width() -> float:
+	return clampf(get_viewport_rect().size.x * 0.92, 360.0, 700.0)
+
+
+func _responsive_main_menu_button_width() -> float:
+	return clampf(get_viewport_rect().size.x * 0.82, 320.0, 500.0)
 
 
 func _add_main_menu_centered_label(text: String, font_size: int) -> void:
@@ -1502,7 +1606,7 @@ func _format_work_stats_bbcode(work_stats: Dictionary) -> String:
 func _format_recruit_combat_stats_bbcode(stats: Dictionary) -> String:
 	var parts: Array[String] = [
 		"[color=#d8847b]HP %d[/color]" % int(stats.get("health", 0)),
-		"[color=#c8b8d9]SAN %d[/color]" % int(stats.get("sanity", 0)),
+		"[color=#c8b8d9]SAN %d/%d[/color]" % [int(stats.get("current_sanity", stats.get("sanity", 0))), int(stats.get("max_sanity", stats.get("sanity", 0)))],
 		"[color=#d0a170]ATK %d[/color]" % int(stats.get("attack", 0)),
 		"[color=#88a8c8]DEF %d[/color]" % int(stats.get("defense", 0)),
 		"[color=#f0c96c]CRIT %d%%[/color]" % int(stats.get("critical_chance", 0)),
