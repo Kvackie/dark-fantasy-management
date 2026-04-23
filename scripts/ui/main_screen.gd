@@ -10,6 +10,9 @@ const HeroDetailScreenScene = preload("res://scenes/ui/hero_detail_screen.tscn")
 const ResourceBadgeScene = preload("res://scenes/widgets/resource_badge.tscn")
 const SettlementSlotScene = preload("res://scenes/widgets/settlement_slot.tscn")
 const MainScreenNavigation = preload("res://scripts/ui/main_screen_navigation.gd")
+const MainScreenPageCoordinator = preload("res://scripts/ui/main_screen_page_coordinator.gd")
+const MainScreenSettlementBuilders = preload("res://scripts/ui/main_screen_settlement_builders.gd")
+const MainScreenViewBuilders = preload("res://scripts/ui/main_screen_view_builders.gd")
 const UIScreenHelpers = preload("res://scripts/ui/ui_screen_helpers.gd")
 const UITheme = preload("res://resources/themes/ui_theme.tres")
 
@@ -21,6 +24,8 @@ const MODE_HEROES := MainScreenNavigation.MODE_HEROES
 const MODE_INVENTORY := MainScreenNavigation.MODE_INVENTORY
 const MODE_HERO_DETAIL := MainScreenNavigation.MODE_HERO_DETAIL
 const MODE_DEBUG := MainScreenNavigation.MODE_DEBUG
+
+const SCENE_BACKED_PAGE_MODES := [MODE_OVERVIEW, MODE_WORLD, MODE_HEROES, MODE_INVENTORY, MODE_SAVES, MODE_HERO_DETAIL]
 
 const MAIN_MENU_ROOT := "root"
 const MAIN_MENU_SAVES := "saves"
@@ -43,22 +48,6 @@ const RESOURCE_ICONS := {
 	RESOURCE_ID_HEROES: "res://assets/resources/population.png",
 	RESOURCE_ID_GEMS: "res://assets/resources/gems.png",
 	RESOURCE_ID_CRYSTALS: "res://assets/resources/crystals.png",
-}
-
-const RESOURCE_TEXT_COLORS := {
-	RESOURCE_ID_WOOD: "#b98b60",
-	RESOURCE_ID_FOOD: "#d4a25c",
-	RESOURCE_ID_STONE: "#b7bcc7",
-	RESOURCE_ID_GOLD: "#f0cc66",
-	RESOURCE_ID_HEROES: "#d8778f",
-	RESOURCE_ID_GEMS: "#73b5ff",
-	RESOURCE_ID_CRYSTALS: "#7dd7ff",
-}
-
-const WORK_STAT_COLORS := {
-	"farming": "#93be73",
-	"mining": "#8db0d8",
-	"lumbering": "#b38b5e",
 }
 
 @onready var _resources_row: HBoxContainer = get_node("Shell/TopBar/TopBarMargin/ResourcesRow")
@@ -173,7 +162,7 @@ func _apply_theme() -> void:
 		_bottom_bar,
 	]
 	for chrome in chrome_nodes:
-		_style_panel(chrome, Color("211a1c"), Color("7a5e4b"), 10)
+		UIScreenHelpers.style_panel(chrome, Color("211a1c"), Color("7a5e4b"), 10)
 	var bottom_buttons: Array = [
 		_world_button,
 		_overview_button,
@@ -185,9 +174,10 @@ func _apply_theme() -> void:
 		_back_button,
 	]
 	for button in bottom_buttons:
-		_style_button(button)
-	_style_label(_settlement_title, 24, true)
-	_style_label(_page_title, 24, true)
+		UIScreenHelpers.style_button(button)
+		button.add_theme_font_size_override("font_size", 23)
+	UIScreenHelpers.style_label(_settlement_title, 24, true)
+	UIScreenHelpers.style_label(_page_title, 24, true)
 	_settlement_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	_page_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 
@@ -206,9 +196,12 @@ func _apply_responsive_layout() -> void:
 	_top_bar.custom_minimum_size = Vector2(0, 78) if compact_width else (Vector2(0, 92) if wide_width else Vector2(0, 82))
 	_bottom_bar.custom_minimum_size = Vector2(0, 70) if compact_width else (Vector2(0, 84) if wide_width else Vector2(0, 74))
 	_nav_row.add_theme_constant_override("separation", 10 if compact_width else (14 if wide_width else 12))
+	var nav_button_height := 48 if compact_width else (60 if wide_width else 52)
+	for button in [_world_button, _overview_button, _recruit_button, _heroes_button, _inventory_button, _debug_button, _saves_button, _back_button]:
+		button.custom_minimum_size.y = nav_button_height
 	var title_font_size := 26 if compact_width else (32 if wide_width else 28)
-	_style_label(_settlement_title, title_font_size, true)
-	_style_label(_page_title, title_font_size, true)
+	UIScreenHelpers.style_label(_settlement_title, title_font_size, true)
+	UIScreenHelpers.style_label(_page_title, title_font_size, true)
 	if _main_menu_panel != null and is_instance_valid(_main_menu_panel):
 		_main_menu_panel.custom_minimum_size = Vector2(clampf(width * 0.94, 420.0, 920.0), clampf(height * 0.88, 520.0, 980.0))
 	if _main_menu_confirmation_overlay != null and is_instance_valid(_main_menu_confirmation_overlay):
@@ -273,21 +266,21 @@ func _setup_zone_reward_toast() -> void:
 	toast.offset_top = 0.0
 	toast.offset_right = 230.0
 	toast.offset_bottom = 120.0
-	_style_panel(toast, Color("1b1718", 0.96), Color("8f6e54"), 12)
+	UIScreenHelpers.style_panel(toast, Color("1b1718", 0.96), Color("8f6e54"), 12)
 	add_child(toast)
 	var body := VBoxContainer.new()
 	body.add_theme_constant_override("separation", 6)
 	toast.add_child(body)
-	_zone_reward_toast_title = _make_label("", 18)
+	_zone_reward_toast_title = UIScreenHelpers.make_label("", 18)
 	body.add_child(_zone_reward_toast_title)
-	_zone_reward_toast_body = _make_label("", 14)
+	_zone_reward_toast_body = UIScreenHelpers.make_label("", 14)
 	_zone_reward_toast_body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	body.add_child(_zone_reward_toast_body)
 	_zone_reward_toast = toast
 
 
 func _build_resource_bar() -> void:
-	_clear_container(_resources_row)
+	UIScreenHelpers.clear_container(_resources_row)
 	_resource_badges.clear()
 	for resource_id in SettlementGameData.RESOURCE_ORDER:
 		var badge: PanelContainer = ResourceBadgeScene.instantiate()
@@ -299,7 +292,7 @@ func _build_resource_bar() -> void:
 
 
 func _build_grid() -> void:
-	_clear_container(_grid_container)
+	UIScreenHelpers.clear_container(_grid_container)
 	_slot_widgets.clear()
 	for slot_index in GameManager.get_settlement_plot_count(GameManager.active_settlement_id):
 		var slot_button: Button = SettlementSlotScene.instantiate()
@@ -309,20 +302,12 @@ func _build_grid() -> void:
 		_slot_widgets.append(slot_button)
 
 
-func _set_detail_mode(mode: String) -> void:
+func _request_navigation_mode(mode: String) -> void:
 	_apply_navigation_change(_navigation.request_mode(mode, _selected_slot))
 
 
-func _on_back_pressed() -> void:
-	_return_to_main_menu()
-
-
-func _request_navigation_mode(mode: String) -> void:
-	_set_detail_mode(mode)
-
-
 func _request_navigation_back() -> void:
-	_on_back_pressed()
+	_show_main_menu()
 
 
 func _apply_navigation_change(change: Dictionary) -> void:
@@ -341,7 +326,10 @@ func _apply_navigation_change(change: Dictionary) -> void:
 	if bool(change.get("refresh_grid", false)):
 		_refresh_grid()
 	if bool(change.get("refresh_content", true)):
-		_refresh_active_content()
+		if _is_full_page_mode():
+			_refresh_page_content()
+		else:
+			_refresh_detail_panel()
 
 
 func _on_slot_selected(slot_index: int) -> void:
@@ -361,9 +349,9 @@ func _on_settlement_changed() -> void:
 	_refresh_grid()
 	if _is_full_page_mode():
 		if _detail_mode == MODE_OVERVIEW:
-			_refresh_active_page_screen()
+			_refresh_scene_backed_page_screen()
 	else:
-		_refresh_active_content()
+		_refresh_detail_panel()
 
 
 func _on_active_settlement_changed(_settlement_id: String) -> void:
@@ -372,9 +360,9 @@ func _on_active_settlement_changed(_settlement_id: String) -> void:
 	_refresh_resource_yields()
 	if _is_full_page_mode():
 		if _detail_mode == MODE_OVERVIEW:
-			_refresh_active_page_screen()
+			_refresh_scene_backed_page_screen()
 	else:
-		_refresh_active_content()
+		_refresh_detail_panel()
 
 
 func _on_world_changed() -> void:
@@ -382,7 +370,7 @@ func _on_world_changed() -> void:
 	if _detail_mode == MODE_WORLD:
 		return
 	if _detail_mode == MODE_OVERVIEW:
-		_refresh_active_page_screen()
+		_refresh_scene_backed_page_screen()
 
 
 func _on_heroes_changed() -> void:
@@ -394,23 +382,29 @@ func _on_heroes_changed() -> void:
 		return
 	if _is_full_page_mode():
 		if _detail_mode in [MODE_HEROES, MODE_HERO_DETAIL, MODE_OVERVIEW]:
-			_refresh_active_page_screen()
+			_refresh_scene_backed_page_screen()
 	else:
-		_refresh_active_content()
+		_refresh_detail_panel()
 
 
 func _on_inventory_changed() -> void:
 	_inventory_snapshot = GameManager.get_inventory_snapshot()
 	if _detail_mode == MODE_INVENTORY or _detail_mode == MODE_HERO_DETAIL:
-		if not _refresh_active_page_screen():
-			_refresh_active_content()
+		if not _refresh_scene_backed_page_screen():
+			if _is_full_page_mode():
+				_refresh_page_content()
+			else:
+				_refresh_detail_panel()
 
 
 func _on_recruit_market_changed() -> void:
 	_recruit_market_snapshot = GameManager.get_recruit_market_snapshot()
 	_refresh_recruit_nav_visibility()
 	if _detail_mode == MODE_RECRUIT:
-		_refresh_active_content()
+		if _is_full_page_mode():
+			_refresh_page_content()
+		else:
+			_refresh_detail_panel()
 
 
 func _refresh_resource_yields() -> void:
@@ -439,7 +433,7 @@ func _on_selection_changed(slot_index: int) -> void:
 	_apply_mode_layout()
 	_refresh_grid()
 	if not _is_full_page_mode():
-		_refresh_active_content()
+		_refresh_detail_panel()
 
 
 
@@ -466,8 +460,11 @@ func _enter_game_session() -> void:
 	_refresh_settlement_title()
 	_refresh_grid()
 	_refresh_recruit_nav_visibility()
-	_refresh_active_content()
-	_sync_top_bar_yields_after_state_load()
+	if _is_full_page_mode():
+		_refresh_page_content()
+	else:
+		_refresh_detail_panel()
+	_refresh_resource_yields.call_deferred()
 	var world_screen := _scene_backed_page_screens.get(MODE_WORLD, null) as Control
 	if world_screen != null and is_instance_valid(world_screen) and world_screen.has_method("center_on_origin"):
 		world_screen.center_on_origin()
@@ -483,7 +480,7 @@ func _on_zone_reward_notification_added(reward_notification: Dictionary) -> void
 		return
 	_zone_reward_toast_title.text = String(reward_notification.get("title", "Zone Cleared"))
 	var lines: Array[String] = []
-	for line in _as_array(reward_notification.get("lines", [])):
+	for line in UIScreenHelpers.as_array(reward_notification.get("lines", [])):
 		lines.append(String(line))
 	_zone_reward_toast_body.text = "\n".join(lines)
 	if _zone_reward_toast_tween != null and is_instance_valid(_zone_reward_toast_tween):
@@ -498,14 +495,6 @@ func _on_zone_reward_notification_added(reward_notification: Dictionary) -> void
 		if _zone_reward_toast != null and is_instance_valid(_zone_reward_toast):
 			_zone_reward_toast.visible = false
 	)
-
-
-func _sync_top_bar_yields_after_state_load() -> void:
-	_refresh_resource_yields.call_deferred()
-
-
-func _return_to_main_menu() -> void:
-	_show_main_menu()
 
 
 func _setup_main_menu_overlay() -> void:
@@ -528,7 +517,7 @@ func _setup_main_menu_overlay() -> void:
 	center.offset_right = 0.0
 	center.offset_bottom = 0.0
 	_main_menu_overlay.add_child(center)
-	_main_menu_panel = _make_panel()
+	_main_menu_panel = UIScreenHelpers.make_panel()
 	_main_menu_panel.custom_minimum_size = Vector2(620, 0)
 	center.add_child(_main_menu_panel)
 	var body := VBoxContainer.new()
@@ -536,7 +525,7 @@ func _setup_main_menu_overlay() -> void:
 	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	body.add_theme_constant_override("separation", 14)
 	_main_menu_panel.add_child(body)
-	_main_menu_title = _make_label("Main Menu", 28)
+	_main_menu_title = UIScreenHelpers.make_label("Main Menu", 28)
 	_main_menu_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	body.add_child(_main_menu_title)
 	var scroll := ScrollContainer.new()
@@ -572,21 +561,21 @@ func _setup_main_menu_confirmation_overlay() -> void:
 	center.offset_right = 0.0
 	center.offset_bottom = 0.0
 	_main_menu_confirmation_overlay.add_child(center)
-	var panel := _make_panel()
+	var panel := UIScreenHelpers.make_panel()
 	panel.custom_minimum_size = Vector2(400, 0)
 	center.add_child(panel)
 	var body := VBoxContainer.new()
 	body.add_theme_constant_override("separation", 12)
 	panel.add_child(body)
-	_main_menu_confirmation_message = _make_label("", 16)
+	_main_menu_confirmation_message = UIScreenHelpers.make_label("", 16)
 	_main_menu_confirmation_message.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	body.add_child(_main_menu_confirmation_message)
 	var action_row := HBoxContainer.new()
 	action_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	action_row.add_theme_constant_override("separation", 10)
 	body.add_child(action_row)
-	action_row.add_child(_make_small_action_button("Back", Callable(self, "_hide_main_menu_confirmation")))
-	_main_menu_confirmation_confirm_button = _make_small_action_button("Confirm", Callable(self, "_confirm_main_menu_action"))
+	action_row.add_child(UIScreenHelpers.make_small_action_button("Back", Callable(self, "_hide_main_menu_confirmation")))
+	_main_menu_confirmation_confirm_button = UIScreenHelpers.make_small_action_button("Confirm", Callable(self, "_confirm_main_menu_action"))
 	action_row.add_child(_main_menu_confirmation_confirm_button)
 
 
@@ -607,124 +596,23 @@ func _hide_main_menu() -> void:
 
 
 func _refresh_main_menu() -> void:
-	_clear_container(_main_menu_content)
-	match _main_menu_mode:
-		MAIN_MENU_SAVES:
-			_main_menu_title.text = "Load Save"
-			_build_main_menu_saves()
-		MAIN_MENU_MODS:
-			_main_menu_title.text = "Mods"
-			_build_main_menu_mods_root()
-		MAIN_MENU_MODS_CATEGORY:
-			_main_menu_title.text = "%s Mods" % _main_menu_mod_category.capitalize()
-			_build_main_menu_mods_category(_main_menu_mod_category)
-		_:
-			_main_menu_title.text = "Main Menu"
-			_build_main_menu_root()
-
-
-func _build_main_menu_root() -> void:
-	var last_played_slot := GameManager.get_last_played_save_slot()
-	_add_main_menu_centered_control(_make_main_menu_choice_button("New Game", Callable(self, "_start_new_game_from_menu"), false))
-	_add_main_menu_centered_control(_make_main_menu_choice_button("Continue", Callable(self, "_continue_from_main_menu"), last_played_slot <= 0))
-	_add_main_menu_centered_control(_make_main_menu_choice_button("Load Save", Callable(self, "_open_main_menu_saves"), false))
-	_add_main_menu_centered_control(_make_main_menu_choice_button("Mods", Callable(self, "_open_main_menu_mods"), false))
-	_add_main_menu_centered_control(_make_main_menu_choice_button("Exit", Callable(self, "_exit_from_main_menu"), false))
-
-
-func _build_main_menu_saves() -> void:
-	var save_entries: Array = []
-	for slot_data in GameManager.get_save_slot_metadata():
-		var entry := _as_dictionary(slot_data)
-		if not bool(entry.get("exists", false)):
-			continue
-		save_entries.append(GameManager.get_save_slot_summary(int(entry.get("slot", 0))))
-	if save_entries.is_empty():
-		_add_main_menu_centered_label("No saves found.", 16)
-	else:
-		for save_entry in save_entries:
-			_add_main_menu_centered_control(_build_main_menu_save_card(save_entry))
-	_add_main_menu_centered_control(_make_small_action_button("Back", Callable(self, "_back_to_main_menu_root")))
-
-
-func _build_main_menu_save_card(save_entry: Dictionary) -> PanelContainer:
-	var panel := _make_panel()
-	panel.custom_minimum_size = Vector2(_responsive_main_menu_card_width(), 0)
-	var body := VBoxContainer.new()
-	body.add_theme_constant_override("separation", 8)
-	panel.add_child(body)
-	var title := _make_label(String(save_entry.get("name", "Unnamed Save")), 18)
-	body.add_child(title)
-	if bool(save_entry.get("last_played", false)):
-		var last_played_timestamp := String(save_entry.get("last_played_timestamp", "")).strip_edges()
-		body.add_child(_make_label("Last Played%s" % (" %s" % last_played_timestamp if not last_played_timestamp.is_empty() else ""), 14))
-	body.add_child(_make_label("Ticks %d  |  Heroes %d  |  Settlements %d" % [int(save_entry.get("tick_count", 0)), int(save_entry.get("hero_count", 0)), int(save_entry.get("claimed_area_count", 0))], 14))
-	var action_row := HBoxContainer.new()
-	action_row.add_theme_constant_override("separation", 10)
-	body.add_child(action_row)
-	action_row.add_child(_make_small_action_button("Load", Callable(self, "_prompt_main_menu_load_save").bind(int(save_entry.get("slot", 0)))))
-	action_row.add_child(_make_danger_button("Delete", Callable(self, "_prompt_main_menu_delete_save").bind(int(save_entry.get("slot", 0)))))
-	return panel
-
-
-func _build_main_menu_mods_root() -> void:
-	_add_main_menu_centered_control(_make_main_menu_choice_button("Heroes", Callable(self, "_open_main_menu_mod_category").bind("heroes"), false))
-	_add_main_menu_centered_control(_make_main_menu_choice_button("Items", Callable(self, "_open_main_menu_mod_category").bind("items"), false))
-	_add_main_menu_centered_control(_make_main_menu_choice_button("Equipment", Callable(self, "_open_main_menu_mod_category").bind("equipment"), false))
-	_add_main_menu_centered_control(_make_small_action_button("Back", Callable(self, "_back_to_main_menu_root")))
-
-
-func _build_main_menu_mods_category(category: String) -> void:
-	var mod_summaries := DataLoader.get_mod_category_summaries(category)
-	if mod_summaries.is_empty():
-		_add_main_menu_centered_label("No %s mods found." % category, 16)
-	else:
-		for mod_summary in mod_summaries:
-			_add_main_menu_centered_control(_build_main_menu_mod_card(_as_dictionary(mod_summary)))
-	_add_main_menu_centered_control(_make_small_action_button("Back", Callable(self, "_open_main_menu_mods")))
-
-
-func _build_main_menu_mod_card(mod_summary: Dictionary) -> PanelContainer:
-	var panel := _make_panel()
-	panel.custom_minimum_size = Vector2(_responsive_main_menu_card_width(), 0)
-	var body := VBoxContainer.new()
-	body.add_theme_constant_override("separation", 8)
-	panel.add_child(body)
-	body.add_child(_make_label(String(mod_summary.get("id", "Unknown Mod")), 18))
-	body.add_child(_make_label("Loaded entries: %d" % int(mod_summary.get("loaded_count", 0)), 14))
-	body.add_child(_make_label("Includes: %s" % _format_main_menu_list(_as_array(mod_summary.get("includes", []))), 14))
-	body.add_child(_make_label("Missing: %s" % _format_main_menu_list(_as_array(mod_summary.get("missing", []))), 14))
-	return panel
-
-
-func _add_main_menu_centered_control(control: Control) -> void:
-	var row := HBoxContainer.new()
-	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	row.alignment = BoxContainer.ALIGNMENT_CENTER
-	row.add_child(control)
-	_main_menu_content.add_child(row)
-
-
-func _make_main_menu_choice_button(text: String, callback: Callable, disabled: bool) -> Button:
-	var button := _make_button(text, callback, disabled)
-	button.custom_minimum_size = Vector2(_responsive_main_menu_button_width(), 84)
-	button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	button.add_theme_font_size_override("font_size", 24)
-	return button
-
-
-func _responsive_main_menu_card_width() -> float:
-	return clampf(get_viewport_rect().size.x * 0.92, 360.0, 700.0)
-
-
-func _responsive_main_menu_button_width() -> float:
-	return clampf(get_viewport_rect().size.x * 0.82, 320.0, 500.0)
-
-
-func _add_main_menu_centered_label(text: String, font_size: int) -> void:
-	var label := _make_label(text, font_size)
-	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_add_main_menu_centered_control(label)
+	_main_menu_title.text = MainScreenViewBuilders.build_main_menu(
+		_main_menu_content,
+		get_viewport_rect().size.x,
+		_main_menu_mode,
+		_main_menu_mod_category,
+		{
+			"start_new_game": Callable(self, "_start_new_game_from_menu"),
+			"continue_game": Callable(self, "_continue_from_main_menu"),
+			"open_saves": Callable(self, "_open_main_menu_saves"),
+			"open_mods": Callable(self, "_open_main_menu_mods"),
+			"open_mod_category": Callable(self, "_open_main_menu_mod_category"),
+			"back_to_root": Callable(self, "_back_to_main_menu_root"),
+			"exit_game": Callable(self, "_exit_from_main_menu"),
+			"prompt_load_save": Callable(self, "_prompt_main_menu_load_save"),
+			"prompt_delete_save": Callable(self, "_prompt_main_menu_delete_save"),
+		}
+	)
 
 
 func _start_new_game_from_menu() -> void:
@@ -797,17 +685,6 @@ func _confirm_main_menu_action() -> void:
 	_hide_main_menu_confirmation()
 
 
-func _format_main_menu_list(values: Array) -> String:
-	if values.is_empty():
-		return "none"
-	var text_values: Array[String] = []
-	for value in values:
-		text_values.append(String(value))
-	return ", ".join(text_values)
-
-
-
-
 func _refresh_recruit_nav_visibility() -> void:
 	var unlocked := bool(_recruit_market_snapshot.get("unlocked", false))
 	_recruit_button.visible = unlocked
@@ -829,7 +706,7 @@ func _refresh_grid() -> void:
 
 
 func _refresh_detail_panel() -> void:
-	_clear_container(_detail_content)
+	UIScreenHelpers.clear_container(_detail_content)
 	match _detail_mode:
 		MainScreenNavigation.MODE_SETTLEMENT:
 			_build_settlement_detail_panel()
@@ -837,28 +714,24 @@ func _refresh_detail_panel() -> void:
 			pass
 
 
-func _refresh_active_content() -> void:
-	if _is_full_page_mode():
-		_refresh_page_content()
-	else:
-		_refresh_detail_panel()
-
-
-func _refresh_active_page_screen() -> bool:
-	return _refresh_scene_backed_page_screen()
-
-
 func _refresh_page_content() -> void:
 	if _mount_scene_backed_page_screen():
 		return
-	_hide_scene_backed_page_screens()
-	_clear_transient_page_content()
+	MainScreenPageCoordinator.hide_scene_backed_page_screens(_scene_backed_page_screens)
+	MainScreenPageCoordinator.clear_transient_page_content(_page_content, _scene_backed_page_screens)
 	_active_page_screen = null
 	match _detail_mode:
 		MODE_RECRUIT:
-			_build_recruit_page()
+			MainScreenViewBuilders.build_recruit_page(_page_content, _recruit_market_snapshot if not _recruit_market_snapshot.is_empty() else GameManager.get_recruit_market_snapshot(), {
+				"refresh_recruit_market": Callable(GameManager, "refresh_recruit_offers"),
+				"recruit_offer": Callable(GameManager, "recruit_hero_from_offer"),
+			})
 		MODE_DEBUG:
-			_build_debug_page()
+			MainScreenViewBuilders.build_debug_page(_page_content, {
+				"debug_grant_resources": Callable(GameManager, "debug_grant_all_resources"),
+				"debug_recruit_hero": Callable(GameManager, "debug_recruit_random_hero"),
+				"debug_grant_hero_experience": Callable(GameManager, "debug_grant_all_hero_experience"),
+			})
 
 
 func _apply_mode_layout() -> void:
@@ -881,40 +754,20 @@ func _is_full_page_mode() -> bool:
 	return _navigation.is_full_page_mode(_detail_mode)
 
 
-func _is_scene_backed_page_mode(mode: String) -> bool:
-	match mode:
-		MODE_OVERVIEW, MODE_WORLD, MODE_HEROES, MODE_INVENTORY, MODE_SAVES, MODE_HERO_DETAIL:
-			return true
-		_:
-			return false
-
-
 func _mount_scene_backed_page_screen() -> bool:
-	if not _is_scene_backed_page_mode(_detail_mode):
+	var result := MainScreenPageCoordinator.mount_scene_backed_page_screen(
+		_page_content,
+		_scene_backed_page_screens,
+		_detail_mode,
+		SCENE_BACKED_PAGE_MODES,
+		Callable(self, "_instantiate_scene_backed_page_screen"),
+		Callable(self, "_setup_scene_backed_page_screen"),
+		Callable(self, "_set_scene_backed_page_screen_inputs")
+	)
+	if not bool(result.get("mounted", false)):
 		return false
-	_hide_scene_backed_page_screens(_detail_mode)
-	_clear_transient_page_content()
-	var screen := _get_or_create_scene_backed_page_screen(_detail_mode)
-	if screen == null:
-		return false
-	_active_page_screen = screen
-	screen.visible = true
-	_set_scene_backed_page_screen_inputs(screen)
-	screen.refresh()
-	return true
-
-
-func _get_or_create_scene_backed_page_screen(mode: String) -> Control:
-	var cached_screen: Control = _scene_backed_page_screens.get(mode, null) as Control
-	if cached_screen != null and is_instance_valid(cached_screen):
-		return cached_screen
-	var screen := _instantiate_scene_backed_page_screen(mode)
-	if screen == null:
-		return null
-	_scene_backed_page_screens[mode] = screen
-	_page_content.add_child(screen)
-	_setup_scene_backed_page_screen(screen, mode)
-	return screen
+	_active_page_screen = result.get("screen", null) as Control
+	return _active_page_screen != null
 
 
 func _instantiate_scene_backed_page_screen(mode: String) -> Control:
@@ -955,7 +808,7 @@ func _setup_scene_backed_page_screen(screen: Control, mode: String) -> void:
 		MODE_HEROES:
 			screen.hero_selected.connect(_open_hero_detail)
 		MODE_SAVES:
-			screen.save_requested.connect(_save_to_slot)
+			screen.save_requested.connect(Callable(GameManager, "save_game"))
 			screen.save_name_submitted.connect(_on_save_slot_name_submitted)
 			screen.save_name_focus_exited.connect(_on_save_slot_name_focus_exited)
 		MODE_HERO_DETAIL:
@@ -981,284 +834,35 @@ func _set_scene_backed_page_screen_inputs(screen: Control) -> void:
 
 
 func _refresh_scene_backed_page_screen() -> bool:
-	if not _is_scene_backed_page_mode(_detail_mode):
-		return false
-	if _active_page_screen == null or not is_instance_valid(_active_page_screen):
-		return false
-	_set_scene_backed_page_screen_inputs(_active_page_screen)
-	_active_page_screen.refresh()
-	return true
-
-
-func _hide_scene_backed_page_screens(except_mode: String = "") -> void:
-	for mode in _scene_backed_page_screens.keys():
-		var screen: Control = _scene_backed_page_screens.get(mode, null) as Control
-		if screen == null or not is_instance_valid(screen):
-			continue
-		screen.visible = String(mode) == except_mode
-
-
-func _clear_transient_page_content() -> void:
-	for child in _page_content.get_children():
-		if child is Control and _scene_backed_page_screens.values().has(child):
-			continue
-		_page_content.remove_child(child)
-		child.queue_free()
+	return MainScreenPageCoordinator.refresh_scene_backed_page_screen(
+		_active_page_screen,
+		_detail_mode,
+		SCENE_BACKED_PAGE_MODES,
+		Callable(self, "_set_scene_backed_page_screen_inputs")
+	)
 
 
 func _build_settlement_detail_panel() -> void:
-	if _selected_slot == -1:
-		return
-	var slot_data: Dictionary = GameManager.get_slot(_selected_slot)
-	if String(slot_data.get("building_id", "")).is_empty():
-		_build_empty_plot_panel(_selected_slot)
-	else:
-		_build_building_panel(_selected_slot, slot_data)
-
-
-func _build_empty_plot_panel(slot_index: int) -> void:
-	_add_detail_header(_txt("settlement.empty_plot", {"index": slot_index + 1}))
-	_add_text(_txt("settlement.choose_structure"))
-	for building_definition in GameManager.get_building_catalog():
-		var building_data: Dictionary = building_definition
-		var build_cost: Dictionary = SettlementGameData.resource_list_to_dictionary(_as_array(building_data.get("build_cost", [])))
-		var panel: PanelContainer = _make_panel()
-		_detail_content.add_child(panel)
-		var body: VBoxContainer = VBoxContainer.new()
-		body.add_theme_constant_override("separation", 6)
-		panel.add_child(body)
-		body.add_child(_make_label(String(building_data.get("name", "Unknown")), 18))
-		body.add_child(_make_label(String(building_data.get("description", "")), 13))
-		body.add_child(_make_rich_text_label("%s [color=#d7d0c6]%s[/color]" % [_txt("settlement.cost", {"cost": ""}).trim_suffix(" "), _format_resource_bbcode(build_cost, "cost")], 13))
-		var disabled: bool = not GameManager.can_afford(build_cost)
-		var button: Button = _make_button("Build %s" % String(building_data.get("name", "Structure")), Callable(self, "_build_selected_building").bind(slot_index, String(building_data.get("id", ""))), disabled)
-		body.add_child(button)
-
-
-func _build_building_panel(slot_index: int, slot_data: Dictionary) -> void:
-	var building_definition: Dictionary = GameManager.get_slot_building_definition(slot_index)
-	var building_name: String = String(building_definition.get("name", "Unknown Structure"))
-	_add_detail_header(building_name)
-	_add_text(String(building_definition.get("description", "")))
-	_add_text("Level %d  |  Workers %d / %d" % [
-		int(slot_data.get("level", 1)),
-		_as_array(slot_data.get("assigned_hero_ids", [])).size(),
-		int(building_definition.get("worker_slots", 0)),
-	])
-	var production_preview: Dictionary = GameManager.get_slot_production_preview(slot_index)
-	if not production_preview.is_empty():
-		_detail_content.add_child(_make_rich_text_label("[color=#d8d1c6]%s[/color] %s" % [_txt("settlement.production", {"production": ""}).trim_suffix(" "), _format_resource_bbcode(production_preview, "refund")], 15))
-
-	var upgrade_cost: Dictionary = GameManager.get_upgrade_cost(slot_index)
-	var dismantle_refund: Dictionary = GameManager.get_dismantle_refund(slot_index)
-	var max_level: int = int(building_definition.get("max_level", SettlementGameData.MAX_BUILDING_LEVEL))
-	var at_max_level: bool = int(slot_data.get("level", 1)) >= max_level
-	_detail_content.add_child(_make_rich_text_label("[color=#d8d1c6]%s[/color] %s" % [_txt("settlement.upgrade_cost", {"cost": ""}).trim_suffix(" "), _format_resource_bbcode(upgrade_cost, "cost")], 15))
-	_add_button(
-		_txt("settlement.upgrade_button"),
-		Callable(self, "_upgrade_slot").bind(slot_index),
-		at_max_level or not GameManager.can_afford(upgrade_cost)
+	MainScreenSettlementBuilders.build_settlement_detail(
+		_detail_content,
+		_selected_slot,
+		_detail_mode,
+		_heroes_snapshot,
+		{
+			"close_settlement_details": Callable(self, "_close_settlement_details"),
+			"build_selected_building": Callable(self, "_build_selected_building"),
+			"upgrade_slot": Callable(self, "_upgrade_slot"),
+			"dismantle_slot": Callable(self, "_dismantle_slot"),
+			"assign_hero": Callable(self, "_assign_hero"),
+			"unassign_hero": Callable(self, "_unassign_hero"),
+		}
 	)
-	_detail_content.add_child(_make_rich_text_label("[color=#d8d1c6]%s[/color] %s" % [_txt("settlement.dismantle_refund", {"refund": ""}).trim_suffix(" "), _format_resource_bbcode(dismantle_refund, "refund")], 15))
-	_add_button(
-		_txt("settlement.dismantle_button"),
-		Callable(self, "_dismantle_slot").bind(slot_index),
-		false
-	)
-
-	_add_section(_txt("settlement.assigned_heroes"))
-	var assigned_any: bool = false
-	for hero_data in _heroes_snapshot:
-		var hero: Dictionary = hero_data
-		if int(hero.get("assigned_slot", -1)) == slot_index and String(hero.get("assigned_settlement_id", "")) == GameManager.active_settlement_id:
-			assigned_any = true
-			_add_hero_entry(hero, true)
-	if not assigned_any:
-		_add_text(_txt("settlement.no_assigned_heroes"))
-
-	_add_section(_txt("settlement.available_heroes"))
-	var available_heroes: Array = GameManager.get_available_heroes_for_slot(slot_index)
-	if available_heroes.is_empty():
-		_add_text(_txt("settlement.no_available_heroes"))
-	else:
-		for hero_data in available_heroes:
-			var hero: Dictionary = hero_data
-			if not (int(hero.get("assigned_slot", -1)) == slot_index and String(hero.get("assigned_settlement_id", "")) == GameManager.active_settlement_id):
-				_add_hero_entry(hero, false)
-
-
-func _build_recruit_page() -> void:
-	var market_state := _recruit_market_snapshot if not _recruit_market_snapshot.is_empty() else GameManager.get_recruit_market_snapshot()
-	if not bool(market_state.get("unlocked", false)):
-		_page_content.add_child(_make_label("Build a Veil Tavern in any owned settlement to unlock the Recruit market.", 17))
-		return
-	var summary_panel := _make_panel()
-	summary_panel.custom_minimum_size = Vector2(0, 92)
-	_page_content.add_child(summary_panel)
-	var summary_body := HBoxContainer.new()
-	summary_body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	summary_body.add_theme_constant_override("separation", 18)
-	summary_panel.add_child(summary_body)
-	var left_summary := VBoxContainer.new()
-	left_summary.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	left_summary.add_theme_constant_override("separation", 4)
-	summary_body.add_child(left_summary)
-	var summary_label := _make_label(_txt("recruit.available_heroes", {"count": int(market_state.get("offer_capacity", 0))}, "Available Heroes: %d" % int(market_state.get("offer_capacity", 0))), 19)
-	summary_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	left_summary.add_child(summary_label)
-	var refresh_cost := _make_rich_text_label("[color=#d8d1c6]%s[/color] %s" % [_txt("recruit.refresh_cost", {"cost": ""}, "Refresh Cost:").trim_suffix(" "), _format_resource_bbcode(_as_dictionary(market_state.get("refresh_cost", {})), "cost")], 13)
-	refresh_cost.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	left_summary.add_child(refresh_cost)
-	var action_column := VBoxContainer.new()
-	action_column.size_flags_horizontal = Control.SIZE_SHRINK_END
-	action_column.alignment = BoxContainer.ALIGNMENT_CENTER
-	action_column.add_theme_constant_override("separation", 4)
-	summary_body.add_child(action_column)
-	var refresh_button := _make_small_action_button(_txt("recruit.refresh_heroes", {}, "Refresh Heroes"), Callable(self, "_refresh_recruit_market"))
-	refresh_button.custom_minimum_size = Vector2(160, 0)
-	refresh_button.disabled = not GameManager.can_afford(_as_dictionary(market_state.get("refresh_cost", {})))
-	action_column.add_child(refresh_button)
-	var tavern_label := _make_label(_txt("recruit.taverns_owned", {"count": int(market_state.get("tavern_count", 0))}, "Taverns Owned: %d" % int(market_state.get("tavern_count", 0))), 13)
-	tavern_label.autowrap_mode = TextServer.AUTOWRAP_OFF
-	tavern_label.custom_minimum_size = Vector2(160, 0)
-	tavern_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	tavern_label.size_flags_horizontal = Control.SIZE_FILL
-	tavern_label.add_theme_color_override("font_color", Color("cbbba9"))
-	action_column.add_child(tavern_label)
-	var offers := _as_array(market_state.get("offers", []))
-	if offers.is_empty():
-		_page_content.add_child(_make_label("No heroes are currently waiting. Refresh the market to draw a new slate.", 17))
-		return
-	var grid := GridContainer.new()
-	grid.columns = 2
-	grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	grid.add_theme_constant_override("h_separation", 14)
-	grid.add_theme_constant_override("v_separation", 14)
-	_page_content.add_child(grid)
-	for offer_entry in offers:
-		var offer_data := _as_dictionary(offer_entry)
-		grid.add_child(_make_recruit_offer_card(offer_data, _as_dictionary(offer_data.get("recruit_cost", {}))))
-
-
-func _make_recruit_offer_card(offer_data: Dictionary, recruit_cost: Dictionary) -> PanelContainer:
-	var panel := PanelContainer.new()
-	panel.custom_minimum_size = Vector2(0, 236)
-	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_style_panel(panel, Color("151214"), Color("78614e"), 10)
-	var body := VBoxContainer.new()
-	body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	body.add_theme_constant_override("separation", 8)
-	panel.add_child(body)
-
-	var header_row := HBoxContainer.new()
-	header_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	header_row.add_theme_constant_override("separation", 12)
-	body.add_child(header_row)
-
-	var portrait_holder := PanelContainer.new()
-	portrait_holder.custom_minimum_size = Vector2(92, 92)
-	portrait_holder.add_theme_stylebox_override("panel", _button_style(Color("100d0e"), Color("4f3f36"), 8))
-	header_row.add_child(portrait_holder)
-	var portrait := TextureRect.new()
-	portrait.set_anchors_preset(Control.PRESET_FULL_RECT)
-	portrait.offset_left = 6.0
-	portrait.offset_top = 6.0
-	portrait.offset_right = -6.0
-	portrait.offset_bottom = -6.0
-	portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	portrait.texture = _load_hero_texture(offer_data)
-	portrait_holder.add_child(portrait)
-
-	var header_text := VBoxContainer.new()
-	header_text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	header_text.add_theme_constant_override("separation", 4)
-	header_row.add_child(header_text)
-	var hero_name := _make_label(String(offer_data.get("name", "Unknown Hero")), 18)
-	hero_name.autowrap_mode = TextServer.AUTOWRAP_OFF
-	header_text.add_child(hero_name)
-	var hero_meta := _make_label("Lv.%d  |  %s" % [int(offer_data.get("level", 1)), String(offer_data.get("class", "Hero"))], 14)
-	hero_meta.add_theme_color_override("font_color", Color("cbbba9"))
-	header_text.add_child(hero_meta)
-
-	var stats := _as_dictionary(offer_data.get("stats", {}))
-	var work_stats := _as_dictionary(offer_data.get("work_stats", {}))
-	body.add_child(_make_rich_text_label(_format_recruit_combat_stats_bbcode(stats), 13))
-	body.add_child(_make_rich_text_label(_format_work_stats_bbcode(work_stats), 13))
-	var cost_label := _make_rich_text_label("[color=#d8d1c6]Recruit Cost:[/color] %s" % _format_resource_bbcode(recruit_cost, "cost"), 13)
-	body.add_child(cost_label)
-	var recruit_button := _make_button("Recruit Hero", Callable(self, "_recruit_offer").bind(int(offer_data.get("offer_id", -1))), not GameManager.can_afford(recruit_cost))
-	body.add_child(recruit_button)
-	return panel
 
 
 func _open_settlement(settlement_id: String) -> void:
 	if not GameManager.set_active_settlement(settlement_id):
 		return
 	_apply_navigation_change(_navigation.request_open_settlement())
-
-
-func _build_inventory_entries(items: Array, equipment: Array) -> Array:
-	return UIScreenHelpers.build_inventory_entries(items, equipment)
-
-
-func _make_inventory_slot(entry: Dictionary) -> PanelContainer:
-	return UIScreenHelpers.make_inventory_slot(entry)
-
-
-func _inventory_equipment_footer(entry: Dictionary, definition: Dictionary) -> String:
-	if int(entry.get("equipped_hero_uid", -1)) > 0:
-		return "Equipped"
-	return UIScreenHelpers.equipment_slot_label(String(definition.get("slot", "")))
-
-
-func _build_debug_page() -> void:
-	_page_content.add_child(_make_label("Use these tools to accelerate testing and UI verification.", 16))
-	var resources_panel: PanelContainer = _make_panel()
-	_page_content.add_child(resources_panel)
-	var resources_body := VBoxContainer.new()
-	resources_panel.add_child(resources_body)
-	resources_body.add_child(_make_label("Resource Injection", 20))
-	resources_body.add_child(_make_label("Adds 100000 of every tracked resource immediately.", 16))
-	resources_body.add_child(_make_button("Grant 100000 All Resources", Callable(self, "_debug_grant_resources"), false))
-
-	var heroes_panel: PanelContainer = _make_panel()
-	_page_content.add_child(heroes_panel)
-	var heroes_body := VBoxContainer.new()
-	heroes_panel.add_child(heroes_body)
-	heroes_body.add_child(_make_label("Hero Recruitment", 20))
-	heroes_body.add_child(_make_label("Generates and recruits a random hero without Tavern or cost requirements.", 16))
-	heroes_body.add_child(_make_button("Recruit Random Hero", Callable(self, "_debug_recruit_hero"), false))
-	heroes_body.add_child(_make_label("Adds 100 experience to every recruited hero.", 16))
-	heroes_body.add_child(_make_button("Grant 100 XP All Heroes", Callable(self, "_debug_grant_hero_experience"), false))
-
-
-func _add_hero_entry(hero: Dictionary, assigned: bool) -> void:
-	var panel: PanelContainer = _make_panel()
-	_detail_content.add_child(panel)
-	var body: VBoxContainer = VBoxContainer.new()
-	body.add_theme_constant_override("separation", 6)
-	panel.add_child(body)
-	var assigned_slot: int = int(hero.get("assigned_slot", -1))
-	var assigned_settlement_id: String = String(hero.get("assigned_settlement_id", "")).strip_edges()
-	var work_stats: Dictionary = GameManager.get_hero_effective_work_stats(int(hero.get("uid", -1)))
-	if work_stats.is_empty():
-		work_stats = _as_dictionary(hero.get("work_stats", {}))
-	body.add_child(_make_label(String(hero.get("name", "Unknown Hero")), 17))
-	body.add_child(_make_rich_text_label(_format_work_stats_bbcode(work_stats), 13))
-	if not assigned and assigned_slot >= 0 and not assigned_settlement_id.is_empty():
-		var current_building: Dictionary = GameManager.get_settlement_building_definition(assigned_settlement_id, assigned_slot)
-		var assignment_name := String(current_building.get("name", "another site"))
-		if assigned_settlement_id != GameManager.active_settlement_id:
-			assignment_name = "%s (%s)" % [assignment_name, String(GameManager.get_settlement_display_name(assigned_settlement_id))]
-		body.add_child(_make_label(_txt("settlement.current_assignment", {"building": assignment_name}), 13))
-	if _detail_mode == "settlement" and _selected_slot >= 0:
-		if assigned:
-			body.add_child(_make_small_action_button(_txt("hero.unassign"), Callable(self, "_unassign_hero").bind(int(hero.get("uid", -1)))))
-		else:
-			var button_text := _txt("hero.move_here") if assigned_slot >= 0 and not assigned_settlement_id.is_empty() else _txt("hero.assign")
-			body.add_child(_make_small_action_button(button_text, Callable(self, "_assign_hero").bind(int(hero.get("uid", -1)), _selected_slot)))
-
 
 func _build_selected_building(slot_index: int, building_id: String) -> void:
 	GameManager.build_on_slot(slot_index, building_id)
@@ -1293,10 +897,6 @@ func _on_save_slot_name_focus_exited(slot_index: int, line_edit: LineEdit) -> vo
 	GameManager.call_deferred("set_save_slot_name", slot_index, line_edit.text)
 
 
-func _reset_save_slot(slot_index: int) -> void:
-	GameManager.reset_save_slot(slot_index)
-
-
 func _refresh_saves_page_state(slots: Array) -> void:
 	if _active_page_screen == null or not is_instance_valid(_active_page_screen):
 		return
@@ -1304,27 +904,6 @@ func _refresh_saves_page_state(slots: Array) -> void:
 		return
 	_active_page_screen.set_slots(slots)
 	_active_page_screen.refresh()
-
-
-func _refresh_recruit_market() -> void:
-	GameManager.refresh_recruit_offers()
-
-
-func _recruit_offer(offer_id: int) -> void:
-	GameManager.recruit_hero_from_offer(offer_id)
-
-
-func _debug_grant_resources() -> void:
-	GameManager.debug_grant_all_resources()
-
-
-func _debug_recruit_hero() -> void:
-	GameManager.debug_recruit_random_hero()
-
-
-func _debug_grant_hero_experience() -> void:
-	GameManager.debug_grant_all_hero_experience()
-
 
 func _open_hero_detail(hero_uid: int) -> void:
 	_selected_hero_uid = hero_uid
@@ -1334,11 +913,6 @@ func _open_hero_detail(hero_uid: int) -> void:
 func _back_to_heroes() -> void:
 	_selected_hero_uid = -1
 	_apply_navigation_change(_navigation.request_heroes())
-
-
-func _load_hero_texture(hero_data: Dictionary) -> Texture2D:
-	return UIScreenHelpers.load_hero_texture(hero_data)
-
 
 func _refresh_settlement_title() -> void:
 	var settlement_name := GameManager.get_active_settlement_name()
@@ -1350,7 +924,7 @@ func _refresh_settlement_title() -> void:
 func _build_overview_settlement_snapshot() -> Array:
 	var entries: Array = []
 	for settlement_definition in GameManager.get_owned_settlement_definitions():
-		var entry := _as_dictionary(settlement_definition)
+		var entry := UIScreenHelpers.as_dictionary(settlement_definition)
 		var settlement_id := String(entry.get("id", ""))
 		entries.append({
 			"settlement_id": settlement_id,
@@ -1361,278 +935,11 @@ func _build_overview_settlement_snapshot() -> Array:
 			"is_active": settlement_id == GameManager.active_settlement_id,
 		})
 	return entries
-
-
-func _make_bonus_section(title: String, values: Dictionary, accent_color: Color) -> PanelContainer:
-	var panel := PanelContainer.new()
-	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var stylebox := StyleBoxFlat.new()
-	stylebox.bg_color = Color("120f10")
-	stylebox.border_color = accent_color.darkened(0.2)
-	stylebox.set_border_width_all(1)
-	stylebox.set_corner_radius_all(8)
-	stylebox.content_margin_left = 10
-	stylebox.content_margin_top = 8
-	stylebox.content_margin_right = 10
-	stylebox.content_margin_bottom = 8
-	panel.add_theme_stylebox_override("panel", stylebox)
-	var body := VBoxContainer.new()
-	body.add_theme_constant_override("separation", 6)
-	panel.add_child(body)
-	var header := _make_label(title, 15)
-	header.add_theme_color_override("font_color", accent_color)
-	body.add_child(header)
-	if values.is_empty():
-		var empty := _make_label("none", 14)
-		empty.add_theme_color_override("font_color", Color("b9afa4"))
-		body.add_child(empty)
-		return panel
-	for key in values.keys():
-		var row := HBoxContainer.new()
-		row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		body.add_child(row)
-		var stat_label := _make_label(String(key).capitalize().replace("_", " "), 14)
-		stat_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		stat_label.add_theme_color_override("font_color", Color("c8bcae"))
-		row.add_child(stat_label)
-		var value_label := _make_label("%+d" % int(values[key]), 14)
-		value_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-		value_label.add_theme_color_override("font_color", accent_color.lightened(0.15))
-		row.add_child(value_label)
-	return panel
-
-
-func _make_tooltip_bonus_section(title: String, values: Dictionary, accent_color: Color) -> PanelContainer:
-	var panel := PanelContainer.new()
-	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var stylebox := StyleBoxFlat.new()
-	stylebox.bg_color = Color("120f10")
-	stylebox.border_color = accent_color.darkened(0.2)
-	stylebox.set_border_width_all(1)
-	stylebox.set_corner_radius_all(8)
-	stylebox.content_margin_left = 10
-	stylebox.content_margin_top = 8
-	stylebox.content_margin_right = 10
-	stylebox.content_margin_bottom = 8
-	panel.add_theme_stylebox_override("panel", stylebox)
-	var body := VBoxContainer.new()
-	body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	body.add_theme_constant_override("separation", 6)
-	panel.add_child(body)
-	var header := _make_tooltip_label(title, 15, accent_color, true)
-	header.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	body.add_child(header)
-	if values.is_empty():
-		var empty := _make_tooltip_label("none", 14, Color("b9afa4"), false)
-		empty.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		body.add_child(empty)
-		return panel
-	for key in values.keys():
-		var row := HBoxContainer.new()
-		row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		row.add_theme_constant_override("separation", 10)
-		body.add_child(row)
-		var stat_label := _make_tooltip_label(String(key).capitalize().replace("_", " "), 14, Color("c8bcae"), false)
-		stat_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		stat_label.clip_text = true
-		row.add_child(stat_label)
-		var value_label := _make_tooltip_label("%+d" % int(values[key]), 14, accent_color.lightened(0.15), true)
-		value_label.custom_minimum_size = Vector2(34, 0)
-		value_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-		row.add_child(value_label)
-	panel.update_minimum_size()
-	return panel
-
-
-func _make_tooltip_label(text: String, font_size: int, color: Color, accent: bool) -> Label:
-	var label := Label.new()
-	label.text = text
-	label.autowrap_mode = TextServer.AUTOWRAP_OFF
-	label.size_flags_horizontal = Control.SIZE_FILL
-	_style_label(label, font_size, accent)
-	label.add_theme_color_override("font_color", color)
-	return label
-
-
-func _save_active_slot() -> void:
-	GameManager.save_game(GameManager.active_save_slot)
-
-
-func _save_to_slot(slot_index: int) -> void:
-	GameManager.save_game(slot_index)
-
-
-func _load_from_slot(slot_index: int) -> void:
-	GameManager.load_game(slot_index)
-
-
-func _add_title(text: String) -> void:
-	_detail_content.add_child(_make_label(text, 26))
-
-
-func _add_detail_header(text: String) -> void:
-	var row := HBoxContainer.new()
-	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	row.add_theme_constant_override("separation", 10)
-	_detail_content.add_child(row)
-	var title := _make_label(text, 26)
-	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	row.add_child(title)
-	row.add_child(_make_small_nav_button("Close", Callable(self, "_close_settlement_details")))
-
-
-func _add_section(text: String) -> void:
-	_detail_content.add_child(_make_label(text, 20))
-
-
-func _add_text(text: String) -> void:
-	_detail_content.add_child(_make_label(text, 15))
-
-
-func _add_button(text: String, callback: Callable, disabled: bool) -> void:
-	_detail_content.add_child(_make_button(text, callback, disabled))
-
-
-func _make_panel() -> PanelContainer:
-	return UIScreenHelpers.make_panel()
-
-
-func _make_label(text: String, font_size: int) -> Label:
-	return UIScreenHelpers.make_label(text, font_size)
-
-
-func _make_rich_text_label(bbcode_text: String, font_size: int) -> RichTextLabel:
-	var label := RichTextLabel.new()
-	label.bbcode_enabled = true
-	label.fit_content = true
-	label.scroll_active = false
-	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	label.add_theme_font_size_override("normal_font_size", font_size if font_size >= 20 else font_size + 1)
-	label.add_theme_color_override("default_color", Color("e6ddd3"))
-	label.text = bbcode_text
-	return label
-
-
-func _make_button(text: String, callback: Callable, disabled: bool) -> Button:
-	return UIScreenHelpers.make_button(text, callback, disabled)
-
-
-func _make_small_nav_button(text: String, callback: Callable) -> Button:
-	return UIScreenHelpers.make_small_nav_button(text, callback)
-
-
-func _make_small_action_button(text: String, callback: Callable) -> Button:
-	return UIScreenHelpers.make_small_action_button(text, callback)
-
-
-func _make_danger_button(text: String, callback: Callable) -> Button:
-	return UIScreenHelpers.make_danger_button(text, callback)
-
-
-func _format_resource_dict(values: Dictionary) -> String:
-	if values.is_empty():
-		return _txt("common.none")
-	var parts: Array[String] = []
-	for resource_id in SettlementGameData.RESOURCE_ORDER:
-		if values.has(resource_id) and int(values[resource_id]) != 0:
-			parts.append("%s %d" % [resource_id.capitalize(), int(values[resource_id])])
-	for resource_id in values.keys():
-		if SettlementGameData.RESOURCE_ORDER.has(resource_id):
-			continue
-		parts.append("%s %d" % [String(resource_id).capitalize(), int(values[resource_id])])
-	return ", ".join(parts)
-
-
-func _format_resource_bbcode(values: Dictionary, style: String) -> String:
-	if values.is_empty():
-		return _txt("common.none")
-	var parts: Array[String] = []
-	for resource_id in SettlementGameData.RESOURCE_ORDER:
-		if not values.has(resource_id) or int(values[resource_id]) == 0:
-			continue
-		var amount := int(values[resource_id])
-		var signed_amount := amount
-		if style == "cost":
-			signed_amount = -abs(amount)
-		elif style == "refund":
-			signed_amount = abs(amount)
-		var amount_text := "%+d" % signed_amount if style in ["cost", "refund"] else "%d" % signed_amount
-		parts.append("[color=%s]%s %s[/color]" % [String(RESOURCE_TEXT_COLORS.get(resource_id, "#e6ddd3")), _txt("resource.%s" % resource_id, {}, resource_id.capitalize()), amount_text])
-	for resource_id in values.keys():
-		if SettlementGameData.RESOURCE_ORDER.has(resource_id) or int(values[resource_id]) == 0:
-			continue
-		var amount := int(values[resource_id])
-		var signed_amount := amount
-		if style == "cost":
-			signed_amount = -abs(amount)
-		elif style == "refund":
-			signed_amount = abs(amount)
-		var amount_text := "%+d" % signed_amount if style in ["cost", "refund"] else "%d" % signed_amount
-		parts.append("[color=#e6ddd3]%s %s[/color]" % [String(resource_id).capitalize(), amount_text])
-	return "  |  ".join(parts)
-
-
-func _format_work_stats_bbcode(work_stats: Dictionary) -> String:
-	var parts: Array[String] = []
-	for stat_key in ["farming", "mining", "lumbering"]:
-		parts.append("[color=%s]%s %d[/color]" % [String(WORK_STAT_COLORS.get(stat_key, "#e6ddd3")), _txt("work.%s" % stat_key, {}, stat_key.capitalize()), int(work_stats.get(stat_key, 0))])
-	return "  |  ".join(parts)
-
-
-func _format_recruit_combat_stats_bbcode(stats: Dictionary) -> String:
-	var parts: Array[String] = [
-		"[color=#d8847b]HP %d[/color]" % int(stats.get("health", 0)),
-		"[color=#c8b8d9]SAN %d/%d[/color]" % [int(stats.get("current_sanity", stats.get("sanity", 0))), int(stats.get("max_sanity", stats.get("sanity", 0)))],
-		"[color=#d0a170]ATK %d[/color]" % int(stats.get("attack", 0)),
-		"[color=#88a8c8]DEF %d[/color]" % int(stats.get("defense", 0)),
-		"[color=#f0c96c]CRIT %d%%[/color]" % int(stats.get("critical_chance", 0)),
-		"[color=#e5b86f]CRIT DMG %d%%[/color]" % int(stats.get("critical_damage", 0)),
-	]
-	return "  |  ".join(parts)
-
-
 func _txt(key: String, replacements: Dictionary = {}, fallback: String = "") -> String:
 	return DataLoader.get_ui_text(key, replacements, fallback)
-
-
-func _clear_container(container: Node) -> void:
-	UIScreenHelpers.clear_container(container)
 
 
 func _clear_container_immediately(container: Node) -> void:
 	for child in container.get_children():
 		container.remove_child(child)
 		child.queue_free()
-
-
-func _as_array(value: Variant) -> Array:
-	return UIScreenHelpers.as_array(value)
-
-
-func _as_dictionary(value: Variant) -> Dictionary:
-	return UIScreenHelpers.as_dictionary(value)
-
-
-func _style_panel(panel: Control, bg_color: Color, border_color: Color, corner_radius: int) -> void:
-	UIScreenHelpers.style_panel(panel, bg_color, border_color, corner_radius)
-
-
-func _style_button(button: Button) -> void:
-	UIScreenHelpers.style_button(button)
-
-
-func _style_label(label: Label, font_size: int, accent: bool) -> void:
-	UIScreenHelpers.style_label(label, font_size, accent)
-
-
-func _button_style(bg_color: Color, border_color: Color, corner_radius: int) -> StyleBoxFlat:
-	var stylebox := StyleBoxFlat.new()
-	stylebox.bg_color = bg_color
-	stylebox.border_color = border_color
-	stylebox.set_border_width_all(2)
-	stylebox.set_corner_radius_all(corner_radius)
-	stylebox.content_margin_left = 10
-	stylebox.content_margin_top = 8
-	stylebox.content_margin_right = 10
-	stylebox.content_margin_bottom = 8
-	return stylebox

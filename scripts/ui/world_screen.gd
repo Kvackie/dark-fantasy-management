@@ -169,56 +169,60 @@ func _refresh_popup(preserve_scroll: bool = false) -> void:
 
 func _build_discovered_popup(zone: Dictionary) -> void:
 	var requirements := _as_dictionary(zone.get("requirements", {}))
-	_set_popup_header(
-		DataLoader.get_ui_text("world.title_discovered", {}, "Uncleared Zone"),
-		"%s  |  %s" % [_format_zone_time_label(_get_zone_display_total_seconds(zone), "Clearing Time"), _format_zone_requirements(requirements)]
-	)
-	_start_clearing_status_label = _make_popup_label("", 14, false)
-	_popup_body.add_child(_start_clearing_status_label)
-	_popup_body.add_child(_make_popup_label(DataLoader.get_ui_text("world.party_limit", {"count": int(_as_dictionary(_world_snapshot.get("config", {})).get("max_clearing_party", 3))}, "Select heroes"), 15, false))
+	var subtitle_text := "%s  |  %s" % [_format_zone_time_label(_get_zone_display_total_seconds(zone), "Clearing Time"), _format_zone_requirements(requirements)]
+	var hero_controls: Array = []
 	var heroes := GameManager.get_available_heroes_for_world_zone(String(zone.get("key", "")))
-	if heroes.is_empty():
-		_popup_body.add_child(_make_popup_label(DataLoader.get_ui_text("world.no_available_heroes", {}, "No idle heroes are available."), 15, false))
-	else:
-		for hero_data in heroes:
-			_popup_body.add_child(_make_hero_checkbox(hero_data))
-	var start_button := _make_popup_button(DataLoader.get_ui_text("world.button_begin_clearing", {}, "Begin Clearing"), Callable(self, "_start_selected_zone_clearing"))
-	_start_clearing_button = start_button
+	for hero_data in heroes:
+		hero_controls.append(_make_hero_checkbox(hero_data))
+	var popup_nodes := WorldScreenHelpers.build_discovered_popup(
+		_popup_title,
+		_popup_subtitle,
+		_popup_body,
+		_popup_footer,
+		subtitle_text,
+		DataLoader.get_ui_text("world.party_limit", {"count": int(_as_dictionary(_world_snapshot.get("config", {})).get("max_clearing_party", 3))}, "Select heroes"),
+		DataLoader.get_ui_text("world.no_available_heroes", {}, "No idle heroes are available."),
+		hero_controls,
+		Callable(self, "_start_selected_zone_clearing"),
+		Callable(self, "_close_popup")
+	)
+	_start_clearing_status_label = popup_nodes.get("status_label", null) as Label
+	_start_clearing_button = popup_nodes.get("start_button", null) as Button
 	_refresh_start_clearing_state(zone)
-	_popup_footer.add_child(start_button)
-	_popup_footer.add_child(_make_popup_button(DataLoader.get_ui_text("world.button_close", {}, "Close"), Callable(self, "_close_popup")))
 
 
 func _build_clearing_popup(zone: Dictionary) -> void:
 	var requirements := _as_dictionary(zone.get("requirements", {}))
-	_set_popup_header(
-		DataLoader.get_ui_text("world.title_clearing", {}, "Clearing Zone"),
-		"%s  |  %s" % [_format_zone_time_label(_get_zone_display_remaining_seconds(zone), "Time Remaining"), _format_zone_requirements(requirements)]
+	var subtitle_text := "%s  |  %s" % [_format_zone_time_label(_get_zone_display_remaining_seconds(zone), "Time Remaining"), _format_zone_requirements(requirements)]
+	var popup_nodes := WorldScreenHelpers.build_clearing_popup(
+		_popup_title,
+		_popup_subtitle,
+		_popup_body,
+		_popup_footer,
+		subtitle_text,
+		_format_zone_time_label(_get_zone_display_remaining_seconds(zone), "Time Remaining"),
+		Callable(self, "_close_popup")
 	)
-	_clearing_time_label = _make_popup_label(_format_zone_time_label(_get_zone_display_remaining_seconds(zone), "Time Remaining"), 15, false)
-	_popup_body.add_child(_clearing_time_label)
-	_popup_footer.add_child(_make_popup_button(DataLoader.get_ui_text("world.button_close", {}, "Close"), Callable(self, "_close_popup")))
+	_clearing_time_label = popup_nodes.get("time_label", null) as Label
 
 
 func _build_cleared_popup(zone: Dictionary) -> void:
 	var zone_name := String(zone.get("generated_name", "Cleared Zone"))
 	var claim_cost := _as_dictionary(zone.get("claim_cost", {}))
 	var requirements := _as_dictionary(zone.get("requirements", {}))
-	_set_popup_header(
-		DataLoader.get_ui_text("world.title_cleared", {}, "Cleared Zone"),
-		zone_name
+	WorldScreenHelpers.build_cleared_popup(
+		_popup_title,
+		_popup_subtitle,
+		_popup_body,
+		_popup_footer,
+		zone_name,
+		_format_zone_requirements(requirements),
+		bool(zone.get("no_settlement", false)),
+		_format_resource_dict(claim_cost),
+		GameManager.can_afford(claim_cost),
+		Callable(self, "_claim_selected_zone"),
+		Callable(self, "_close_popup")
 	)
-	_popup_body.add_child(_make_popup_label(zone_name, 18, false))
-	_popup_body.add_child(_make_popup_label(_format_zone_requirements(requirements), 15, false))
-	if bool(zone.get("no_settlement", false)):
-		_popup_body.add_child(_make_popup_label("Special area. No settlement can be founded here.", 15, false))
-	_popup_body.add_child(_make_popup_label(DataLoader.get_ui_text("world.claim_cost", {}, "Claim Cost"), 15, false))
-	_popup_body.add_child(_make_popup_label(_format_resource_dict(claim_cost), 15, false))
-	var claim_button_text := "Claim Area" if bool(zone.get("no_settlement", false)) else DataLoader.get_ui_text("world.button_claim", {}, "Claim Settlement")
-	var claim_button := _make_popup_button(claim_button_text, Callable(self, "_claim_selected_zone"))
-	claim_button.disabled = not GameManager.can_afford(claim_cost)
-	_popup_footer.add_child(claim_button)
-	_popup_footer.add_child(_make_popup_button(DataLoader.get_ui_text("world.button_close", {}, "Close"), Callable(self, "_close_popup")))
 
 
 func _build_claimed_popup(zone: Dictionary) -> void:
@@ -228,11 +232,15 @@ func _build_claimed_popup(zone: Dictionary) -> void:
 	var zone_name := String(zone.get("generated_name", "Claimed Area"))
 	var reward := _as_dictionary(zone.get("claimed_reward", {}))
 	var reward_text := WorldScreenHelpers.format_claimed_reward_text(reward)
-	_set_popup_header(zone_name, "Claimed Special Area")
-	_popup_body.add_child(_make_popup_label(zone_name, 18, false))
-	_popup_body.add_child(_make_popup_label("Special area. No settlement can be founded here.", 15, false))
-	_popup_body.add_child(_make_popup_label(reward_text, 15, false))
-	_popup_footer.add_child(_make_popup_button(DataLoader.get_ui_text("world.button_close", {}, "Close"), Callable(self, "_close_popup")))
+	WorldScreenHelpers.build_claimed_popup(
+		_popup_title,
+		_popup_subtitle,
+		_popup_body,
+		_popup_footer,
+		zone_name,
+		reward_text,
+		Callable(self, "_close_popup")
+	)
 
 
 func _make_hero_checkbox(hero_data: Dictionary) -> CheckBox:
@@ -240,7 +248,7 @@ func _make_hero_checkbox(hero_data: Dictionary) -> CheckBox:
 	var checkbox := CheckBox.new()
 	checkbox.text = String(hero_data.get("name", "Unknown Hero"))
 	checkbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	checkbox.add_theme_font_size_override("font_size", 16)
+	checkbox.add_theme_font_size_override("font_size", 18)
 	checkbox.add_theme_color_override("font_color", Color("ece2d6"))
 	checkbox.add_theme_color_override("font_hover_color", Color("fff6ea"))
 	checkbox.mouse_entered.connect(Callable(self, "_show_hero_hover_popup").bind(hero_data, checkbox))
@@ -311,16 +319,16 @@ func _refresh_start_clearing_state(zone: Dictionary) -> void:
 	var totals := _as_dictionary(preview.get("totals", {}))
 	var requirements := _as_dictionary(preview.get("requirements", {}))
 	var status_text := "Party ATK %d/%d  |  DEF %d/%d" % [int(totals.get("attack", 0)), int(requirements.get("attack", 0)), int(totals.get("defense", 0)), int(requirements.get("defense", 0))]
+	var meets_requirements := bool(preview.get("meets_requirements", false)) and not _selected_hero_uids.is_empty()
 	if _selected_hero_uids.is_empty():
 		_start_clearing_button.disabled = true
-	elif not bool(preview.get("meets_requirements", false)):
-		status_text += "\nParty is too weak to begin clearing."
+	elif not meets_requirements:
 		_start_clearing_button.disabled = true
 	else:
-		status_text += "\nParty meets requirements."
 		_start_clearing_button.disabled = false
 	if _start_clearing_status_label != null and is_instance_valid(_start_clearing_status_label):
 		_start_clearing_status_label.text = status_text
+		_start_clearing_status_label.add_theme_color_override("font_color", Color("7edc9a") if meets_requirements else Color("eb7d7d"))
 
 
 func _get_zone_display_total_seconds(zone: Dictionary) -> float:

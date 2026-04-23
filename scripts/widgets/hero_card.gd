@@ -27,16 +27,16 @@ func _ready() -> void:
 	size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	mouse_entered.connect(_on_mouse_entered)
 	mouse_exited.connect(_on_mouse_exited)
-	_name_label.add_theme_font_size_override("font_size", 18)
+	_name_label.add_theme_font_size_override("font_size", 22)
 	_name_label.add_theme_color_override("font_color", Color("fff9f1"))
 	_fallback_icon.texture = FALLBACK_TEXTURE
 	_fallback_icon.custom_minimum_size = Vector2(118, 118)
 	_fallback_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	_fallback_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	_fallback_label.add_theme_font_size_override("font_size", 18)
+	_fallback_label.add_theme_font_size_override("font_size", 22)
 	_fallback_label.add_theme_color_override("font_color", Color("f3e7d4"))
 	_fallback_stack.add_theme_constant_override("separation", 10)
-	_level_label.add_theme_font_size_override("font_size", 14)
+	_level_label.add_theme_font_size_override("font_size", 18)
 	_level_label.add_theme_color_override("font_color", Color("fff9f1"))
 	_refresh_card_style()
 	if not _hero_data.is_empty():

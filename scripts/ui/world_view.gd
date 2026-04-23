@@ -133,7 +133,7 @@ func _style_zone_button(button: Button, zone: Dictionary, state: String, selecte
 	button.add_theme_stylebox_override("hover", hover)
 	button.add_theme_stylebox_override("pressed", pressed)
 	button.add_theme_stylebox_override("disabled", normal)
-	button.add_theme_font_size_override("font_size", 13)
+	button.add_theme_font_size_override("font_size", 15)
 	button.add_theme_color_override("font_color", Color("f4f1e8"))
 	button.add_theme_color_override("font_hover_color", Color("ffffff"))
 	button.add_theme_color_override("font_pressed_color", Color("f4f1e8"))

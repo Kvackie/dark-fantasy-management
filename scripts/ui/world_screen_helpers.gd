@@ -1,6 +1,9 @@
 extends RefCounted
 
 
+const FONT_SIZE_BONUS := 2
+
+
 const SettlementGameData = preload("res://scripts/game/settlement_game.gd")
 
 
@@ -28,9 +31,9 @@ static func apply_dialog_shell_style(popup_panel: PanelContainer, popup_content_
 	hover_style.shadow_color = Color(0, 0, 0, 0.35)
 	hover_style.shadow_size = 16
 	hero_hover_panel.add_theme_stylebox_override("panel", hover_style)
-	popup_title.add_theme_font_size_override("font_size", 24)
+	popup_title.add_theme_font_size_override("font_size", 24 + FONT_SIZE_BONUS)
 	popup_title.add_theme_color_override("font_color", Color("f6ecdf"))
-	popup_subtitle.add_theme_font_size_override("font_size", 15)
+	popup_subtitle.add_theme_font_size_override("font_size", 15 + FONT_SIZE_BONUS)
 	popup_subtitle.add_theme_color_override("font_color", Color("cdb9a4"))
 
 
@@ -39,7 +42,7 @@ static func make_popup_label(text: String, font_size: int, accent: bool) -> Labe
 	label.text = text
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	label.add_theme_font_size_override("font_size", font_size)
+	label.add_theme_font_size_override("font_size", font_size + FONT_SIZE_BONUS)
 	label.add_theme_color_override("font_color", Color("f3eadc") if accent else Color("d8cec1"))
 	return label
 
@@ -85,7 +88,7 @@ static func make_hover_label(text: String, font_size: int, accent: bool) -> Labe
 	label.text = text
 	label.autowrap_mode = TextServer.AUTOWRAP_OFF
 	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	label.add_theme_font_size_override("font_size", font_size)
+	label.add_theme_font_size_override("font_size", font_size + FONT_SIZE_BONUS)
 	label.add_theme_color_override("font_color", Color("f3eadc") if accent else Color("d8cec1"))
 	return label
 
@@ -103,3 +106,58 @@ static func make_colored_stat_line(label_text: String, value_text: String, accen
 	value.add_theme_color_override("font_color", Color("f4ede2"))
 	row.add_child(value)
 	return row
+
+
+static func build_discovered_popup(popup_title: Label, popup_subtitle: Label, popup_body: VBoxContainer, popup_footer: HBoxContainer, subtitle_text: String, party_limit_text: String, no_available_heroes_text: String, hero_controls: Array, start_callback: Callable, close_callback: Callable) -> Dictionary:
+	popup_title.text = DataLoader.get_ui_text("world.title_discovered", {}, "Uncleared Zone")
+	popup_subtitle.text = subtitle_text
+	var status_label := make_popup_label("", 14, false)
+	popup_body.add_child(status_label)
+	popup_body.add_child(make_popup_label(party_limit_text, 15, false))
+	if hero_controls.is_empty():
+		popup_body.add_child(make_popup_label(no_available_heroes_text, 15, false))
+	else:
+		for hero_control in hero_controls:
+			popup_body.add_child(hero_control)
+	var start_button := make_popup_button(DataLoader.get_ui_text("world.button_begin_clearing", {}, "Begin Clearing"), start_callback)
+	popup_footer.add_child(start_button)
+	popup_footer.add_child(make_popup_button(DataLoader.get_ui_text("world.button_close", {}, "Close"), close_callback))
+	return {
+		"status_label": status_label,
+		"start_button": start_button,
+	}
+
+
+static func build_clearing_popup(popup_title: Label, popup_subtitle: Label, popup_body: VBoxContainer, popup_footer: HBoxContainer, subtitle_text: String, time_text: String, close_callback: Callable) -> Dictionary:
+	popup_title.text = DataLoader.get_ui_text("world.title_clearing", {}, "Clearing Zone")
+	popup_subtitle.text = subtitle_text
+	var time_label := make_popup_label(time_text, 15, false)
+	popup_body.add_child(time_label)
+	popup_footer.add_child(make_popup_button(DataLoader.get_ui_text("world.button_close", {}, "Close"), close_callback))
+	return {"time_label": time_label}
+
+
+static func build_cleared_popup(popup_title: Label, popup_subtitle: Label, popup_body: VBoxContainer, popup_footer: HBoxContainer, zone_title: String, requirements_text: String, is_special_area: bool, claim_cost_text: String, can_afford_claim: bool, claim_callback: Callable, close_callback: Callable) -> Button:
+	popup_title.text = DataLoader.get_ui_text("world.title_cleared", {}, "Cleared Zone")
+	popup_subtitle.text = zone_title
+	popup_body.add_child(make_popup_label(zone_title, 18, false))
+	popup_body.add_child(make_popup_label(requirements_text, 15, false))
+	if is_special_area:
+		popup_body.add_child(make_popup_label("Special area. No settlement can be founded here.", 15, false))
+	popup_body.add_child(make_popup_label(DataLoader.get_ui_text("world.claim_cost", {}, "Claim Cost"), 15, false))
+	popup_body.add_child(make_popup_label(claim_cost_text, 15, false))
+	var claim_button_text := "Claim Area" if is_special_area else DataLoader.get_ui_text("world.button_claim", {}, "Claim Settlement")
+	var claim_button := make_popup_button(claim_button_text, claim_callback)
+	claim_button.disabled = not can_afford_claim
+	popup_footer.add_child(claim_button)
+	popup_footer.add_child(make_popup_button(DataLoader.get_ui_text("world.button_close", {}, "Close"), close_callback))
+	return claim_button
+
+
+static func build_claimed_popup(popup_title: Label, popup_subtitle: Label, popup_body: VBoxContainer, popup_footer: HBoxContainer, zone_title: String, reward_text: String, close_callback: Callable) -> void:
+	popup_title.text = zone_title
+	popup_subtitle.text = "Claimed Special Area"
+	popup_body.add_child(make_popup_label(zone_title, 18, false))
+	popup_body.add_child(make_popup_label("Special area. No settlement can be founded here.", 15, false))
+	popup_body.add_child(make_popup_label(reward_text, 15, false))
+	popup_footer.add_child(make_popup_button(DataLoader.get_ui_text("world.button_close", {}, "Close"), close_callback))

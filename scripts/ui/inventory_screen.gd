@@ -44,6 +44,8 @@ func _make_tab_row(item_count: int, equipment_count: int) -> HBoxContainer:
 
 func _make_tab_button(text: String, tab: String) -> Button:
 	var button := UIScreenHelpers.make_small_action_button(text, Callable(self, "_set_active_tab").bind(tab))
+	button.custom_minimum_size += Vector2(4, 4)
+	button.add_theme_font_size_override("font_size", 20)
 	button.disabled = _active_tab == tab
 	return button
 

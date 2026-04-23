@@ -1,6 +1,10 @@
 extends RefCounted
 
 
+const FONT_SIZE_BONUS := 2
+const BUTTON_FONT_SIZE_BONUS := 2
+
+
 const SettlementGameData = preload("res://scripts/game/settlement_game.gd")
 
 
@@ -37,7 +41,7 @@ static func make_label(text: String, font_size: int) -> Label:
 	label.text = text
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var effective_font_size := font_size if font_size >= 20 else font_size + 1
+	var effective_font_size := (font_size if font_size >= 20 else font_size + 1) + FONT_SIZE_BONUS
 	style_label(label, effective_font_size, font_size >= 20)
 	return label
 
@@ -57,7 +61,7 @@ static func make_small_nav_button(text: String, callback: Callable) -> Button:
 	button.text = text
 	button.custom_minimum_size = Vector2(116, 30)
 	button.size_flags_horizontal = Control.SIZE_SHRINK_END
-	button.add_theme_font_size_override("font_size", 12)
+	button.add_theme_font_size_override("font_size", 12 + FONT_SIZE_BONUS + BUTTON_FONT_SIZE_BONUS)
 	button.add_theme_color_override("font_color", Color("e9dfd2"))
 	button.add_theme_color_override("font_hover_color", Color("f7efe3"))
 	button.add_theme_color_override("font_pressed_color", Color("fff1dc"))
@@ -198,7 +202,7 @@ static func style_panel(panel: Control, bg_color: Color, border_color: Color, co
 
 
 static func style_button(button: Button) -> void:
-	button.add_theme_font_size_override("font_size", 17)
+	button.add_theme_font_size_override("font_size", 17 + FONT_SIZE_BONUS + BUTTON_FONT_SIZE_BONUS)
 	button.add_theme_color_override("font_color", Color("faf5ef"))
 	button.add_theme_color_override("font_hover_color", Color("fffaf4"))
 	button.add_theme_color_override("font_pressed_color", Color("fff0dc"))
@@ -332,7 +336,7 @@ static func _style_panel(panel: Control, bg_color: Color, border_color: Color, c
 
 
 static func _style_label(label: Label, font_size: int, accent: bool) -> void:
-	label.add_theme_font_size_override("font_size", font_size)
+	label.add_theme_font_size_override("font_size", font_size + FONT_SIZE_BONUS)
 	label.add_theme_color_override("font_color", Color("fff9f1") if accent else Color("efe7db"))
 
 

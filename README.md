@@ -103,9 +103,14 @@ scripts/widgets/       Reusable UI widgets
 - `project.godot`: project config, autoloads, display setup
 - `scripts/game/game_manager.gd`: main gameplay authority and signal hub
 - `scripts/game/game_session.gd`: runtime state, save handling, autosave
+- `scripts/game/world_zone_utils.gd`: pure world-zone generation and reward math helpers
 - `scripts/data/data_loader.gd`: loads core data and optional mods
 - `scripts/ui/main_screen.gd`: root UI shell and page navigation
+- `scripts/ui/main_screen_view_builders.gd`: main-menu, recruit, and debug page rendering helpers
+- `scripts/ui/main_screen_settlement_builders.gd`: settlement detail panel rendering helpers
+- `scripts/ui/main_screen_page_coordinator.gd`: scene-backed page screen cache and mount coordinator
 - `scripts/ui/world_screen.gd`: world-map interaction and clearing flow
+- `scripts/ui/hero_detail_view_builders.gd`: hero-detail presentation helpers for info and bonus sections
 - `data/buildings.json`: building definitions, costs, production, worker slots
 - `data/heroes.json`: hero roster definitions and stat baselines
 - `data/world.json`: zone generation, reveal rules, claim costs, special biomes
