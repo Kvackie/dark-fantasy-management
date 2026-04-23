@@ -2,8 +2,9 @@ extends Control
 
 
 const WorldViewScene = preload("res://scenes/world/world_view.tscn")
-const SettlementGameData = preload("res://scripts/game/settlement_game.gd")
 const UIScreenHelpers = preload("res://scripts/ui/ui_screen_helpers.gd")
+const WorldScreenHelpers = preload("res://scripts/ui/world_screen_helpers.gd")
+const SettlementGameData = preload("res://scripts/game/settlement_game.gd")
 
 signal settlement_selected(settlement_id: String)
 
@@ -226,9 +227,7 @@ func _build_claimed_popup(zone: Dictionary) -> void:
 		return
 	var zone_name := String(zone.get("generated_name", "Claimed Area"))
 	var reward := _as_dictionary(zone.get("claimed_reward", {}))
-	var reward_text := "No passive reward."
-	if not reward.is_empty():
-		reward_text = "%d %s every %d ticks." % [int(reward.get("amount", 0)), String(reward.get("resource", "resource")).capitalize(), max(1, int(reward.get("interval", 1)))]
+	var reward_text := WorldScreenHelpers.format_claimed_reward_text(reward)
 	_set_popup_header(zone_name, "Claimed Special Area")
 	_popup_body.add_child(_make_popup_label(zone_name, 18, false))
 	_popup_body.add_child(_make_popup_label("Special area. No settlement can be founded here.", 15, false))
@@ -287,39 +286,19 @@ func _close_popup() -> void:
 
 
 func _make_popup_label(text: String, font_size: int, accent: bool) -> Label:
-	var label := Label.new()
-	label.text = text
-	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	label.add_theme_font_size_override("font_size", font_size)
-	label.add_theme_color_override("font_color", Color("f3eadc") if accent else Color("d8cec1"))
-	return label
+	return WorldScreenHelpers.make_popup_label(text, font_size, accent)
 
 
 func _make_popup_button(text: String, callback: Callable) -> Button:
-	var button := Button.new()
-	button.text = text
-	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	button.pressed.connect(callback)
-	return button
+	return WorldScreenHelpers.make_popup_button(text, callback)
 
 
 func _format_resource_dict(values: Dictionary) -> String:
-	if values.is_empty():
-		return DataLoader.get_ui_text("common.none", {}, "none")
-	var parts: Array[String] = []
-	for resource_id in SettlementGameData.RESOURCE_ORDER:
-		if values.has(resource_id) and int(values[resource_id]) != 0:
-			parts.append("%s %d" % [DataLoader.get_ui_text("resource.%s" % resource_id, {}, String(resource_id).capitalize()), int(values[resource_id])])
-	return ", ".join(parts)
+	return WorldScreenHelpers.format_resource_dict(values)
 
 
 func _format_zone_requirements(requirements: Dictionary) -> String:
-	var attack_requirement := int(requirements.get("attack", 0))
-	var defense_requirement := int(requirements.get("defense", 0))
-	if attack_requirement <= 0 and defense_requirement <= 0:
-		return "ATK REQ 0  |  DEF REQ 0"
-	return "ATK REQ %d  |  DEF REQ %d" % [attack_requirement, defense_requirement]
+	return WorldScreenHelpers.format_zone_requirements(requirements)
 
 
 func _refresh_start_clearing_state(zone: Dictionary) -> void:
@@ -356,7 +335,7 @@ func _get_zone_display_remaining_seconds(zone: Dictionary) -> float:
 
 
 func _format_zone_time_label(total_seconds: float, label_text: String) -> String:
-	return "%s: %s" % [label_text, SettlementGameData.format_duration_label(total_seconds)]
+	return WorldScreenHelpers.format_zone_time_label(total_seconds, label_text)
 
 
 func _update_clearing_popup_time(zone: Dictionary) -> void:
@@ -409,33 +388,7 @@ func _apply_responsive_layout() -> void:
 
 
 func _style_dialog_shell() -> void:
-	var panel_style := StyleBoxFlat.new()
-	panel_style.bg_color = Color("1a1517")
-	panel_style.border_color = Color("b08961")
-	panel_style.set_border_width_all(2)
-	panel_style.set_corner_radius_all(12)
-	panel_style.shadow_color = Color(0, 0, 0, 0.35)
-	panel_style.shadow_size = 18
-	_popup_panel.add_theme_stylebox_override("panel", panel_style)
-	var content_style := StyleBoxFlat.new()
-	content_style.bg_color = Color("120f10")
-	content_style.border_color = Color("5a4639")
-	content_style.set_border_width_all(1)
-	content_style.set_corner_radius_all(10)
-	_popup_content_frame.add_theme_stylebox_override("panel", content_style)
-	_hero_hover_frame.add_theme_stylebox_override("panel", content_style)
-	var hover_style := StyleBoxFlat.new()
-	hover_style.bg_color = Color("171214")
-	hover_style.border_color = Color("8f6e54")
-	hover_style.set_border_width_all(2)
-	hover_style.set_corner_radius_all(10)
-	hover_style.shadow_color = Color(0, 0, 0, 0.35)
-	hover_style.shadow_size = 16
-	_hero_hover_panel.add_theme_stylebox_override("panel", hover_style)
-	_popup_title.add_theme_font_size_override("font_size", 24)
-	_popup_title.add_theme_color_override("font_color", Color("f6ecdf"))
-	_popup_subtitle.add_theme_font_size_override("font_size", 15)
-	_popup_subtitle.add_theme_color_override("font_color", Color("cdb9a4"))
+	WorldScreenHelpers.apply_dialog_shell_style(_popup_panel, _popup_content_frame, _hero_hover_frame, _hero_hover_panel, _popup_title, _popup_subtitle)
 
 
 func _show_hero_hover_popup(hero_data: Dictionary, _source_control: Control) -> void:
@@ -468,28 +421,11 @@ func _hide_hero_hover_popup() -> void:
 
 
 func _make_colored_stat_line(label_text: String, value_text: String, accent_color: Color) -> HBoxContainer:
-	var row := HBoxContainer.new()
-	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	row.add_theme_constant_override("separation", 12)
-	var label := _make_hover_label(label_text, 14, false)
-	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	label.add_theme_color_override("font_color", accent_color.lightened(0.22))
-	row.add_child(label)
-	var value := _make_hover_label(value_text, 14, false)
-	value.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	value.add_theme_color_override("font_color", Color("f4ede2"))
-	row.add_child(value)
-	return row
+	return WorldScreenHelpers.make_colored_stat_line(label_text, value_text, accent_color)
 
 
 func _make_hover_label(text: String, font_size: int, accent: bool) -> Label:
-	var label := Label.new()
-	label.text = text
-	label.autowrap_mode = TextServer.AUTOWRAP_OFF
-	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	label.add_theme_font_size_override("font_size", font_size)
-	label.add_theme_color_override("font_color", Color("f3eadc") if accent else Color("d8cec1"))
-	return label
+	return WorldScreenHelpers.make_hover_label(text, font_size, accent)
 
 
 func _layout_hover_panel() -> void:
