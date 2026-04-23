@@ -14,6 +14,7 @@ signal recruit_market_changed()
 signal zone_reward_notification_added(notification: Dictionary)
 
 const SettlementGameData = preload("res://scripts/game/settlement_game.gd")
+const WorldZoneUtils = preload("res://scripts/game/world_zone_utils.gd")
 const ProductionComponentScript = preload("res://scripts/components/production_component.gd")
 const HeroRosterComponentScript = preload("res://scripts/components/hero_roster_component.gd")
 const RecruitmentComponentScript = preload("res://scripts/components/recruitment_component.gd")
@@ -809,6 +810,12 @@ func _process_special_building_tick() -> Dictionary:
 	var did_change_resources := false
 	var did_change_heroes := false
 	var hero_list := heroes
+	var special_building_effects: Dictionary = DataLoader.get_special_building_effects()
+	var triage_effects: Dictionary = _as_dictionary(special_building_effects.get("triage", {}))
+	var triage_gold_cost_per_hero: int = max(0, int(triage_effects.get("gold_cost_per_hero", 3)))
+	var triage_heal_per_hero: int = max(0, int(triage_effects.get("heal_per_hero", 3)))
+	var barracks_effects: Dictionary = _as_dictionary(special_building_effects.get("barracks", {}))
+	var barracks_experience_per_hero: int = max(0, int(barracks_effects.get("experience_per_hero", 1)))
 	for settlement_id in owned_settlement_ids:
 		var settlement_slots := _get_settlement_slots(String(settlement_id))
 		for slot in settlement_slots:
@@ -816,12 +823,12 @@ func _process_special_building_tick() -> Dictionary:
 			var building_id := String(slot_data.get("building_id", ""))
 			if building_id == "triage":
 				for hero_uid in _normalize_int_array(slot_data.get("assigned_hero_ids", [])):
-					if int(resources.get("gold", 0)) < 3:
+					if triage_gold_cost_per_hero <= 0 or int(resources.get("gold", 0)) < triage_gold_cost_per_hero:
 						break
 					var hero_index := _find_hero_index(hero_uid)
 					if hero_index == -1:
 						continue
-					resources["gold"] = SettlementGameData.clamp_resource(int(resources.get("gold", 0)) - 3)
+					resources["gold"] = SettlementGameData.clamp_resource(int(resources.get("gold", 0)) - triage_gold_cost_per_hero)
 					did_change_resources = true
 					var hero_data: Dictionary = hero_list[hero_index]
 					var hero_stats := _as_dictionary(hero_data.get("stats", {})).duplicate(true)
@@ -829,17 +836,19 @@ func _process_special_building_tick() -> Dictionary:
 					var current_health := int(hero_stats.get("current_health", max_health))
 					if current_health >= max_health:
 						continue
-					hero_stats["current_health"] = min(current_health + 3, max_health)
+					hero_stats["current_health"] = min(current_health + triage_heal_per_hero, max_health)
 					hero_data["stats"] = hero_stats
 					hero_list[hero_index] = hero_data
 					did_change_heroes = true
 			elif building_id == "barracks":
+				if barracks_experience_per_hero <= 0:
+					continue
 				for hero_uid in _normalize_int_array(slot_data.get("assigned_hero_ids", [])):
 					var hero_index := _find_hero_index(hero_uid)
 					if hero_index == -1:
 						continue
 					var barracks_hero_data: Dictionary = hero_list[hero_index]
-					var current_experience := int(barracks_hero_data.get("experience", 0)) + 1
+					var current_experience: int = int(barracks_hero_data.get("experience", 0)) + barracks_experience_per_hero
 					var current_level: int = max(1, int(barracks_hero_data.get("level", 1)))
 					while current_experience >= _hero_level_experience_ceiling(current_level):
 						barracks_hero_data = HeroRosterComponentScript.level_up_hero(barracks_hero_data)
@@ -1688,23 +1697,11 @@ func _get_special_biome_config(biome: String) -> Dictionary:
 
 
 func _world_zone_key(x: int, y: int) -> String:
-	return "%d,%d" % [x, y]
+	return WorldZoneUtils.world_zone_key(x, y)
 
 
 func _world_state_priority(state: String) -> int:
-	match state:
-		"fog":
-			return 1
-		"discovered":
-			return 2
-		"clearing":
-			return 3
-		"cleared":
-			return 4
-		"claimed":
-			return 5
-		_:
-			return 0
+	return WorldZoneUtils.world_state_priority(state)
 
 
 func _is_hero_available_for_world(hero_data: Dictionary) -> bool:
@@ -1724,79 +1721,35 @@ func _get_recruitable_hero_pool() -> Array:
 
 
 func _get_zone_distance(x: int, y: int) -> int:
-	return max(abs(x), abs(y))
+	return WorldZoneUtils.zone_distance(x, y)
 
 
 func _normalize_zone_requirements(value: Variant) -> Dictionary:
-	var source := _as_dictionary(value)
-	var normalized := {
-		"level": max(0, int(source.get("level", 0))),
-		"sanity": max(0, int(source.get("sanity", 0))),
-		"attack": max(0, int(source.get("attack", 0))),
-		"defense": max(0, int(source.get("defense", 0))),
-	}
-	for stat_key in DataLoader.DEFAULT_HERO_WORK_STATS.keys():
-		normalized[stat_key] = max(0, int(source.get(stat_key, 0)))
-	return normalized
+	return WorldZoneUtils.normalize_zone_requirements(value, DataLoader.DEFAULT_HERO_WORK_STATS.keys())
 
 
 func _generate_zone_requirements(x: int, y: int) -> Dictionary:
-	var world_config := DataLoader.get_world_config()
-	var requirement_config := _as_dictionary(world_config.get("clear_requirements", {}))
-	var distance := _get_zone_distance(x, y)
-	var safe_radius: int = max(0, int(requirement_config.get("safe_radius", 2)))
-	var scaled_distance: int = max(0, distance - safe_radius)
-	return _normalize_zone_requirements({
-		"attack": int(requirement_config.get("attack_base", 0)) + scaled_distance * int(requirement_config.get("attack_growth", 3)),
-		"defense": int(requirement_config.get("defense_base", 0)) + scaled_distance * int(requirement_config.get("defense_growth", 2)),
-	})
+	return WorldZoneUtils.generate_zone_requirements(DataLoader.get_world_config(), x, y, DataLoader.DEFAULT_HERO_WORK_STATS.keys())
 
 
 func _get_zone_sanity_loss(zone: Dictionary) -> int:
-	var world_config := DataLoader.get_world_config()
-	var requirement_config := _as_dictionary(world_config.get("clear_requirements", {}))
-	var distance := _get_zone_distance(int(zone.get("x", 0)), int(zone.get("y", 0)))
-	var safe_radius: int = max(0, int(requirement_config.get("safe_radius", 2)))
-	var scaled_distance: int = max(0, distance - safe_radius)
-	return max(0, int(requirement_config.get("sanity_loss_base", 0)) + scaled_distance * int(requirement_config.get("sanity_loss_growth", 1)))
+	return WorldZoneUtils.get_zone_sanity_loss(DataLoader.get_world_config(), zone)
 
 
 func _get_zone_experience_reward(zone: Dictionary) -> int:
-	var world_config := DataLoader.get_world_config()
-	var reward_config := _as_dictionary(world_config.get("clear_rewards", {}))
-	var distance := _get_zone_distance(int(zone.get("x", 0)), int(zone.get("y", 0)))
-	var safe_radius: int = max(0, int(_as_dictionary(world_config.get("clear_requirements", {})).get("safe_radius", 2)))
-	var scaled_distance: int = max(0, distance - safe_radius)
-	return max(0, int(reward_config.get("experience_base", 2)) + scaled_distance * int(reward_config.get("experience_growth", 1)))
+	return WorldZoneUtils.get_zone_experience_reward(DataLoader.get_world_config(), zone)
 
 
 func _get_zone_clear_reward_table(zone: Dictionary) -> Dictionary:
-	var world_config := DataLoader.get_world_config()
-	var reward_config := _as_dictionary(world_config.get("clear_rewards", {}))
-	var distance := _get_zone_distance(int(zone.get("x", 0)), int(zone.get("y", 0)))
-	for table_entry in _as_array(reward_config.get("tables", [])):
-		var table := _as_dictionary(table_entry)
-		var min_distance := int(table.get("min_distance", 0))
-		var max_distance := int(table.get("max_distance", 999999))
-		if distance < min_distance or distance > max_distance:
-			continue
-		return table.duplicate(true)
-	return {}
+	return WorldZoneUtils.get_zone_clear_reward_table(DataLoader.get_world_config(), zone)
 
 
 func _reward_entry_succeeds(zone: Dictionary, entry: Dictionary) -> bool:
-	var chance := clampi(int(entry.get("chance", 100)), 0, 100)
-	if chance >= 100:
-		return true
-	if chance <= 0:
-		return false
-	return _coord_random_range(int(zone.get("x", 0)), int(zone.get("y", 0)), JSON.stringify(entry).hash(), 1, 100) <= chance
+	return WorldZoneUtils.reward_entry_succeeds(world_seed, zone, entry)
 
 
 func _roll_reward_quantity(zone: Dictionary, entry: Dictionary, salt: int) -> int:
-	var min_quantity: int = max(0, int(entry.get("min", entry.get("amount", 0))))
-	var max_quantity: int = max(min_quantity, int(entry.get("max", min_quantity)))
-	return _coord_random_range(int(zone.get("x", 0)), int(zone.get("y", 0)), salt, min_quantity, max_quantity)
+	return WorldZoneUtils.roll_reward_quantity(world_seed, zone, entry, salt)
 
 
 func _display_requirement_name(requirement_key: String) -> String:
@@ -1873,37 +1826,11 @@ func _ensure_zone_claim_cost(zone: Dictionary) -> Dictionary:
 
 
 func _generate_zone_name(x: int, y: int) -> String:
-	var world_config := DataLoader.get_world_config()
-	var name_config := _as_dictionary(world_config.get("name_generation", {}))
-	var prefixes := _as_array(name_config.get("prefixes", []))
-	var suffixes := _as_array(name_config.get("suffixes", []))
-	var articles := _as_array(name_config.get("articles", []))
-	var prefix := String(prefixes[_coord_random_index(x, y, 11, prefixes.size())]) if not prefixes.is_empty() else "Ashen"
-	var suffix := String(suffixes[_coord_random_index(x, y, 23, suffixes.size())]) if not suffixes.is_empty() else "Reach"
-	var article := String(articles[_coord_random_index(x, y, 37, articles.size())]) if not articles.is_empty() else ""
-	var parts: Array[String] = []
-	if not article.is_empty():
-		parts.append(article)
-	parts.append(prefix)
-	parts.append(suffix)
-	return " ".join(parts)
+	return WorldZoneUtils.generate_zone_name(world_seed, DataLoader.get_world_config(), x, y)
 
 
 func _generate_claim_cost(x: int, y: int) -> Dictionary:
-	var world_config: Dictionary = DataLoader.get_world_config()
-	var claim_config: Dictionary = _as_dictionary(world_config.get("claim_cost", {}))
-	var base: Dictionary = _as_dictionary(claim_config.get("base", {}))
-	var step: Dictionary = _as_dictionary(claim_config.get("distance_step", {}))
-	var variance: Dictionary = _as_dictionary(claim_config.get("variance", {}))
-	var distance: int = max(abs(x), abs(y))
-	var cost: Dictionary = {}
-	for resource_id in base.keys():
-		var amount: int = int(base.get(resource_id, 0)) + int(step.get(resource_id, 0)) * distance
-		var variance_amount := int(variance.get(resource_id, 0))
-		if variance_amount > 0:
-			amount += _coord_random_range(x, y, String(resource_id).hash(), 0, variance_amount)
-		cost[String(resource_id)] = max(amount, 0)
-	return cost
+	return WorldZoneUtils.generate_claim_cost(world_seed, DataLoader.get_world_config(), x, y)
 
 
 func _generated_settlement_id(x: int, y: int) -> String:
@@ -1914,22 +1841,6 @@ func _coord_id_component(value: int) -> String:
 	if value < 0:
 		return "n%d" % abs(value)
 	return "p%d" % value
-
-
-func _coord_random_index(x: int, y: int, salt: int, size: int) -> int:
-	if size <= 0:
-		return 0
-	return abs(_coord_hash(x, y, salt)) % size
-
-
-func _coord_random_range(x: int, y: int, salt: int, min_value: int, max_value: int) -> int:
-	if max_value <= min_value:
-		return min_value
-	return min_value + (abs(_coord_hash(x, y, salt)) % (max_value - min_value + 1))
-
-
-func _coord_hash(x: int, y: int, salt: int) -> int:
-	return int(world_seed) ^ (x * 73856093) ^ (y * 19349663) ^ (salt * 83492791)
 
 
 func _starting_settlement_name() -> String:
@@ -2069,41 +1980,11 @@ func _get_settlement_slots(settlement_id: String) -> Array:
 
 
 func _determine_zone_biome(x: int, y: int) -> String:
-	if x == 0 and y == 0:
-		return "neutral"
-	var seed_value := int((x * 92821) + (y * 68917) + (world_seed * 13))
-	var roll: int = abs(seed_value)
-	var special_biome := _roll_special_biome(roll)
-	if not special_biome.is_empty():
-		return special_biome
-	if roll % 20 <= 2:
-		return "neutral"
-	var biome_roll: int = int(float(roll) / 10.0) % 4
-	match biome_roll:
-		0:
-			return "forest"
-		1:
-			return "mountain"
-		2:
-			return "plains"
-		_:
-			return "mixed"
+	return WorldZoneUtils.determine_zone_biome(world_seed, DataLoader.get_world_config(), x, y)
 
 
 func _roll_special_biome(roll: int) -> String:
-	var world_config := DataLoader.get_world_config()
-	var special_biomes := _as_dictionary(world_config.get("special_biomes", {}))
-	var biome_ids := special_biomes.keys()
-	biome_ids.sort()
-	for biome_id_variant in biome_ids:
-		var biome_id := String(biome_id_variant).strip_edges().to_lower()
-		if biome_id.is_empty():
-			continue
-		var biome_config := _as_dictionary(special_biomes.get(biome_id, {}))
-		var spawn_chance: int = max(0, int(biome_config.get("spawn_chance", 0)))
-		if spawn_chance > 0 and roll % spawn_chance == 0:
-			return biome_id
-	return ""
+	return WorldZoneUtils.roll_special_biome(DataLoader.get_world_config(), roll)
 
 
 func _biome_plot_count(biome: String) -> int:

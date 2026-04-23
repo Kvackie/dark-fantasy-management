@@ -965,7 +965,7 @@ func _setup_scene_backed_page_screen(screen: Control, mode: String) -> void:
 func _set_scene_backed_page_screen_inputs(screen: Control) -> void:
 	match _detail_mode:
 		MODE_OVERVIEW:
-			screen.set_settlements_snapshot(GameManager.get_owned_settlement_definitions())
+			screen.set_settlements_snapshot(_build_overview_settlement_snapshot())
 		MODE_WORLD:
 			screen.set_world_snapshot(GameManager.get_world_snapshot())
 		MODE_HEROES:
@@ -1347,6 +1347,22 @@ func _refresh_settlement_title() -> void:
 	_settlement_title.text = settlement_name
 
 
+func _build_overview_settlement_snapshot() -> Array:
+	var entries: Array = []
+	for settlement_definition in GameManager.get_owned_settlement_definitions():
+		var entry := _as_dictionary(settlement_definition)
+		var settlement_id := String(entry.get("id", ""))
+		entries.append({
+			"settlement_id": settlement_id,
+			"name": String(entry.get("name", "Unknown Settlement")),
+			"icon_path": String(entry.get("icon_path", DataLoader.DEFAULT_CATALOG_ICON)),
+			"built_plot_count": GameManager.get_settlement_built_plot_count(settlement_id),
+			"plot_count": GameManager.get_settlement_plot_count(settlement_id),
+			"is_active": settlement_id == GameManager.active_settlement_id,
+		})
+	return entries
+
+
 func _make_bonus_section(title: String, values: Dictionary, accent_color: Color) -> PanelContainer:
 	var panel := PanelContainer.new()
 	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -1478,20 +1494,11 @@ func _add_button(text: String, callback: Callable, disabled: bool) -> void:
 
 
 func _make_panel() -> PanelContainer:
-	var panel := PanelContainer.new()
-	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_style_panel(panel, Color("181416"), Color("675042"), 8)
-	return panel
+	return UIScreenHelpers.make_panel()
 
 
 func _make_label(text: String, font_size: int) -> Label:
-	var label := Label.new()
-	label.text = text
-	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var effective_font_size := font_size if font_size >= 20 else font_size + 1
-	_style_label(label, effective_font_size, font_size >= 20)
-	return label
+	return UIScreenHelpers.make_label(text, font_size)
 
 
 func _make_rich_text_label(bbcode_text: String, font_size: int) -> RichTextLabel:
@@ -1507,50 +1514,19 @@ func _make_rich_text_label(bbcode_text: String, font_size: int) -> RichTextLabel
 
 
 func _make_button(text: String, callback: Callable, disabled: bool) -> Button:
-	var button := Button.new()
-	button.text = text
-	button.disabled = disabled
-	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_style_button(button)
-	button.pressed.connect(callback)
-	return button
+	return UIScreenHelpers.make_button(text, callback, disabled)
 
 
 func _make_small_nav_button(text: String, callback: Callable) -> Button:
-	var button := Button.new()
-	button.text = text
-	button.custom_minimum_size = Vector2(116, 30)
-	button.size_flags_horizontal = Control.SIZE_SHRINK_END
-	button.add_theme_font_size_override("font_size", 12)
-	button.add_theme_color_override("font_color", Color("e9dfd2"))
-	button.add_theme_color_override("font_hover_color", Color("f7efe3"))
-	button.add_theme_color_override("font_pressed_color", Color("fff1dc"))
-	button.add_theme_color_override("font_disabled_color", Color("96897f"))
-	button.add_theme_stylebox_override("normal", _button_style(Color("130f10"), Color("5e4a3d"), 6))
-	button.add_theme_stylebox_override("hover", _button_style(Color("1b1516"), Color("876850"), 6))
-	button.add_theme_stylebox_override("pressed", _button_style(Color("241c1b"), Color("a17d5c"), 6))
-	button.add_theme_stylebox_override("disabled", _button_style(Color("100d0e"), Color("433734"), 6))
-	button.pressed.connect(callback)
-	return button
+	return UIScreenHelpers.make_small_nav_button(text, callback)
 
 
 func _make_small_action_button(text: String, callback: Callable) -> Button:
-	var button := _make_small_nav_button(text, callback)
-	button.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
-	return button
+	return UIScreenHelpers.make_small_action_button(text, callback)
 
 
 func _make_danger_button(text: String, callback: Callable) -> Button:
-	var button := _make_small_nav_button(text, callback)
-	button.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
-	button.add_theme_color_override("font_color", Color("f2d8d4"))
-	button.add_theme_color_override("font_hover_color", Color("fff0ed"))
-	button.add_theme_color_override("font_pressed_color", Color("fff7f5"))
-	button.add_theme_stylebox_override("normal", _button_style(Color("2a1415"), Color("8a4c49"), 6))
-	button.add_theme_stylebox_override("hover", _button_style(Color("34191a"), Color("b76558"), 6))
-	button.add_theme_stylebox_override("pressed", _button_style(Color("421d1d"), Color("d17a6d"), 6))
-	button.add_theme_stylebox_override("disabled", _button_style(Color("1a1011"), Color("4a2f31"), 6))
-	return button
+	return UIScreenHelpers.make_danger_button(text, callback)
 
 
 func _format_resource_dict(values: Dictionary) -> String:
@@ -1620,8 +1596,7 @@ func _txt(key: String, replacements: Dictionary = {}, fallback: String = "") -> 
 
 
 func _clear_container(container: Node) -> void:
-	for child in container.get_children():
-		child.queue_free()
+	UIScreenHelpers.clear_container(container)
 
 
 func _clear_container_immediately(container: Node) -> void:
@@ -1631,45 +1606,23 @@ func _clear_container_immediately(container: Node) -> void:
 
 
 func _as_array(value: Variant) -> Array:
-	if value is Array:
-		return value
-	return []
+	return UIScreenHelpers.as_array(value)
 
 
 func _as_dictionary(value: Variant) -> Dictionary:
-	if value is Dictionary:
-		return value
-	return {}
+	return UIScreenHelpers.as_dictionary(value)
 
 
 func _style_panel(panel: Control, bg_color: Color, border_color: Color, corner_radius: int) -> void:
-	var stylebox := StyleBoxFlat.new()
-	stylebox.bg_color = bg_color
-	stylebox.border_color = border_color
-	stylebox.set_border_width_all(2)
-	stylebox.set_corner_radius_all(corner_radius)
-	stylebox.content_margin_left = 10
-	stylebox.content_margin_top = 10
-	stylebox.content_margin_right = 10
-	stylebox.content_margin_bottom = 10
-	panel.add_theme_stylebox_override("panel", stylebox)
+	UIScreenHelpers.style_panel(panel, bg_color, border_color, corner_radius)
 
 
 func _style_button(button: Button) -> void:
-	button.add_theme_font_size_override("font_size", 17)
-	button.add_theme_color_override("font_color", Color("faf5ef"))
-	button.add_theme_color_override("font_hover_color", Color("fffaf4"))
-	button.add_theme_color_override("font_pressed_color", Color("fff0dc"))
-	button.add_theme_color_override("font_disabled_color", Color("9d9287"))
-	button.add_theme_stylebox_override("normal", _button_style(Color("171315"), Color("6f5648"), 7))
-	button.add_theme_stylebox_override("hover", _button_style(Color("261d1d"), Color("a88563"), 7))
-	button.add_theme_stylebox_override("pressed", _button_style(Color("362925"), Color("d0a170"), 7))
-	button.add_theme_stylebox_override("disabled", _button_style(Color("121012"), Color("4c3e3a"), 7))
+	UIScreenHelpers.style_button(button)
 
 
 func _style_label(label: Label, font_size: int, accent: bool) -> void:
-	label.add_theme_font_size_override("font_size", font_size)
-	label.add_theme_color_override("font_color", Color("fff9f1") if accent else Color("efe7db"))
+	UIScreenHelpers.style_label(label, font_size, accent)
 
 
 func _button_style(bg_color: Color, border_color: Color, corner_radius: int) -> StyleBoxFlat:

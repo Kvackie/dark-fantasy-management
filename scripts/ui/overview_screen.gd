@@ -27,13 +27,9 @@ func refresh() -> void:
 	add_child(owned_grid)
 	for settlement_definition in _settlements_snapshot:
 		var entry := UIScreenHelpers.as_dictionary(settlement_definition)
-		var settlement_id := String(entry.get("id", ""))
 		owned_grid.add_child(UIScreenHelpers.make_overview_settlement_tile(
 			entry,
-			Callable(self, "_on_settlement_pressed").bind(settlement_id),
-			GameManager.active_settlement_id,
-			GameManager.get_settlement_built_plot_count(settlement_id),
-			GameManager.get_settlement_plot_count(settlement_id)
+			Callable(self, "_on_settlement_pressed").bind(String(entry.get("settlement_id", "")))
 		))
 
 

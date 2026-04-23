@@ -58,6 +58,40 @@ const DEFAULT_HERO_WORK_STAT_GROWTH := {
 	"lumbering": 1,
 }
 
+const STARTING_INVENTORY_CONFIG := {
+	"items": [
+		{"definition_id": "rations", "quantity": 24},
+		{"definition_id": "timber_bundle", "quantity": 48},
+		{"definition_id": "grave_coin", "quantity": 135},
+		{"definition_id": "veil_crystal", "quantity": 7},
+	],
+	"equipment": [
+		"grave_hood",
+		"watcher_cowl",
+		"ashen_mask",
+		"thorn_circlet",
+		"veil_cap",
+		"iron_brow",
+		"bone_visor",
+		"lantern_veil",
+		"mire_hat",
+		"gilded_band",
+		"crypt_wreath",
+		"pit_gloves",
+		"ember_amulet",
+	],
+}
+
+const SPECIAL_BUILDING_EFFECTS := {
+	"triage": {
+		"gold_cost_per_hero": 3,
+		"heal_per_hero": 3,
+	},
+	"barracks": {
+		"experience_per_hero": 1,
+	},
+}
+
 var building_definitions: Dictionary = {}
 var settlement_definitions: Dictionary = {}
 var ui_texts: Dictionary = {}
@@ -123,6 +157,14 @@ func get_world_config() -> Dictionary:
 
 func get_recruitment_config() -> Dictionary:
 	return recruitment_config.duplicate(true)
+
+
+func get_starting_inventory_config() -> Dictionary:
+	return STARTING_INVENTORY_CONFIG.duplicate(true)
+
+
+func get_special_building_effects() -> Dictionary:
+	return SPECIAL_BUILDING_EFFECTS.duplicate(true)
 
 
 func get_world_zone_override(zone_key: String) -> Dictionary:

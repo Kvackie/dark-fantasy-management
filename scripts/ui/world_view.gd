@@ -148,16 +148,14 @@ func _snapshot_has_clearing_zone() -> bool:
 
 
 func _refresh_clearing_zone_labels() -> void:
+	var zones := _as_dictionary(_world_snapshot.get("zones", {}))
 	for zone_key in _zone_controls.keys():
-		var zone := GameManager.get_world_zone(String(zone_key))
+		var zone := _as_dictionary(zones.get(String(zone_key), {}))
 		if String(zone.get("state", "")) != "clearing":
 			continue
 		var button := _zone_controls.get(zone_key, null) as Button
 		if button == null or not is_instance_valid(button):
 			continue
-		var snapshot_zones := _as_dictionary(_world_snapshot.get("zones", {}))
-		snapshot_zones[String(zone_key)] = zone.duplicate(true)
-		_world_snapshot["zones"] = snapshot_zones
 		button.text = _zone_button_text(zone)
 
 

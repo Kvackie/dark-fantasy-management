@@ -3,6 +3,7 @@ extends Control
 
 const WorldViewScene = preload("res://scenes/world/world_view.tscn")
 const SettlementGameData = preload("res://scripts/game/settlement_game.gd")
+const UIScreenHelpers = preload("res://scripts/ui/ui_screen_helpers.gd")
 
 signal settlement_selected(settlement_id: String)
 
@@ -390,15 +391,11 @@ func _sync_popup_after_world_change() -> void:
 
 
 func _as_dictionary(value: Variant) -> Dictionary:
-	if value is Dictionary:
-		return value
-	return {}
+	return UIScreenHelpers.as_dictionary(value)
 
 
 func _as_array(value: Variant) -> Array:
-	if value is Array:
-		return value
-	return []
+	return UIScreenHelpers.as_array(value)
 
 
 func _set_popup_header(title_text: String, subtitle_text: String) -> void:

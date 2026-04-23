@@ -905,44 +905,15 @@ func _style_shell() -> void:
 
 
 func _make_button(text: String, callback: Callable, disabled: bool) -> Button:
-	var button := Button.new()
-	button.text = text
-	button.disabled = disabled
-	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_style_button(button)
-	button.pressed.connect(callback)
-	return button
+	return UIScreenHelpers.make_button(text, callback, disabled)
 
 
 func _make_small_nav_button(text: String, callback: Callable) -> Button:
-	var button := Button.new()
-	button.text = text
-	button.custom_minimum_size = Vector2(116, 30)
-	button.size_flags_horizontal = Control.SIZE_SHRINK_END
-	button.add_theme_font_size_override("font_size", 12)
-	button.add_theme_color_override("font_color", Color("e9dfd2"))
-	button.add_theme_color_override("font_hover_color", Color("f7efe3"))
-	button.add_theme_color_override("font_pressed_color", Color("fff1dc"))
-	button.add_theme_color_override("font_disabled_color", Color("96897f"))
-	button.add_theme_stylebox_override("normal", _button_style(Color("130f10"), Color("5e4a3d"), 6))
-	button.add_theme_stylebox_override("hover", _button_style(Color("1b1516"), Color("876850"), 6))
-	button.add_theme_stylebox_override("pressed", _button_style(Color("241c1b"), Color("a17d5c"), 6))
-	button.add_theme_stylebox_override("disabled", _button_style(Color("100d0e"), Color("433734"), 6))
-	button.pressed.connect(callback)
-	return button
+	return UIScreenHelpers.make_small_nav_button(text, callback)
 
 
 func _make_danger_button(text: String, callback: Callable) -> Button:
-	var button := _make_small_nav_button(text, callback)
-	button.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
-	button.add_theme_color_override("font_color", Color("f2d8d4"))
-	button.add_theme_color_override("font_hover_color", Color("fff0ed"))
-	button.add_theme_color_override("font_pressed_color", Color("fff7f5"))
-	button.add_theme_stylebox_override("normal", _button_style(Color("2a1415"), Color("8a4c49"), 6))
-	button.add_theme_stylebox_override("hover", _button_style(Color("34191a"), Color("b76558"), 6))
-	button.add_theme_stylebox_override("pressed", _button_style(Color("421d1d"), Color("d17a6d"), 6))
-	button.add_theme_stylebox_override("disabled", _button_style(Color("1a1011"), Color("4a2f31"), 6))
-	return button
+	return UIScreenHelpers.make_danger_button(text, callback)
 
 
 func _clear_container(container: Node) -> void:
@@ -968,33 +939,15 @@ func _load_hero_texture(hero_data: Dictionary) -> Texture2D:
 
 
 func _style_panel(panel: Control, bg_color: Color, border_color: Color, corner_radius: int) -> void:
-	var stylebox := StyleBoxFlat.new()
-	stylebox.bg_color = bg_color
-	stylebox.border_color = border_color
-	stylebox.set_border_width_all(2)
-	stylebox.set_corner_radius_all(corner_radius)
-	stylebox.content_margin_left = 10
-	stylebox.content_margin_top = 10
-	stylebox.content_margin_right = 10
-	stylebox.content_margin_bottom = 10
-	panel.add_theme_stylebox_override("panel", stylebox)
+	UIScreenHelpers.style_panel(panel, bg_color, border_color, corner_radius)
 
 
 func _style_button(button: Button) -> void:
-	button.add_theme_font_size_override("font_size", 17)
-	button.add_theme_color_override("font_color", Color("faf5ef"))
-	button.add_theme_color_override("font_hover_color", Color("fffaf4"))
-	button.add_theme_color_override("font_pressed_color", Color("fff0dc"))
-	button.add_theme_color_override("font_disabled_color", Color("9d9287"))
-	button.add_theme_stylebox_override("normal", _button_style(Color("171315"), Color("6f5648"), 7))
-	button.add_theme_stylebox_override("hover", _button_style(Color("261d1d"), Color("a88563"), 7))
-	button.add_theme_stylebox_override("pressed", _button_style(Color("362925"), Color("d0a170"), 7))
-	button.add_theme_stylebox_override("disabled", _button_style(Color("121012"), Color("4c3e3a"), 7))
+	UIScreenHelpers.style_button(button)
 
 
 func _style_label(label: Label, font_size: int, accent: bool) -> void:
-	label.add_theme_font_size_override("font_size", font_size)
-	label.add_theme_color_override("font_color", Color("fff9f1") if accent else Color("efe7db"))
+	UIScreenHelpers.style_label(label, font_size, accent)
 
 
 func _button_style(bg_color: Color, border_color: Color, corner_radius: int) -> StyleBoxFlat:

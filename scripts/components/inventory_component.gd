@@ -131,29 +131,11 @@ func strip_all_equipment_from_hero(hero_uid: int) -> void:
 
 
 func seed_starting_inventory() -> void:
-	for entry in [
-		{"definition_id": "rations", "quantity": 24},
-		{"definition_id": "timber_bundle", "quantity": 48},
-		{"definition_id": "grave_coin", "quantity": 135},
-		{"definition_id": "veil_crystal", "quantity": 7},
-	]:
+	var starting_inventory := DataLoader.get_starting_inventory_config()
+	for entry in _as_array(starting_inventory.get("items", [])):
 		add_item_to_inventory(String((entry as Dictionary).get("definition_id", "")), int((entry as Dictionary).get("quantity", 0)))
-	for equipment_id in [
-		"grave_hood",
-		"watcher_cowl",
-		"ashen_mask",
-		"thorn_circlet",
-		"veil_cap",
-		"iron_brow",
-		"bone_visor",
-		"lantern_veil",
-		"mire_hat",
-		"gilded_band",
-		"crypt_wreath",
-		"pit_gloves",
-		"ember_amulet",
-	]:
-		add_equipment_to_inventory(equipment_id)
+	for equipment_id in _as_array(starting_inventory.get("equipment", [])):
+		add_equipment_to_inventory(String(equipment_id))
 
 
 func _find_hero_index(hero_uid: int) -> int:
