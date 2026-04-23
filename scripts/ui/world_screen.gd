@@ -28,6 +28,7 @@ var _start_clearing_button: Button = null
 var _start_clearing_status_label: Label = null
 var _clearing_time_label: Label = null
 var _countdown_refresh_elapsed: float = 0.0
+var _popup_zone_state: String = ""
 
 
 func _ready() -> void:
@@ -39,6 +40,7 @@ func _ready() -> void:
 	_modal_overlay.visible = false
 	_hero_hover_panel.visible = false
 	_style_dialog_shell()
+	_apply_responsive_layout()
 	_layout_hover_panel()
 	if _world_snapshot.is_empty():
 		_world_snapshot = GameManager.get_world_snapshot()
@@ -50,8 +52,7 @@ func set_world_snapshot(world_snapshot: Dictionary) -> void:
 
 
 func refresh() -> void:
-	_ensure_world_view()
-	_world_view.set_world_snapshot(_world_snapshot)
+	_refresh_world_view_snapshot()
 	_refresh_popup()
 
 
@@ -63,6 +64,7 @@ func center_on_origin() -> void:
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_RESIZED and is_node_ready():
+		_apply_responsive_layout()
 		_layout_hover_panel()
 
 
@@ -93,16 +95,23 @@ func _ensure_world_view() -> void:
 
 func _on_world_changed() -> void:
 	set_world_snapshot(GameManager.get_world_snapshot())
-	refresh()
+	_refresh_world_view_snapshot()
+	_sync_popup_after_world_change()
 
 
 func _on_heroes_changed() -> void:
-	_refresh_popup(true)
+	if _selected_zone_key.is_empty():
+		return
+	if _popup_zone_state == "discovered":
+		_refresh_popup(true)
+		return
+	if _popup_zone_state == "clearing":
+		_refresh_start_clearing_state(GameManager.get_world_zone(_selected_zone_key))
 
 
 func _on_active_settlement_changed(_settlement_id: String) -> void:
 	set_world_snapshot(GameManager.get_world_snapshot())
-	refresh()
+	_refresh_world_view_snapshot()
 
 
 func _on_zone_selected(zone_key: String) -> void:
@@ -126,6 +135,7 @@ func _refresh_popup(preserve_scroll: bool = false) -> void:
 		return
 	var zone := GameManager.get_world_zone(_selected_zone_key)
 	if zone.is_empty():
+		_popup_zone_state = ""
 		_selected_zone_key = ""
 		if _world_view != null and is_instance_valid(_world_view) and _world_view.has_method("clear_zone_selection"):
 			_world_view.clear_zone_selection()
@@ -139,6 +149,7 @@ func _refresh_popup(preserve_scroll: bool = false) -> void:
 	_hide_hero_hover_popup()
 	_modal_overlay.visible = true
 	_layout_hover_panel()
+	_popup_zone_state = String(zone.get("state", ""))
 	match String(zone.get("state", "")):
 		"discovered":
 			_build_discovered_popup(zone)
@@ -265,6 +276,7 @@ func _claim_selected_zone() -> void:
 
 func _close_popup() -> void:
 	_selected_zone_key = ""
+	_popup_zone_state = ""
 	_selected_hero_uids.clear()
 	_start_clearing_button = null
 	_modal_overlay.visible = false
@@ -353,6 +365,30 @@ func _update_clearing_popup_time(zone: Dictionary) -> void:
 		_clearing_time_label.text = _format_zone_time_label(_get_zone_display_remaining_seconds(zone), "Time Remaining")
 
 
+func _refresh_world_view_snapshot() -> void:
+	_ensure_world_view()
+	if _world_view != null and is_instance_valid(_world_view):
+		_world_view.set_world_snapshot(_world_snapshot)
+
+
+func _sync_popup_after_world_change() -> void:
+	if _selected_zone_key.is_empty():
+		return
+	var zone := GameManager.get_world_zone(_selected_zone_key)
+	if zone.is_empty():
+		_refresh_popup(true)
+		return
+	var zone_state := String(zone.get("state", ""))
+	if zone_state != _popup_zone_state:
+		_refresh_popup(true)
+		return
+	if zone_state == "clearing":
+		_update_clearing_popup_time(zone)
+		return
+	if zone_state == "cleared":
+		_refresh_popup(true)
+
+
 func _as_dictionary(value: Variant) -> Dictionary:
 	if value is Dictionary:
 		return value
@@ -368,6 +404,11 @@ func _as_array(value: Variant) -> Array:
 func _set_popup_header(title_text: String, subtitle_text: String) -> void:
 	_popup_title.text = title_text
 	_popup_subtitle.text = subtitle_text
+
+
+func _apply_responsive_layout() -> void:
+	var width := get_viewport_rect().size.x
+	_popup_panel.custom_minimum_size = Vector2(clampf(width * 0.94, 380.0, 760.0), 0)
 
 
 func _style_dialog_shell() -> void:
