@@ -389,7 +389,7 @@ func _set_popup_header(title_text: String, subtitle_text: String) -> void:
 
 func _apply_responsive_layout() -> void:
 	var width := get_viewport_rect().size.x
-	_popup_panel.custom_minimum_size = Vector2(clampf(width * 0.94, 380.0, 760.0), 0)
+	_popup_panel.custom_minimum_size = Vector2(clampf(width * 0.84, 360.0, 660.0), 0)
 
 
 func _style_dialog_shell() -> void:

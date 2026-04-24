@@ -111,6 +111,24 @@ static func build_debug_page(page_content: VBoxContainer, callbacks: Dictionary)
 	heroes_body.add_child(UIScreenHelpers.make_label("Adds 100 experience to every recruited hero.", 16))
 	heroes_body.add_child(UIScreenHelpers.make_button("Grant 100 XP All Heroes", callbacks.get("debug_grant_hero_experience", Callable()), false))
 
+	var inventory_panel := UIScreenHelpers.make_panel()
+	page_content.add_child(inventory_panel)
+	var inventory_body := VBoxContainer.new()
+	inventory_panel.add_child(inventory_body)
+	inventory_body.add_child(UIScreenHelpers.make_label("Inventory Generation", 20))
+	inventory_body.add_child(UIScreenHelpers.make_label("Adds one random item stack to inventory.", 16))
+	inventory_body.add_child(UIScreenHelpers.make_button("Generate Random Item", callbacks.get("debug_grant_item", Callable()), false))
+	inventory_body.add_child(UIScreenHelpers.make_label("Adds one random equipment instance to inventory.", 16))
+	inventory_body.add_child(UIScreenHelpers.make_button("Generate Random Equipment", callbacks.get("debug_grant_equipment", Callable()), false))
+
+	var time_panel := UIScreenHelpers.make_panel()
+	page_content.add_child(time_panel)
+	var time_body := VBoxContainer.new()
+	time_panel.add_child(time_body)
+	time_body.add_child(UIScreenHelpers.make_label("Time Progression", 20))
+	time_body.add_child(UIScreenHelpers.make_label("Processes 100 game ticks immediately.", 16))
+	time_body.add_child(UIScreenHelpers.make_button("Progress 100 Ticks", callbacks.get("debug_progress_100_ticks", Callable()), false))
+
 
 static func _build_main_menu_root(content: VBoxContainer, viewport_width: float, callbacks: Dictionary) -> void:
 	var last_played_slot := GameManager.get_last_played_save_slot()

@@ -730,7 +730,10 @@ func _refresh_page_content() -> void:
 			MainScreenViewBuilders.build_debug_page(_page_content, {
 				"debug_grant_resources": Callable(GameManager, "debug_grant_all_resources"),
 				"debug_recruit_hero": Callable(GameManager, "debug_recruit_random_hero"),
+				"debug_grant_item": Callable(GameManager, "debug_grant_random_item"),
+				"debug_grant_equipment": Callable(GameManager, "debug_grant_random_equipment"),
 				"debug_grant_hero_experience": Callable(GameManager, "debug_grant_all_hero_experience"),
+				"debug_progress_100_ticks": Callable(GameManager, "debug_progress_100_ticks"),
 			})
 
 

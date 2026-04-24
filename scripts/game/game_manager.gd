@@ -717,6 +717,41 @@ func debug_recruit_random_hero() -> Dictionary:
 	return hero_instance.duplicate(true)
 
 
+func debug_grant_random_item() -> Dictionary:
+	var item_pool := DataLoader.get_all_items()
+	if item_pool.is_empty():
+		return {}
+	var item_definition: Dictionary = item_pool[randi_range(0, item_pool.size() - 1)]
+	var definition_id := String(item_definition.get("id", ""))
+	if definition_id.is_empty():
+		return {}
+	add_item_to_inventory(definition_id, 1)
+	emit_signal("inventory_changed")
+	_request_persistence_update()
+	return item_definition.duplicate(true)
+
+
+func debug_grant_random_equipment() -> Dictionary:
+	var equipment_pool := DataLoader.get_all_equipment()
+	if equipment_pool.is_empty():
+		return {}
+	var equipment_definition: Dictionary = equipment_pool[randi_range(0, equipment_pool.size() - 1)]
+	var definition_id := String(equipment_definition.get("id", ""))
+	if definition_id.is_empty():
+		return {}
+	var equipment_instance := add_equipment_to_inventory(definition_id)
+	if equipment_instance.is_empty():
+		return {}
+	emit_signal("inventory_changed")
+	_request_persistence_update()
+	return equipment_instance
+
+
+func debug_progress_100_ticks() -> void:
+	for _tick_index in range(100):
+		process_tick()
+
+
 func debug_grant_all_hero_experience() -> void:
 	var did_change := false
 	for hero_index in range(heroes.size()):
