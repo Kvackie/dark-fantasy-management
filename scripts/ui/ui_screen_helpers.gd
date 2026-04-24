@@ -51,7 +51,6 @@ static func make_button(text: String, callback: Callable, disabled: bool = false
 	button.text = text
 	button.disabled = disabled
 	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	style_button(button)
 	button.pressed.connect(callback)
 	return button
 
@@ -202,15 +201,7 @@ static func style_panel(panel: Control, bg_color: Color, border_color: Color, co
 
 
 static func style_button(button: Button) -> void:
-	button.add_theme_font_size_override("font_size", 17 + FONT_SIZE_BONUS + BUTTON_FONT_SIZE_BONUS)
-	button.add_theme_color_override("font_color", Color("faf5ef"))
-	button.add_theme_color_override("font_hover_color", Color("fffaf4"))
-	button.add_theme_color_override("font_pressed_color", Color("fff0dc"))
-	button.add_theme_color_override("font_disabled_color", Color("9d9287"))
-	button.add_theme_stylebox_override("normal", _button_style(Color("171315"), Color("6f5648"), 7))
-	button.add_theme_stylebox_override("hover", _button_style(Color("261d1d"), Color("a88563"), 7))
-	button.add_theme_stylebox_override("pressed", _button_style(Color("362925"), Color("d0a170"), 7))
-	button.add_theme_stylebox_override("disabled", _button_style(Color("121012"), Color("4c3e3a"), 7))
+	return
 
 
 static func style_label(label: Label, font_size: int, accent: bool) -> void:
@@ -337,7 +328,8 @@ static func _style_panel(panel: Control, bg_color: Color, border_color: Color, c
 
 static func _style_label(label: Label, font_size: int, accent: bool) -> void:
 	label.add_theme_font_size_override("font_size", font_size + FONT_SIZE_BONUS)
-	label.add_theme_color_override("font_color", Color("fff9f1") if accent else Color("efe7db"))
+	if accent:
+		label.add_theme_color_override("font_color", Color("fff9f1"))
 
 
 static func _button_style(bg_color: Color, border_color: Color, corner_radius: int) -> StyleBoxFlat:

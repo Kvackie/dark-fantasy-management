@@ -248,9 +248,6 @@ func _make_hero_checkbox(hero_data: Dictionary) -> CheckBox:
 	var checkbox := CheckBox.new()
 	checkbox.text = String(hero_data.get("name", "Unknown Hero"))
 	checkbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	checkbox.add_theme_font_size_override("font_size", 18)
-	checkbox.add_theme_color_override("font_color", Color("ece2d6"))
-	checkbox.add_theme_color_override("font_hover_color", Color("fff6ea"))
 	checkbox.mouse_entered.connect(Callable(self, "_show_hero_hover_popup").bind(hero_data, checkbox))
 	checkbox.mouse_exited.connect(Callable(self, "_hide_hero_hover_popup"))
 	checkbox.button_pressed = _selected_hero_uids.has(hero_uid)
