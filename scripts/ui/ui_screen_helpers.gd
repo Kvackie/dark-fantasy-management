@@ -1,6 +1,10 @@
 extends RefCounted
 
 
+const FONT_SIZE_BONUS := 2
+const BUTTON_FONT_SIZE_BONUS := 2
+
+
 const SettlementGameData = preload("res://scripts/game/settlement_game.gd")
 
 
@@ -28,7 +32,7 @@ static func as_dictionary(value: Variant) -> Dictionary:
 static func make_panel() -> PanelContainer:
 	var panel := PanelContainer.new()
 	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_style_panel(panel, Color("181416"), Color("675042"), 8)
+	style_panel(panel, Color("181416"), Color("675042"), 8)
 	return panel
 
 
@@ -37,17 +41,26 @@ static func make_label(text: String, font_size: int) -> Label:
 	label.text = text
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var effective_font_size := font_size if font_size >= 20 else font_size + 1
-	_style_label(label, effective_font_size, font_size >= 20)
+	var effective_font_size := (font_size if font_size >= 20 else font_size + 1) + FONT_SIZE_BONUS
+	style_label(label, effective_font_size, font_size >= 20)
 	return label
 
 
-static func make_small_action_button(text: String, callback: Callable) -> Button:
+static func make_button(text: String, callback: Callable, disabled: bool = false) -> Button:
+	var button := Button.new()
+	button.text = text
+	button.disabled = disabled
+	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	button.pressed.connect(callback)
+	return button
+
+
+static func make_small_nav_button(text: String, callback: Callable) -> Button:
 	var button := Button.new()
 	button.text = text
 	button.custom_minimum_size = Vector2(116, 30)
-	button.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
-	button.add_theme_font_size_override("font_size", 12)
+	button.size_flags_horizontal = Control.SIZE_SHRINK_END
+	button.add_theme_font_size_override("font_size", 12 + FONT_SIZE_BONUS + BUTTON_FONT_SIZE_BONUS)
 	button.add_theme_color_override("font_color", Color("e9dfd2"))
 	button.add_theme_color_override("font_hover_color", Color("f7efe3"))
 	button.add_theme_color_override("font_pressed_color", Color("fff1dc"))
@@ -60,21 +73,39 @@ static func make_small_action_button(text: String, callback: Callable) -> Button
 	return button
 
 
-static func make_overview_settlement_tile(settlement_definition: Dictionary, open_callback: Callable, active_settlement_id: String, built_plot_count: int, total_plot_count: int) -> PanelContainer:
+static func make_small_action_button(text: String, callback: Callable) -> Button:
+	var button := make_small_nav_button(text, callback)
+	button.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	return button
+
+
+static func make_danger_button(text: String, callback: Callable) -> Button:
+	var button := make_small_nav_button(text, callback)
+	button.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	button.add_theme_color_override("font_color", Color("f2d8d4"))
+	button.add_theme_color_override("font_hover_color", Color("fff0ed"))
+	button.add_theme_color_override("font_pressed_color", Color("fff7f5"))
+	button.add_theme_stylebox_override("normal", _button_style(Color("2a1415"), Color("8a4c49"), 6))
+	button.add_theme_stylebox_override("hover", _button_style(Color("34191a"), Color("b76558"), 6))
+	button.add_theme_stylebox_override("pressed", _button_style(Color("421d1d"), Color("d17a6d"), 6))
+	button.add_theme_stylebox_override("disabled", _button_style(Color("1a1011"), Color("4a2f31"), 6))
+	return button
+
+
+static func make_overview_settlement_tile(settlement_entry: Dictionary, open_callback: Callable) -> PanelContainer:
 	var panel := PanelContainer.new()
 	panel.custom_minimum_size = Vector2(176, 214)
 	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var settlement_id := String(settlement_definition.get("id", ""))
-	var accent := Color("d0a170") if settlement_id == active_settlement_id else Color("7a5e4b")
+	var settlement_id := String(settlement_entry.get("settlement_id", settlement_entry.get("id", "")))
+	var accent := Color("d0a170") if bool(settlement_entry.get("is_active", false)) else Color("7a5e4b")
 	_style_panel(panel, Color("141113"), accent, 10)
-	var plot_counts := _settlement_plot_counts_from_built(built_plot_count)
 	var body := VBoxContainer.new()
 	body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	body.add_theme_constant_override("separation", 8)
 	body.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	panel.add_child(body)
-	var name_label := make_label(String(settlement_definition.get("name", "Unknown Settlement")), 16)
+	var name_label := make_label(String(settlement_entry.get("name", "Unknown Settlement")), 16)
 	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	name_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	name_label.add_theme_color_override("font_color", Color("efe7db"))
@@ -89,12 +120,12 @@ static func make_overview_settlement_tile(settlement_definition: Dictionary, ope
 	icon.custom_minimum_size = Vector2(64, 64)
 	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	icon.texture = _load_texture_from_path(String(settlement_definition.get("icon_path", DataLoader.DEFAULT_CATALOG_ICON)))
+	icon.texture = _load_texture_from_path(String(settlement_entry.get("icon_path", DataLoader.DEFAULT_CATALOG_ICON)))
 	if icon.texture == null:
 		icon.texture = _load_texture_from_path(DataLoader.DEFAULT_CATALOG_ICON)
 	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	icon_holder.add_child(icon)
-	var plots_label := make_label(txt("overview.plots", {"built": int(plot_counts.get("built", 0)), "total": total_plot_count}), 13)
+	var plots_label := make_label(txt("overview.plots", {"built": int(settlement_entry.get("built_plot_count", 0)), "total": int(settlement_entry.get("plot_count", 0))}), 13)
 	plots_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	plots_label.add_theme_color_override("font_color", Color("d9cbb7"))
 	plots_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -151,7 +182,7 @@ static func make_inventory_slot(entry: Dictionary) -> PanelContainer:
 	panel.custom_minimum_size = Vector2(148, 148)
 	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var accent_color := Color("7a5e4b") if kind == "item" else Color("8d8478")
-	_style_panel(panel, Color("141113"), accent_color, 10)
+	style_panel(panel, Color("141113"), accent_color, 10)
 	var footer_text := "x%d" % int(entry.get("quantity", 0)) if kind == "item" else _inventory_equipment_footer(entry, definition)
 	build_inventory_tile_content(panel, definition, footer_text, Color("d9cbb7") if kind == "item" else Color("b8c3d9"), Color("efe7db"), 72, 15, 14)
 	return panel
@@ -163,6 +194,18 @@ static func equipment_slot_label(slot_key: String) -> String:
 
 static func build_inventory_tile_content(parent: Control, definition: Dictionary, footer_text: String, footer_color: Color, title_color: Color, icon_size: int, title_font_size: int, footer_font_size: int, title_override: String = "") -> void:
 	_build_inventory_tile_content(parent, definition, footer_text, footer_color, title_color, icon_size, title_font_size, footer_font_size, title_override)
+
+
+static func style_panel(panel: Control, bg_color: Color, border_color: Color, corner_radius: int) -> void:
+	_style_panel(panel, bg_color, border_color, corner_radius)
+
+
+static func style_button(button: Button) -> void:
+	return
+
+
+static func style_label(label: Label, font_size: int, accent: bool) -> void:
+	_style_label(label, font_size, accent)
 
 
 static func load_texture_from_path(path: String) -> Texture2D:
@@ -284,8 +327,9 @@ static func _style_panel(panel: Control, bg_color: Color, border_color: Color, c
 
 
 static func _style_label(label: Label, font_size: int, accent: bool) -> void:
-	label.add_theme_font_size_override("font_size", font_size)
-	label.add_theme_color_override("font_color", Color("fff9f1") if accent else Color("efe7db"))
+	label.add_theme_font_size_override("font_size", font_size + FONT_SIZE_BONUS)
+	if accent:
+		label.add_theme_color_override("font_color", Color("fff9f1"))
 
 
 static func _button_style(bg_color: Color, border_color: Color, corner_radius: int) -> StyleBoxFlat:

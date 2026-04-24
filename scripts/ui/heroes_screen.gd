@@ -16,9 +16,9 @@ func set_heroes_snapshot(heroes_snapshot: Array) -> void:
 
 func refresh() -> void:
 	UIScreenHelpers.clear_container(self)
-	add_child(UIScreenHelpers.make_label("All recruited heroes are gathered here. Portrait art will be used automatically when available.", 16))
+	add_child(UIScreenHelpers.make_label("All recruited heroes are gathered here. Portrait art will be used automatically when available.", 18))
 	if _heroes_snapshot.is_empty():
-		add_child(UIScreenHelpers.make_label("No heroes recruited yet. Build a Veil Tavern to unlock Recruit, or use the Debug menu.", 17))
+		add_child(UIScreenHelpers.make_label("No heroes recruited yet. Build a Veil Tavern to unlock Recruit, or use the Debug menu.", 19))
 		return
 	var grid := GridContainer.new()
 	grid.columns = 5

@@ -2,6 +2,8 @@ extends Control
 
 
 const WorldViewScene = preload("res://scenes/world/world_view.tscn")
+const UIScreenHelpers = preload("res://scripts/ui/ui_screen_helpers.gd")
+const WorldScreenHelpers = preload("res://scripts/ui/world_screen_helpers.gd")
 const SettlementGameData = preload("res://scripts/game/settlement_game.gd")
 
 signal settlement_selected(settlement_id: String)
@@ -167,56 +169,60 @@ func _refresh_popup(preserve_scroll: bool = false) -> void:
 
 func _build_discovered_popup(zone: Dictionary) -> void:
 	var requirements := _as_dictionary(zone.get("requirements", {}))
-	_set_popup_header(
-		DataLoader.get_ui_text("world.title_discovered", {}, "Uncleared Zone"),
-		"%s  |  %s" % [_format_zone_time_label(_get_zone_display_total_seconds(zone), "Clearing Time"), _format_zone_requirements(requirements)]
-	)
-	_start_clearing_status_label = _make_popup_label("", 14, false)
-	_popup_body.add_child(_start_clearing_status_label)
-	_popup_body.add_child(_make_popup_label(DataLoader.get_ui_text("world.party_limit", {"count": int(_as_dictionary(_world_snapshot.get("config", {})).get("max_clearing_party", 3))}, "Select heroes"), 15, false))
+	var subtitle_text := "%s  |  %s" % [_format_zone_time_label(_get_zone_display_total_seconds(zone), "Clearing Time"), _format_zone_requirements(requirements)]
+	var hero_controls: Array = []
 	var heroes := GameManager.get_available_heroes_for_world_zone(String(zone.get("key", "")))
-	if heroes.is_empty():
-		_popup_body.add_child(_make_popup_label(DataLoader.get_ui_text("world.no_available_heroes", {}, "No idle heroes are available."), 15, false))
-	else:
-		for hero_data in heroes:
-			_popup_body.add_child(_make_hero_checkbox(hero_data))
-	var start_button := _make_popup_button(DataLoader.get_ui_text("world.button_begin_clearing", {}, "Begin Clearing"), Callable(self, "_start_selected_zone_clearing"))
-	_start_clearing_button = start_button
+	for hero_data in heroes:
+		hero_controls.append(_make_hero_checkbox(hero_data))
+	var popup_nodes := WorldScreenHelpers.build_discovered_popup(
+		_popup_title,
+		_popup_subtitle,
+		_popup_body,
+		_popup_footer,
+		subtitle_text,
+		DataLoader.get_ui_text("world.party_limit", {"count": int(_as_dictionary(_world_snapshot.get("config", {})).get("max_clearing_party", 3))}, "Select heroes"),
+		DataLoader.get_ui_text("world.no_available_heroes", {}, "No idle heroes are available."),
+		hero_controls,
+		Callable(self, "_start_selected_zone_clearing"),
+		Callable(self, "_close_popup")
+	)
+	_start_clearing_status_label = popup_nodes.get("status_label", null) as Label
+	_start_clearing_button = popup_nodes.get("start_button", null) as Button
 	_refresh_start_clearing_state(zone)
-	_popup_footer.add_child(start_button)
-	_popup_footer.add_child(_make_popup_button(DataLoader.get_ui_text("world.button_close", {}, "Close"), Callable(self, "_close_popup")))
 
 
 func _build_clearing_popup(zone: Dictionary) -> void:
 	var requirements := _as_dictionary(zone.get("requirements", {}))
-	_set_popup_header(
-		DataLoader.get_ui_text("world.title_clearing", {}, "Clearing Zone"),
-		"%s  |  %s" % [_format_zone_time_label(_get_zone_display_remaining_seconds(zone), "Time Remaining"), _format_zone_requirements(requirements)]
+	var subtitle_text := "%s  |  %s" % [_format_zone_time_label(_get_zone_display_remaining_seconds(zone), "Time Remaining"), _format_zone_requirements(requirements)]
+	var popup_nodes := WorldScreenHelpers.build_clearing_popup(
+		_popup_title,
+		_popup_subtitle,
+		_popup_body,
+		_popup_footer,
+		subtitle_text,
+		_format_zone_time_label(_get_zone_display_remaining_seconds(zone), "Time Remaining"),
+		Callable(self, "_close_popup")
 	)
-	_clearing_time_label = _make_popup_label(_format_zone_time_label(_get_zone_display_remaining_seconds(zone), "Time Remaining"), 15, false)
-	_popup_body.add_child(_clearing_time_label)
-	_popup_footer.add_child(_make_popup_button(DataLoader.get_ui_text("world.button_close", {}, "Close"), Callable(self, "_close_popup")))
+	_clearing_time_label = popup_nodes.get("time_label", null) as Label
 
 
 func _build_cleared_popup(zone: Dictionary) -> void:
 	var zone_name := String(zone.get("generated_name", "Cleared Zone"))
 	var claim_cost := _as_dictionary(zone.get("claim_cost", {}))
 	var requirements := _as_dictionary(zone.get("requirements", {}))
-	_set_popup_header(
-		DataLoader.get_ui_text("world.title_cleared", {}, "Cleared Zone"),
-		zone_name
+	WorldScreenHelpers.build_cleared_popup(
+		_popup_title,
+		_popup_subtitle,
+		_popup_body,
+		_popup_footer,
+		zone_name,
+		_format_zone_requirements(requirements),
+		bool(zone.get("no_settlement", false)),
+		_format_resource_dict(claim_cost),
+		GameManager.can_afford(claim_cost),
+		Callable(self, "_claim_selected_zone"),
+		Callable(self, "_close_popup")
 	)
-	_popup_body.add_child(_make_popup_label(zone_name, 18, false))
-	_popup_body.add_child(_make_popup_label(_format_zone_requirements(requirements), 15, false))
-	if bool(zone.get("no_settlement", false)):
-		_popup_body.add_child(_make_popup_label("Special area. No settlement can be founded here.", 15, false))
-	_popup_body.add_child(_make_popup_label(DataLoader.get_ui_text("world.claim_cost", {}, "Claim Cost"), 15, false))
-	_popup_body.add_child(_make_popup_label(_format_resource_dict(claim_cost), 15, false))
-	var claim_button_text := "Claim Area" if bool(zone.get("no_settlement", false)) else DataLoader.get_ui_text("world.button_claim", {}, "Claim Settlement")
-	var claim_button := _make_popup_button(claim_button_text, Callable(self, "_claim_selected_zone"))
-	claim_button.disabled = not GameManager.can_afford(claim_cost)
-	_popup_footer.add_child(claim_button)
-	_popup_footer.add_child(_make_popup_button(DataLoader.get_ui_text("world.button_close", {}, "Close"), Callable(self, "_close_popup")))
 
 
 func _build_claimed_popup(zone: Dictionary) -> void:
@@ -225,14 +231,16 @@ func _build_claimed_popup(zone: Dictionary) -> void:
 		return
 	var zone_name := String(zone.get("generated_name", "Claimed Area"))
 	var reward := _as_dictionary(zone.get("claimed_reward", {}))
-	var reward_text := "No passive reward."
-	if not reward.is_empty():
-		reward_text = "%d %s every %d ticks." % [int(reward.get("amount", 0)), String(reward.get("resource", "resource")).capitalize(), max(1, int(reward.get("interval", 1)))]
-	_set_popup_header(zone_name, "Claimed Special Area")
-	_popup_body.add_child(_make_popup_label(zone_name, 18, false))
-	_popup_body.add_child(_make_popup_label("Special area. No settlement can be founded here.", 15, false))
-	_popup_body.add_child(_make_popup_label(reward_text, 15, false))
-	_popup_footer.add_child(_make_popup_button(DataLoader.get_ui_text("world.button_close", {}, "Close"), Callable(self, "_close_popup")))
+	var reward_text := WorldScreenHelpers.format_claimed_reward_text(reward)
+	WorldScreenHelpers.build_claimed_popup(
+		_popup_title,
+		_popup_subtitle,
+		_popup_body,
+		_popup_footer,
+		zone_name,
+		reward_text,
+		Callable(self, "_close_popup")
+	)
 
 
 func _make_hero_checkbox(hero_data: Dictionary) -> CheckBox:
@@ -240,9 +248,6 @@ func _make_hero_checkbox(hero_data: Dictionary) -> CheckBox:
 	var checkbox := CheckBox.new()
 	checkbox.text = String(hero_data.get("name", "Unknown Hero"))
 	checkbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	checkbox.add_theme_font_size_override("font_size", 16)
-	checkbox.add_theme_color_override("font_color", Color("ece2d6"))
-	checkbox.add_theme_color_override("font_hover_color", Color("fff6ea"))
 	checkbox.mouse_entered.connect(Callable(self, "_show_hero_hover_popup").bind(hero_data, checkbox))
 	checkbox.mouse_exited.connect(Callable(self, "_hide_hero_hover_popup"))
 	checkbox.button_pressed = _selected_hero_uids.has(hero_uid)
@@ -286,39 +291,19 @@ func _close_popup() -> void:
 
 
 func _make_popup_label(text: String, font_size: int, accent: bool) -> Label:
-	var label := Label.new()
-	label.text = text
-	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	label.add_theme_font_size_override("font_size", font_size)
-	label.add_theme_color_override("font_color", Color("f3eadc") if accent else Color("d8cec1"))
-	return label
+	return WorldScreenHelpers.make_popup_label(text, font_size, accent)
 
 
 func _make_popup_button(text: String, callback: Callable) -> Button:
-	var button := Button.new()
-	button.text = text
-	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	button.pressed.connect(callback)
-	return button
+	return WorldScreenHelpers.make_popup_button(text, callback)
 
 
 func _format_resource_dict(values: Dictionary) -> String:
-	if values.is_empty():
-		return DataLoader.get_ui_text("common.none", {}, "none")
-	var parts: Array[String] = []
-	for resource_id in SettlementGameData.RESOURCE_ORDER:
-		if values.has(resource_id) and int(values[resource_id]) != 0:
-			parts.append("%s %d" % [DataLoader.get_ui_text("resource.%s" % resource_id, {}, String(resource_id).capitalize()), int(values[resource_id])])
-	return ", ".join(parts)
+	return WorldScreenHelpers.format_resource_dict(values)
 
 
 func _format_zone_requirements(requirements: Dictionary) -> String:
-	var attack_requirement := int(requirements.get("attack", 0))
-	var defense_requirement := int(requirements.get("defense", 0))
-	if attack_requirement <= 0 and defense_requirement <= 0:
-		return "ATK REQ 0  |  DEF REQ 0"
-	return "ATK REQ %d  |  DEF REQ %d" % [attack_requirement, defense_requirement]
+	return WorldScreenHelpers.format_zone_requirements(requirements)
 
 
 func _refresh_start_clearing_state(zone: Dictionary) -> void:
@@ -331,16 +316,16 @@ func _refresh_start_clearing_state(zone: Dictionary) -> void:
 	var totals := _as_dictionary(preview.get("totals", {}))
 	var requirements := _as_dictionary(preview.get("requirements", {}))
 	var status_text := "Party ATK %d/%d  |  DEF %d/%d" % [int(totals.get("attack", 0)), int(requirements.get("attack", 0)), int(totals.get("defense", 0)), int(requirements.get("defense", 0))]
+	var meets_requirements := bool(preview.get("meets_requirements", false)) and not _selected_hero_uids.is_empty()
 	if _selected_hero_uids.is_empty():
 		_start_clearing_button.disabled = true
-	elif not bool(preview.get("meets_requirements", false)):
-		status_text += "\nParty is too weak to begin clearing."
+	elif not meets_requirements:
 		_start_clearing_button.disabled = true
 	else:
-		status_text += "\nParty meets requirements."
 		_start_clearing_button.disabled = false
 	if _start_clearing_status_label != null and is_instance_valid(_start_clearing_status_label):
 		_start_clearing_status_label.text = status_text
+		_start_clearing_status_label.add_theme_color_override("font_color", Color("7edc9a") if meets_requirements else Color("eb7d7d"))
 
 
 func _get_zone_display_total_seconds(zone: Dictionary) -> float:
@@ -355,7 +340,7 @@ func _get_zone_display_remaining_seconds(zone: Dictionary) -> float:
 
 
 func _format_zone_time_label(total_seconds: float, label_text: String) -> String:
-	return "%s: %s" % [label_text, SettlementGameData.format_duration_label(total_seconds)]
+	return WorldScreenHelpers.format_zone_time_label(total_seconds, label_text)
 
 
 func _update_clearing_popup_time(zone: Dictionary) -> void:
@@ -390,15 +375,11 @@ func _sync_popup_after_world_change() -> void:
 
 
 func _as_dictionary(value: Variant) -> Dictionary:
-	if value is Dictionary:
-		return value
-	return {}
+	return UIScreenHelpers.as_dictionary(value)
 
 
 func _as_array(value: Variant) -> Array:
-	if value is Array:
-		return value
-	return []
+	return UIScreenHelpers.as_array(value)
 
 
 func _set_popup_header(title_text: String, subtitle_text: String) -> void:
@@ -408,37 +389,11 @@ func _set_popup_header(title_text: String, subtitle_text: String) -> void:
 
 func _apply_responsive_layout() -> void:
 	var width := get_viewport_rect().size.x
-	_popup_panel.custom_minimum_size = Vector2(clampf(width * 0.94, 380.0, 760.0), 0)
+	_popup_panel.custom_minimum_size = Vector2(clampf(width * 0.84, 360.0, 660.0), 0)
 
 
 func _style_dialog_shell() -> void:
-	var panel_style := StyleBoxFlat.new()
-	panel_style.bg_color = Color("1a1517")
-	panel_style.border_color = Color("b08961")
-	panel_style.set_border_width_all(2)
-	panel_style.set_corner_radius_all(12)
-	panel_style.shadow_color = Color(0, 0, 0, 0.35)
-	panel_style.shadow_size = 18
-	_popup_panel.add_theme_stylebox_override("panel", panel_style)
-	var content_style := StyleBoxFlat.new()
-	content_style.bg_color = Color("120f10")
-	content_style.border_color = Color("5a4639")
-	content_style.set_border_width_all(1)
-	content_style.set_corner_radius_all(10)
-	_popup_content_frame.add_theme_stylebox_override("panel", content_style)
-	_hero_hover_frame.add_theme_stylebox_override("panel", content_style)
-	var hover_style := StyleBoxFlat.new()
-	hover_style.bg_color = Color("171214")
-	hover_style.border_color = Color("8f6e54")
-	hover_style.set_border_width_all(2)
-	hover_style.set_corner_radius_all(10)
-	hover_style.shadow_color = Color(0, 0, 0, 0.35)
-	hover_style.shadow_size = 16
-	_hero_hover_panel.add_theme_stylebox_override("panel", hover_style)
-	_popup_title.add_theme_font_size_override("font_size", 24)
-	_popup_title.add_theme_color_override("font_color", Color("f6ecdf"))
-	_popup_subtitle.add_theme_font_size_override("font_size", 15)
-	_popup_subtitle.add_theme_color_override("font_color", Color("cdb9a4"))
+	WorldScreenHelpers.apply_dialog_shell_style(_popup_panel, _popup_content_frame, _hero_hover_frame, _hero_hover_panel, _popup_title, _popup_subtitle)
 
 
 func _show_hero_hover_popup(hero_data: Dictionary, _source_control: Control) -> void:
@@ -471,28 +426,11 @@ func _hide_hero_hover_popup() -> void:
 
 
 func _make_colored_stat_line(label_text: String, value_text: String, accent_color: Color) -> HBoxContainer:
-	var row := HBoxContainer.new()
-	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	row.add_theme_constant_override("separation", 12)
-	var label := _make_hover_label(label_text, 14, false)
-	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	label.add_theme_color_override("font_color", accent_color.lightened(0.22))
-	row.add_child(label)
-	var value := _make_hover_label(value_text, 14, false)
-	value.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	value.add_theme_color_override("font_color", Color("f4ede2"))
-	row.add_child(value)
-	return row
+	return WorldScreenHelpers.make_colored_stat_line(label_text, value_text, accent_color)
 
 
 func _make_hover_label(text: String, font_size: int, accent: bool) -> Label:
-	var label := Label.new()
-	label.text = text
-	label.autowrap_mode = TextServer.AUTOWRAP_OFF
-	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	label.add_theme_font_size_override("font_size", font_size)
-	label.add_theme_color_override("font_color", Color("f3eadc") if accent else Color("d8cec1"))
-	return label
+	return WorldScreenHelpers.make_hover_label(text, font_size, accent)
 
 
 func _layout_hover_panel() -> void:

@@ -12,9 +12,9 @@ func _ready() -> void:
 	_icon_rect.custom_minimum_size = Vector2(34, 34)
 	_icon_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	_icon_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	_name_label.add_theme_font_size_override("font_size", 14)
-	_value_label.add_theme_font_size_override("font_size", 20)
-	_yield_label.add_theme_font_size_override("font_size", 11)
+	_name_label.add_theme_font_size_override("font_size", 20)
+	_value_label.add_theme_font_size_override("font_size", 22)
+	_yield_label.add_theme_font_size_override("font_size", 13)
 	_name_label.add_theme_color_override("font_color", Color("f1ece6"))
 	_value_label.add_theme_color_override("font_color", Color("fffaf2"))
 	_yield_label.modulate = Color(1, 1, 1)

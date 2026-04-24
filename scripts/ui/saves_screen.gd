@@ -100,7 +100,7 @@ func _make_save_slot_entry(slot_info: Dictionary) -> PanelContainer:
 	var name_input := LineEdit.new()
 	name_input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	name_input.custom_minimum_size = Vector2(0, 42)
-	name_input.add_theme_font_size_override("font_size", 16)
+	name_input.add_theme_font_size_override("font_size", 18)
 	name_input.placeholder_text = UIScreenHelpers.txt("save.slot_heading", {"slot": slot_index})
 	name_input.text = String(entry.get("name", ""))
 	name_input.text_submitted.connect(_on_name_submitted.bind(slot_index, name_input))

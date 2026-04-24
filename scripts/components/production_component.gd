@@ -68,10 +68,12 @@ func _calculate_slot_production(slot: Dictionary) -> Dictionary:
 	if building_id.is_empty():
 		return {}
 	if building_id == "triage":
-		var assigned_count := _normalize_int_array(slot.get("assigned_hero_ids", [])).size()
-		if assigned_count <= 0:
+		var special_effects: Dictionary = _as_dictionary(DataLoader.get_special_building_effects().get("triage", {}))
+		var gold_cost_per_hero: int = max(0, int(special_effects.get("gold_cost_per_hero", 3)))
+		var assigned_count: int = _normalize_int_array(slot.get("assigned_hero_ids", [])).size()
+		if assigned_count <= 0 or gold_cost_per_hero <= 0:
 			return {}
-		return {"gold": -3 * assigned_count}
+		return {"gold": -gold_cost_per_hero * assigned_count}
 	var definition: Dictionary = DataLoader.get_building_definition(building_id)
 	if definition.is_empty():
 		return {}
