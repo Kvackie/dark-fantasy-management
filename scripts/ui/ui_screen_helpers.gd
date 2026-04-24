@@ -246,8 +246,8 @@ static func _equipment_slot_label(slot_key: String) -> String:
 			return "Boots"
 		"amulet":
 			return "Amulet"
-		"ring_1":
-			return "Ring 1"
+		"ring":
+			return "Ring"
 		_:
 			return slot_key.capitalize()
 
@@ -282,7 +282,8 @@ static func _build_inventory_tile_content(parent: Control, definition: Dictionar
 	icon_holder.add_child(icon)
 	var title_text := title_override if not title_override.is_empty() else String(definition.get("name", "Unknown"))
 	var title := make_label(title_text, title_font_size)
-	title.autowrap_mode = TextServer.AUTOWRAP_OFF
+	title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	title.custom_minimum_size.x = 0
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	title.add_theme_color_override("font_color", title_color)

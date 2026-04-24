@@ -715,6 +715,7 @@ func _refresh_detail_panel() -> void:
 
 
 func _refresh_page_content() -> void:
+	_clear_inventory_fixed_header()
 	if _mount_scene_backed_page_screen():
 		return
 	MainScreenPageCoordinator.hide_scene_backed_page_screens(_scene_backed_page_screens)
@@ -827,6 +828,7 @@ func _set_scene_backed_page_screen_inputs(screen: Control) -> void:
 		MODE_HEROES:
 			screen.set_heroes_snapshot(_heroes_snapshot)
 		MODE_INVENTORY:
+			screen.call("set_fixed_header_container", _page_root)
 			screen.set_inventory_snapshot(_inventory_snapshot)
 		MODE_SAVES:
 			screen.set_slots(GameManager.get_save_slot_metadata())
@@ -945,4 +947,12 @@ func _txt(key: String, replacements: Dictionary = {}, fallback: String = "") -> 
 func _clear_container_immediately(container: Node) -> void:
 	for child in container.get_children():
 		container.remove_child(child)
+		child.queue_free()
+
+
+func _clear_inventory_fixed_header() -> void:
+	for child in _page_root.get_children():
+		if not bool(child.get_meta("inventory_header", false)):
+			continue
+		_page_root.remove_child(child)
 		child.queue_free()

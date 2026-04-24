@@ -410,7 +410,7 @@ func _make_equipment_detail_dialog(hero_data: Dictionary, slot_key: String, equi
 	body.add_child(action_row)
 	var equip_disabled := _is_selected_equipment_already_equipped(equipment_entry, int(hero_data.get("uid", -1)), slot_key)
 	action_row.add_child(UIScreenHelpers.make_button("Equip", Callable(self, "_equip_selected_equipment"), equip_disabled))
-	if _hero_slot_equipment_uid(hero_data, slot_key) > 0:
+	if equip_disabled:
 		action_row.add_child(UIScreenHelpers.make_button("Unequip", Callable(self, "_unequip_selected_hero_slot"), false))
 	return overlay
 
@@ -429,7 +429,7 @@ func _populate_equipment_browser_tile(tile: PanelContainer, equipment_entry: Dic
 	var detail_text := _equipment_owner_short_text(equipment_entry)
 	_clear_container_immediately(tile)
 	UIScreenHelpers.style_panel(tile, Color("141113"), Color("d0a170") if int(equipment_entry.get("uid", -1)) == _selected_equipment_uid else Color("8d8478"), 10)
-	UIScreenHelpers.build_inventory_tile_content(tile, definition, detail_text, Color("b8c3d9"), Color("efe7db"), 44, 13, 12, label_text)
+	UIScreenHelpers.build_inventory_tile_content(tile, definition, detail_text, Color("b8c3d9"), Color("efe7db"), 120, 13, 12, label_text)
 	var button := Button.new()
 	button.set_anchors_preset(Control.PRESET_FULL_RECT)
 	button.offset_left = 0.0
@@ -481,7 +481,7 @@ func _make_hero_equipment_slot_button(hero_data: Dictionary, slot_key: String) -
 	body.add_child(center)
 	if occupied:
 		var icon := TextureRect.new()
-		icon.custom_minimum_size = Vector2(44, 44)
+		icon.custom_minimum_size = Vector2(120, 120)
 		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		icon.texture = UIScreenHelpers.load_texture_from_path(String(current_definition.get("icon_path", DataLoader.DEFAULT_CATALOG_ICON)))

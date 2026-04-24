@@ -204,7 +204,7 @@ func _template_equipment_mod_readme() -> String:
 		"- gloves\n" + \
 		"- boots\n" + \
 		"- amulet\n" + \
-		"- ring_1\n\n" + \
+		"- ring\n\n" + \
 		"Equipment fields:\n" + \
 		"- id (optional; generated per entry if omitted)\n" + \
 		"- name\n" + \

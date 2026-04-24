@@ -4,22 +4,29 @@ extends VBoxContainer
 const UIScreenHelpers = preload("res://scripts/ui/ui_screen_helpers.gd")
 const TAB_ITEMS := "items"
 const TAB_EQUIPMENT := "equipment"
+const INVENTORY_HEADER_META := "inventory_header"
 
 
 var _inventory_snapshot: Dictionary = {"items": [], "equipment": []}
 var _active_tab: String = TAB_ITEMS
+var _fixed_header_container: VBoxContainer = null
 
 
 func set_inventory_snapshot(inventory_snapshot: Dictionary) -> void:
 	_inventory_snapshot = inventory_snapshot.duplicate(true)
 
 
+func set_fixed_header_container(container: VBoxContainer) -> void:
+	_fixed_header_container = container
+
+
 func refresh() -> void:
 	UIScreenHelpers.clear_container(self)
+	_clear_fixed_header()
 	var items: Array = UIScreenHelpers.as_array(_inventory_snapshot.get("items", []))
 	var equipment: Array = UIScreenHelpers.as_array(_inventory_snapshot.get("equipment", []))
-	add_child(UIScreenHelpers.make_label("Recovered supplies, relics, and equipment are stored here for later use.", 16))
-	add_child(_make_tab_row(items.size(), equipment.size()))
+	_add_header_child(UIScreenHelpers.make_label("Recovered supplies, relics, and equipment are stored here for later use.", 16))
+	_add_header_child(_make_tab_row(items.size(), equipment.size()))
 	var entries: Array = _build_active_tab_entries(items, equipment)
 	if entries.is_empty():
 		add_child(UIScreenHelpers.make_label(_empty_tab_text(), 18))
@@ -67,3 +74,27 @@ func _set_active_tab(tab: String) -> void:
 		return
 	_active_tab = tab
 	refresh()
+
+
+func _clear_fixed_header() -> void:
+	if _fixed_header_container == null or not is_instance_valid(_fixed_header_container):
+		return
+	for child in _fixed_header_container.get_children():
+		if not bool(child.get_meta(INVENTORY_HEADER_META, false)):
+			continue
+		_fixed_header_container.remove_child(child)
+		child.queue_free()
+
+
+func _add_header_child(node: Control) -> void:
+	if _fixed_header_container == null or not is_instance_valid(_fixed_header_container):
+		add_child(node)
+		return
+	node.set_meta(INVENTORY_HEADER_META, true)
+	_fixed_header_container.add_child(node)
+	var scroll_index := _fixed_header_container.get_child_count() - 1
+	for index in _fixed_header_container.get_child_count():
+		if _fixed_header_container.get_child(index) is ScrollContainer:
+			scroll_index = index
+			break
+	_fixed_header_container.move_child(node, scroll_index)

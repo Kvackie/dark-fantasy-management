@@ -26,7 +26,7 @@ const DEFAULT_CATALOG_ICON := "res://icon.svg"
 const DEFAULT_ITEM_MAX_STACK := 100000
 
 const HERO_CLASSES := ["Attacker", "Defender", "Supporter"]
-const HERO_EQUIPMENT_KEYS := ["head", "chest", "gloves", "boots", "amulet", "ring_1"]
+const HERO_EQUIPMENT_KEYS := ["head", "chest", "gloves", "boots", "amulet", "ring"]
 
 const DEFAULT_HERO_STATS := {
 	"health": 100,

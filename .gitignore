@@ -1,5 +1,6 @@
 .godot/
 /addons/
+/assets/
 
 # Godot export outputs
 /build/
