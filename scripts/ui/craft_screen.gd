@@ -3,7 +3,12 @@ extends VBoxContainer
 
 const SettlementGameData = preload("res://scripts/game/settlement_game.gd")
 const UIScreenHelpers = preload("res://scripts/ui/ui_screen_helpers.gd")
-const PUZZLE_SCENES := ["res://scenes/ui/timing_strike_puzzle.tscn"]
+const PUZZLE_SCENES := [
+	"res://scenes/ui/timing_strike_puzzle.tscn",
+	"res://scenes/ui/heat_balance_puzzle.tscn",
+	"res://scenes/ui/bellows_rhythm_puzzle.tscn",
+	"res://scenes/ui/edge_sharpening_puzzle.tscn",
+]
 
 const STAT_COLORS := {
 	"health": "#d8847b",

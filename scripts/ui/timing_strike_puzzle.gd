@@ -26,6 +26,7 @@ var _marker_t := 0.0
 var _marker_direction := 1.0
 var _successful_strikes := 0
 var _failed_strikes := 0
+var _started := false
 var _completed := false
 var _strike_paused := false
 var _cost_consumed := false
@@ -37,7 +38,7 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
-	if _completed or _strike_paused or _bar == null or not is_instance_valid(_bar):
+	if not _started or _completed or _strike_paused or _bar == null or not is_instance_valid(_bar):
 		return
 	_marker_t += delta * 0.92 * _marker_direction
 	if _marker_t >= 1.0:
@@ -101,11 +102,11 @@ func _build_ui() -> void:
 	progress_panel.offset_top += 96.0
 	progress_panel.offset_bottom += 96.0
 	add_child(progress_panel)
-	_strike_button = UIScreenHelpers.make_small_action_button("Strike", Callable(self, "_on_strike_pressed"))
-	var strike_callable := Callable(self, "_on_strike_pressed")
+	_strike_button = UIScreenHelpers.make_small_action_button("Start", Callable(self, "_on_action_pressed"))
+	var strike_callable := Callable(self, "_on_action_pressed")
 	if _strike_button.pressed.is_connected(strike_callable):
 		_strike_button.pressed.disconnect(strike_callable)
-	_strike_button.button_down.connect(_on_strike_pressed)
+	_strike_button.button_down.connect(_on_action_pressed)
 	_strike_button.custom_minimum_size = Vector2(260, 84)
 	_strike_button.add_theme_font_size_override("font_size", 34)
 	_set_centered_rect(_strike_button, Vector2(260, 84), 0.78)
@@ -140,11 +141,20 @@ func _update_marker_position() -> void:
 	_marker.position.x = (_marker_t * max_center_x) - (MARKER_WIDTH * 0.5)
 
 
-func _on_strike_pressed() -> void:
-	if _strike_paused:
-		return
+func _on_action_pressed() -> void:
 	if _completed:
 		_return_to_main()
+		return
+	if not _started:
+		_started = true
+		_strike_button.text = "Strike"
+		_feedback_label.text = "Time your strike."
+		return
+	_on_strike_pressed()
+
+
+func _on_strike_pressed() -> void:
+	if _strike_paused:
 		return
 	_strike_paused = true
 	_strike_button.disabled = true
