@@ -990,12 +990,16 @@ func _populate_assign_heroes_dialog(slot_index: int) -> void:
 	if _assign_heroes_slot_index != slot_index or _assign_heroes_overlay == null or not is_instance_valid(_assign_heroes_overlay) or not _assign_heroes_overlay.visible:
 		return
 	UIScreenHelpers.clear_container(_assign_heroes_content)
+	var building_definition := GameManager.get_slot_building_definition(slot_index)
+	var building_id := String(building_definition.get("id", ""))
 	var rows: Array = []
 	var added_uids: Dictionary = {}
 	for hero_data in _heroes_snapshot:
 		var hero := UIScreenHelpers.as_dictionary(hero_data)
 		if int(hero.get("assigned_slot", -1)) == slot_index and String(hero.get("assigned_settlement_id", "")) == GameManager.active_settlement_id:
 			var hero_uid := int(hero.get("uid", -1))
+			if building_id == "triage" and not GameManager.hero_needs_triage(hero_uid):
+				continue
 			_assign_heroes_selected[hero_uid] = true
 			added_uids[hero_uid] = true
 			hero["effective_work_stats"] = GameManager.get_hero_effective_work_stats(hero_uid)

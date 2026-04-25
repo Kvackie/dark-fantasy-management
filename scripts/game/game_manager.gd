@@ -570,11 +570,14 @@ func dismantle_building(slot_index: int) -> bool:
 
 func get_available_heroes_for_slot(slot_index: int) -> Array:
 	var building_definition := get_slot_building_definition(slot_index)
+	var building_id := String(building_definition.get("id", ""))
 	var assignment_requirements := _as_dictionary(building_definition.get("assignment_requirements", {}))
 	var available: Array = []
 	for hero in heroes:
 		var hero_data: Dictionary = hero
 		if not _is_hero_available_for_world(hero_data):
+			continue
+		if building_id == "triage" and not hero_needs_triage(int(hero_data.get("uid", -1))):
 			continue
 		var work_stats := _get_hero_effective_work_stats_from_data(hero_data)
 		if not _work_stats_meet_assignment_requirements(work_stats, assignment_requirements):
@@ -589,6 +592,18 @@ func _hero_meets_assignment_requirements(hero_data: Dictionary, assignment_requi
 	if assignment_requirements.is_empty():
 		return true
 	return _work_stats_meet_assignment_requirements(_get_hero_effective_work_stats_from_data(hero_data), assignment_requirements)
+
+
+func hero_needs_triage(hero_uid: int) -> bool:
+	var stats := get_hero_effective_stats(hero_uid)
+	if stats.is_empty():
+		var hero_index := _find_hero_index(hero_uid)
+		if hero_index == -1:
+			return false
+		stats = _as_dictionary(heroes[hero_index].get("stats", {}))
+	var max_health := int(stats.get("max_health", stats.get("health", 0)))
+	var current_health := int(stats.get("current_health", max_health))
+	return current_health < max_health
 
 
 func _get_hero_effective_work_stats_from_data(hero_data: Dictionary) -> Dictionary:
@@ -632,6 +647,9 @@ func get_resource_yield_preview() -> Dictionary:
 
 func assign_hero_to_slot(hero_uid: int, slot_index: int) -> bool:
 	_sync_active_settlement_slots()
+	var definition := get_slot_building_definition(slot_index)
+	if String(definition.get("id", "")) == "triage" and not hero_needs_triage(hero_uid):
+		return false
 	var result: Dictionary = HeroAssignmentComponentScript.assign_hero_to_active_settlement_slot(
 		heroes,
 		slots,
@@ -819,6 +837,8 @@ func process_tick() -> Dictionary:
 		emit_signal("resources_changed")
 	if bool(building_result.get("heroes_changed", false)):
 		emit_signal("heroes_changed")
+	if bool(building_result.get("settlement_changed", false)):
+		emit_signal("settlement_changed")
 	if bool(world_result.get("heroes_changed", false)):
 		emit_signal("heroes_changed")
 	if bool(building_result.get("resources_changed", false)):
@@ -880,6 +900,7 @@ func _get_claimed_special_zone_yield_preview() -> Dictionary:
 func _process_special_building_tick() -> Dictionary:
 	var did_change_resources := false
 	var did_change_heroes := false
+	var did_change_settlement := false
 	var hero_list := heroes
 	var special_building_effects: Dictionary = DataLoader.get_special_building_effects()
 	var triage_effects: Dictionary = _as_dictionary(special_building_effects.get("triage", {}))
@@ -894,20 +915,32 @@ func _process_special_building_tick() -> Dictionary:
 			var building_id := String(slot_data.get("building_id", ""))
 			if building_id == "triage":
 				for hero_uid in _normalize_int_array(slot_data.get("assigned_hero_ids", [])):
-					if triage_gold_cost_per_hero <= 0 or int(resources.get("gold", 0)) < triage_gold_cost_per_hero:
-						break
 					var hero_index := _find_hero_index(hero_uid)
 					if hero_index == -1:
 						continue
-					resources["gold"] = SettlementGameData.clamp_resource(int(resources.get("gold", 0)) - triage_gold_cost_per_hero)
-					did_change_resources = true
 					var hero_data: Dictionary = hero_list[hero_index]
 					var hero_stats := _as_dictionary(hero_data.get("stats", {})).duplicate(true)
-					var max_health := int(hero_stats.get("max_health", hero_stats.get("health", 0)))
-					var current_health := int(hero_stats.get("current_health", max_health))
+					var effective_stats := get_hero_effective_stats(hero_uid)
+					var max_health := int(effective_stats.get("max_health", hero_stats.get("max_health", hero_stats.get("health", 0))))
+					var current_health := int(effective_stats.get("current_health", hero_stats.get("current_health", max_health)))
 					if current_health >= max_health:
+						hero_data["assigned_settlement_id"] = ""
+						hero_data["assigned_slot"] = -1
+						hero_list[hero_index] = hero_data
+						did_change_heroes = true
+						did_change_settlement = true
 						continue
-					hero_stats["current_health"] = min(current_health + triage_heal_per_hero, max_health)
+					if triage_gold_cost_per_hero <= 0 or int(resources.get("gold", 0)) < triage_gold_cost_per_hero:
+						break
+					resources["gold"] = SettlementGameData.clamp_resource(int(resources.get("gold", 0)) - triage_gold_cost_per_hero)
+					did_change_resources = true
+					var raw_max_health := int(hero_stats.get("max_health", hero_stats.get("health", max_health)))
+					var raw_current_health := int(hero_stats.get("current_health", raw_max_health))
+					hero_stats["current_health"] = min(raw_current_health + triage_heal_per_hero, max_health)
+					if current_health + triage_heal_per_hero >= max_health:
+						hero_data["assigned_settlement_id"] = ""
+						hero_data["assigned_slot"] = -1
+						did_change_settlement = true
 					hero_data["stats"] = hero_stats
 					hero_list[hero_index] = hero_data
 					did_change_heroes = true
@@ -930,9 +963,12 @@ func _process_special_building_tick() -> Dictionary:
 					did_change_heroes = true
 	if did_change_heroes:
 		heroes = hero_list
+	if did_change_settlement:
+		_session().refresh_slot_assignment_compatibility()
 	return {
 		"resources_changed": did_change_resources,
 		"heroes_changed": did_change_heroes,
+		"settlement_changed": did_change_settlement,
 	}
 
 

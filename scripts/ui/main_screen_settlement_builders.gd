@@ -77,9 +77,12 @@ static func _build_building_panel(detail_content: VBoxContainer, slot_index: int
 
 	if worker_slots > 0:
 		var assigned_heroes: Array = []
+		var building_id := String(building_definition.get("id", ""))
 		for hero_data in heroes_snapshot:
 			var hero: Dictionary = hero_data
 			if int(hero.get("assigned_slot", -1)) == slot_index and String(hero.get("assigned_settlement_id", "")) == GameManager.active_settlement_id:
+				if building_id == "triage" and not GameManager.hero_needs_triage(int(hero.get("uid", -1))):
+					continue
 				assigned_heroes.append(hero)
 		_add_section(detail_content, _txt("settlement.assigned_heroes"))
 		var assigned_body := _make_section_panel(detail_content, "")
