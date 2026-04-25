@@ -75,24 +75,25 @@ static func _build_building_panel(detail_content: VBoxContainer, slot_index: int
 	action_body.add_child(_make_rich_text_label("[color=#d8d1c6]%s[/color] %s" % [_txt("settlement.dismantle_refund", {"refund": ""}).trim_suffix(" "), _format_resource_bbcode(dismantle_refund, "refund")], 14))
 	action_body.add_child(_make_danger_action_button(_txt("settlement.dismantle_button"), callbacks.get("dismantle_slot", Callable()).bind(slot_index)))
 
-	_add_section(detail_content, _txt("settlement.assigned_heroes"))
-	var assigned_any := false
-	for hero_data in heroes_snapshot:
-		var hero: Dictionary = hero_data
-		if int(hero.get("assigned_slot", -1)) == slot_index and String(hero.get("assigned_settlement_id", "")) == GameManager.active_settlement_id:
-			assigned_any = true
-			_add_hero_entry(detail_content, hero, true, detail_mode, slot_index, callbacks)
-	if not assigned_any:
-		_add_empty_state(detail_content, _txt("settlement.no_assigned_heroes"))
-	_add_section(detail_content, _txt("settlement.available_heroes"))
-	var available_heroes: Array = GameManager.get_available_heroes_for_slot(slot_index)
-	if available_heroes.is_empty():
-		_add_empty_state(detail_content, _txt("settlement.no_available_heroes"))
-	else:
-		for hero_data in available_heroes:
+	if worker_slots > 0:
+		_add_section(detail_content, _txt("settlement.assigned_heroes"))
+		var assigned_any := false
+		for hero_data in heroes_snapshot:
 			var hero: Dictionary = hero_data
-			if not (int(hero.get("assigned_slot", -1)) == slot_index and String(hero.get("assigned_settlement_id", "")) == GameManager.active_settlement_id):
-				_add_hero_entry(detail_content, hero, false, detail_mode, slot_index, callbacks)
+			if int(hero.get("assigned_slot", -1)) == slot_index and String(hero.get("assigned_settlement_id", "")) == GameManager.active_settlement_id:
+				assigned_any = true
+				_add_hero_entry(detail_content, hero, true, detail_mode, slot_index, callbacks)
+		if not assigned_any:
+			_add_empty_state(detail_content, _txt("settlement.no_assigned_heroes"))
+		_add_section(detail_content, _txt("settlement.available_heroes"))
+		var available_heroes: Array = GameManager.get_available_heroes_for_slot(slot_index)
+		if available_heroes.is_empty():
+			_add_empty_state(detail_content, _txt("settlement.no_available_heroes"))
+		else:
+			for hero_data in available_heroes:
+				var hero: Dictionary = hero_data
+				if not (int(hero.get("assigned_slot", -1)) == slot_index and String(hero.get("assigned_settlement_id", "")) == GameManager.active_settlement_id):
+					_add_hero_entry(detail_content, hero, false, detail_mode, slot_index, callbacks)
 
 
 static func _add_hero_entry(detail_content: VBoxContainer, hero: Dictionary, assigned: bool, detail_mode: String, selected_slot: int, callbacks: Dictionary) -> void:
@@ -117,6 +118,9 @@ static func _add_hero_entry(detail_content: VBoxContainer, hero: Dictionary, ass
 	text_column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	text_column.add_theme_constant_override("separation", 4)
 	body.add_child(text_column)
+	var hero_name := UIScreenHelpers.make_label(String(hero.get("name", "Unknown Hero")), 15)
+	hero_name.add_theme_color_override("font_color", Color("f0d0a8"))
+	text_column.add_child(hero_name)
 	text_column.add_child(_make_rich_text_label(_format_work_stats_bbcode(work_stats), 13))
 	if not assigned and assigned_slot >= 0 and not assigned_settlement_id.is_empty():
 		var current_building: Dictionary = GameManager.get_settlement_building_definition(assigned_settlement_id, assigned_slot)

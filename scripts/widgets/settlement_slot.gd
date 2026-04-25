@@ -46,16 +46,22 @@ func set_view(slot_data: Dictionary, building_definition: Dictionary, is_selecte
 		_icon_rect.visible = false
 		_name_label.text = "Empty Plot"
 		_level_label.text = "Build structure"
-		_workers_label.text = "Unworked"
+		_workers_label.visible = false
+		_workers_label.text = ""
 		_icon_rect.texture = null
 	else:
 		_icon_rect.visible = true
 		_name_label.text = String(building_definition.get("name", building_id.capitalize()))
 		_level_label.text = "Level %d" % int(slot_data.get("level", 1))
-		_workers_label.text = "%d/%d workers" % [
-			_as_array(slot_data.get("assigned_hero_ids", [])).size(),
-			int(building_definition.get("worker_slots", 0)),
-		]
+		var worker_slots := int(building_definition.get("worker_slots", 0))
+		_workers_label.visible = worker_slots > 0
+		if worker_slots > 0:
+			_workers_label.text = "%d/%d workers" % [
+				_as_array(slot_data.get("assigned_hero_ids", [])).size(),
+				worker_slots,
+			]
+		else:
+			_workers_label.text = ""
 		var icon_path: String = String(building_definition.get("icon_path", ""))
 		if ResourceLoader.exists(icon_path):
 			_icon_rect.texture = load(icon_path)
