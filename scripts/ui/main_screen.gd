@@ -1015,7 +1015,7 @@ func _populate_assign_heroes_dialog(slot_index: int) -> void:
 			var row := MainScreenSettlementBuilders.make_assign_hero_checkbox_entry(hero, _assign_heroes_selected.has(hero_uid), Callable(self, "_on_assign_heroes_toggled"), UIScreenHelpers.as_dictionary(hero.get("effective_work_stats", {})), _get_assign_hero_texture(hero))
 			var checkbox: Button = row.get_node("Selector")
 			_assign_heroes_checkboxes[hero_uid] = checkbox
-			_assign_heroes_content.add_child(row)
+			_assign_heroes_content.add_child(MainScreenSettlementBuilders.make_assign_hero_row_panel(row))
 	_update_assign_heroes_limit_state()
 
 

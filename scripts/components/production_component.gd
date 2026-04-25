@@ -10,6 +10,7 @@ const RESOURCE_WORK_STAT_MAP := {
 	"crystals": "mining",
 }
 const WORK_STAT_PRODUCTION_BONUS_PER_POINT := 0.03
+const GATHERING_LODGE_GOLD_BONUS_PER_HERO := 0.10
 
 var _game: Node = null
 var _timer: Timer = null
@@ -85,6 +86,8 @@ func _calculate_slot_production(slot: Dictionary) -> Dictionary:
 			var base_amount: float = float(entry.get("amount", 0))
 			var resource_id := String(entry.resource)
 			var work_multiplier := 1.0 + (_get_slot_total_relevant_work(slot, resource_id) * WORK_STAT_PRODUCTION_BONUS_PER_POINT)
+			if building_id == "gathering_lodge" and resource_id == "gold":
+				work_multiplier += _normalize_int_array(slot.get("assigned_hero_ids", [])).size() * GATHERING_LODGE_GOLD_BONUS_PER_HERO
 			var total_amount: int = int(round(base_amount * level_multiplier * work_multiplier))
 			production_delta[String(entry.resource)] = total_amount
 	return production_delta

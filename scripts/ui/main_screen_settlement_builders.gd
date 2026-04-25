@@ -169,6 +169,14 @@ static func make_assign_hero_checkbox_entry(hero: Dictionary, checked: bool, che
 	return row
 
 
+static func make_assign_hero_row_panel(row: Control) -> PanelContainer:
+	var panel := UIScreenHelpers.make_panel()
+	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	UIScreenHelpers.style_panel(panel, Color("161112"), Color("4f3f36"), 8)
+	panel.add_child(row)
+	return panel
+
+
 static func _style_selector_button(selector: Button) -> void:
 	var normal := StyleBoxFlat.new()
 	normal.bg_color = Color("120f10")

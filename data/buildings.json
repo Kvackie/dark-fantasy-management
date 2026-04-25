@@ -18,7 +18,7 @@
 				{ "resource": "gold", "amount": 3 }
 			],
 			"worker_slots": 2,
-			"assignment_requirements": { "farming": 1, "lumbering": 1 },
+			"assignment_requirements": {},
 			"max_level": 20
 		},
 		{
@@ -39,7 +39,7 @@
 				{ "resource": "food", "amount": 10 }
 			],
 			"worker_slots": 2,
-			"assignment_requirements": { "farming": 2 },
+			"assignment_requirements": { "farming": 1 },
 			"max_level": 20
 		},
 		{
@@ -60,7 +60,7 @@
 				{ "resource": "stone", "amount": 8 }
 			],
 			"worker_slots": 2,
-			"assignment_requirements": { "mining": 2 },
+			"assignment_requirements": { "mining": 1 },
 			"max_level": 20
 		},
 		{
@@ -81,7 +81,7 @@
 				{ "resource": "wood", "amount": 11 }
 			],
 			"worker_slots": 2,
-			"assignment_requirements": { "lumbering": 2 },
+			"assignment_requirements": { "lumbering": 1 },
 			"max_level": 20
 		},
 		{
@@ -102,8 +102,8 @@
 			"upgrade_growth": 1.38,
 			"base_production": [
 			],
-			"worker_slots": 2,
-			"assignment_requirements": { "mining": 2 },
+			"worker_slots": 0,
+			"assignment_requirements": {},
 			"max_level": 20
 		},
 		{
@@ -125,7 +125,7 @@
 			"base_production": [
 			],
 			"worker_slots": 2,
-			"assignment_requirements": { "farming": 1 },
+			"assignment_requirements": {},
 			"max_level": 20
 		},
 		{
@@ -147,7 +147,7 @@
 			"base_production": [
 			],
 			"worker_slots": 2,
-			"assignment_requirements": { "mining": 1, "lumbering": 1 },
+			"assignment_requirements": {},
 			"max_level": 20
 		},
 		{
