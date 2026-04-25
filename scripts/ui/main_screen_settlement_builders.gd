@@ -136,7 +136,7 @@ static func _add_hero_entry(detail_content: VBoxContainer, hero: Dictionary, ass
 			body.add_child(_make_secondary_action_button(button_text, callbacks.get("assign_hero", Callable()).bind(int(hero.get("uid", -1)), selected_slot)))
 
 
-static func make_assign_hero_checkbox_entry(hero: Dictionary, checked: bool, check_toggled: Callable) -> HBoxContainer:
+static func make_assign_hero_checkbox_entry(hero: Dictionary, checked: bool, check_toggled: Callable, work_stats: Dictionary = {}, hero_texture: Texture2D = null) -> HBoxContainer:
 	var row := HBoxContainer.new()
 	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_theme_constant_override("separation", 10)
@@ -148,10 +148,11 @@ static func make_assign_hero_checkbox_entry(hero: Dictionary, checked: bool, che
 	checkbox.custom_minimum_size = Vector2(38, 38)
 	checkbox.add_theme_font_size_override("font_size", 28)
 	checkbox.add_theme_color_override("font_color", Color("f0d0a8"))
-	checkbox.toggled.connect(check_toggled.bind(int(hero.get("uid", -1))))
+	if check_toggled.is_valid():
+		checkbox.toggled.connect(check_toggled.bind(int(hero.get("uid", -1))))
 	_style_selector_button(checkbox)
 	row.add_child(checkbox)
-	row.add_child(_make_hero_icon(hero))
+	row.add_child(_make_hero_icon(hero, hero_texture))
 	var text_column := VBoxContainer.new()
 	text_column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	text_column.add_theme_constant_override("separation", 4)
@@ -159,10 +160,12 @@ static func make_assign_hero_checkbox_entry(hero: Dictionary, checked: bool, che
 	var hero_name := UIScreenHelpers.make_label(String(hero.get("name", "Unknown Hero")), 15)
 	hero_name.add_theme_color_override("font_color", Color("f0d0a8"))
 	text_column.add_child(hero_name)
-	var work_stats: Dictionary = GameManager.get_hero_effective_work_stats(int(hero.get("uid", -1)))
-	if work_stats.is_empty():
-		work_stats = UIScreenHelpers.as_dictionary(hero.get("work_stats", {}))
-	text_column.add_child(_make_rich_text_label(_format_work_stats_bbcode(work_stats), 13))
+	var resolved_work_stats := work_stats
+	if resolved_work_stats.is_empty():
+		resolved_work_stats = UIScreenHelpers.as_dictionary(hero.get("effective_work_stats", {}))
+	if resolved_work_stats.is_empty():
+		resolved_work_stats = UIScreenHelpers.as_dictionary(hero.get("work_stats", {}))
+	text_column.add_child(_make_rich_text_label(_format_work_stats_bbcode(resolved_work_stats), 13))
 	return row
 
 
@@ -183,12 +186,12 @@ static func _style_selector_button(selector: Button) -> void:
 	selector.add_theme_stylebox_override("focus", pressed)
 
 
-static func _make_hero_icon(hero: Dictionary) -> TextureRect:
+static func _make_hero_icon(hero: Dictionary, hero_texture: Texture2D = null) -> TextureRect:
 	var icon := TextureRect.new()
 	icon.custom_minimum_size = Vector2(48, 48)
 	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	icon.texture = UIScreenHelpers.load_hero_texture(hero)
+	icon.texture = hero_texture if hero_texture != null else UIScreenHelpers.load_hero_texture(hero)
 	return icon
 
 

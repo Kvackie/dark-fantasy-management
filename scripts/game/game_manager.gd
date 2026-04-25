@@ -576,18 +576,31 @@ func get_available_heroes_for_slot(slot_index: int) -> Array:
 		var hero_data: Dictionary = hero
 		if not _is_hero_available_for_world(hero_data):
 			continue
-		if not _hero_meets_assignment_requirements(hero_data, assignment_requirements):
+		var work_stats := _get_hero_effective_work_stats_from_data(hero_data)
+		if not _work_stats_meet_assignment_requirements(work_stats, assignment_requirements):
 			continue
-		available.append(hero_data.duplicate(true))
+		var available_hero := hero_data.duplicate(true)
+		available_hero["effective_work_stats"] = work_stats
+		available.append(available_hero)
 	return available
 
 
 func _hero_meets_assignment_requirements(hero_data: Dictionary, assignment_requirements: Dictionary) -> bool:
 	if assignment_requirements.is_empty():
 		return true
+	return _work_stats_meet_assignment_requirements(_get_hero_effective_work_stats_from_data(hero_data), assignment_requirements)
+
+
+func _get_hero_effective_work_stats_from_data(hero_data: Dictionary) -> Dictionary:
 	var work_stats := get_hero_effective_work_stats(int(hero_data.get("uid", -1)))
 	if work_stats.is_empty():
 		work_stats = _as_dictionary(hero_data.get("work_stats", {}))
+	return work_stats
+
+
+func _work_stats_meet_assignment_requirements(work_stats: Dictionary, assignment_requirements: Dictionary) -> bool:
+	if assignment_requirements.is_empty():
+		return true
 	for stat_key_variant in assignment_requirements.keys():
 		var stat_key := String(stat_key_variant)
 		if int(work_stats.get(stat_key, 0)) < int(assignment_requirements.get(stat_key_variant, 0)):

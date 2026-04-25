@@ -109,6 +109,7 @@ var _assign_heroes_apply_button: Button = null
 var _assign_heroes_slot_index: int = -1
 var _assign_heroes_selected: Dictionary = {}
 var _assign_heroes_checkboxes: Dictionary = {}
+var _assign_heroes_texture_cache: Dictionary = {}
 var _zone_reward_toast: PanelContainer = null
 var _zone_reward_toast_title: Label = null
 var _zone_reward_toast_body: Label = null
@@ -126,6 +127,8 @@ func _ready() -> void:
 	_connect_game_manager()
 	_setup_zone_reward_toast()
 	_setup_main_menu_overlay()
+	_setup_assign_heroes_overlay()
+	_warm_assign_heroes_row_ui()
 	_refresh_settlement_title()
 	_apply_mode_layout()
 	_apply_responsive_layout()
@@ -383,6 +386,7 @@ func _on_world_changed() -> void:
 
 func _on_heroes_changed() -> void:
 	_heroes_snapshot = GameManager.get_heroes_snapshot()
+	_cache_assign_hero_textures()
 	_resource_values[RESOURCE_ID_HEROES] = _heroes_snapshot.size()
 	_refresh_resource_badges()
 	_refresh_resource_yields()
@@ -458,6 +462,7 @@ func _enter_game_session() -> void:
 	_resource_values = GameManager.get_resource_snapshot()
 	_slots_snapshot = GameManager.get_slots_snapshot()
 	_heroes_snapshot = GameManager.get_heroes_snapshot()
+	_cache_assign_hero_textures()
 	_inventory_snapshot = GameManager.get_inventory_snapshot()
 	_recruit_market_snapshot = GameManager.get_recruit_market_snapshot()
 	_detail_mode = MODE_WORLD
@@ -943,6 +948,27 @@ func _setup_assign_heroes_overlay() -> void:
 	action_row.add_child(UIScreenHelpers.make_small_action_button("Cancel", Callable(self, "_close_assign_heroes_dialog")))
 
 
+func _warm_assign_heroes_row_ui() -> void:
+	var warm_hero := {
+		"uid": -1,
+		"name": "Warmup",
+		"work_stats": {"farming": 0, "mining": 0, "lumbering": 0},
+	}
+	var row := MainScreenSettlementBuilders.make_assign_hero_checkbox_entry(warm_hero, false, Callable(), UIScreenHelpers.as_dictionary(warm_hero.get("work_stats", {})), null)
+	_assign_heroes_content.add_child(row)
+	_assign_heroes_content.remove_child(row)
+	row.queue_free()
+
+
+func _cache_assign_hero_textures() -> void:
+	for hero_data in _heroes_snapshot:
+		var hero := UIScreenHelpers.as_dictionary(hero_data)
+		var hero_uid := int(hero.get("uid", -1))
+		if hero_uid <= 0 or _assign_heroes_texture_cache.has(hero_uid):
+			continue
+		_assign_heroes_texture_cache[hero_uid] = UIScreenHelpers.load_hero_texture(hero)
+
+
 func _open_assign_heroes_dialog(slot_index: int) -> void:
 	var building_definition := GameManager.get_slot_building_definition(slot_index)
 	var worker_slots := int(building_definition.get("worker_slots", 0))
@@ -954,6 +980,16 @@ func _open_assign_heroes_dialog(slot_index: int) -> void:
 	_assign_heroes_checkboxes.clear()
 	UIScreenHelpers.clear_container(_assign_heroes_content)
 	_assign_heroes_title.text = "Assign Heroes: %s" % String(building_definition.get("name", "Building"))
+	_assign_heroes_status.text = "Loading heroes..."
+	_assign_heroes_content.add_child(UIScreenHelpers.make_label("Loading eligible heroes...", 16))
+	_assign_heroes_overlay.visible = true
+	call_deferred("_populate_assign_heroes_dialog", slot_index)
+
+
+func _populate_assign_heroes_dialog(slot_index: int) -> void:
+	if _assign_heroes_slot_index != slot_index or _assign_heroes_overlay == null or not is_instance_valid(_assign_heroes_overlay) or not _assign_heroes_overlay.visible:
+		return
+	UIScreenHelpers.clear_container(_assign_heroes_content)
 	var rows: Array = []
 	var added_uids: Dictionary = {}
 	for hero_data in _heroes_snapshot:
@@ -962,6 +998,7 @@ func _open_assign_heroes_dialog(slot_index: int) -> void:
 			var hero_uid := int(hero.get("uid", -1))
 			_assign_heroes_selected[hero_uid] = true
 			added_uids[hero_uid] = true
+			hero["effective_work_stats"] = GameManager.get_hero_effective_work_stats(hero_uid)
 			rows.append(hero)
 	for hero_data in GameManager.get_available_heroes_for_slot(slot_index):
 		var hero := UIScreenHelpers.as_dictionary(hero_data)
@@ -975,12 +1012,20 @@ func _open_assign_heroes_dialog(slot_index: int) -> void:
 	else:
 		for hero in rows:
 			var hero_uid := int(hero.get("uid", -1))
-			var row := MainScreenSettlementBuilders.make_assign_hero_checkbox_entry(hero, _assign_heroes_selected.has(hero_uid), Callable(self, "_on_assign_heroes_toggled"))
+			var row := MainScreenSettlementBuilders.make_assign_hero_checkbox_entry(hero, _assign_heroes_selected.has(hero_uid), Callable(self, "_on_assign_heroes_toggled"), UIScreenHelpers.as_dictionary(hero.get("effective_work_stats", {})), _get_assign_hero_texture(hero))
 			var checkbox: Button = row.get_node("Selector")
 			_assign_heroes_checkboxes[hero_uid] = checkbox
 			_assign_heroes_content.add_child(row)
 	_update_assign_heroes_limit_state()
-	_assign_heroes_overlay.visible = true
+
+
+func _get_assign_hero_texture(hero: Dictionary) -> Texture2D:
+	var hero_uid := int(hero.get("uid", -1))
+	if _assign_heroes_texture_cache.has(hero_uid):
+		return _assign_heroes_texture_cache[hero_uid]
+	var texture := UIScreenHelpers.load_hero_texture(hero)
+	_assign_heroes_texture_cache[hero_uid] = texture
+	return texture
 
 
 func _on_assign_heroes_toggled(pressed: bool, hero_uid: int) -> void:
