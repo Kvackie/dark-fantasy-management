@@ -3,6 +3,7 @@ extends VBoxContainer
 
 const SettlementGameData = preload("res://scripts/game/settlement_game.gd")
 const UIScreenHelpers = preload("res://scripts/ui/ui_screen_helpers.gd")
+const PUZZLE_SCENES := ["res://scenes/ui/timing_strike_puzzle.tscn"]
 
 const STAT_COLORS := {
 	"health": "#d8847b",
@@ -43,6 +44,7 @@ var _detail_panel: VBoxContainer = null
 var _recipe_buttons: Dictionary = {}
 var _detail_description_label: Label = null
 var _detail_cost_grid: GridContainer = null
+var _craft_button: Button = null
 var _detail_result_icon: TextureRect = null
 var _detail_result_label: RichTextLabel = null
 var _detail_stats_body: VBoxContainer = null
@@ -51,6 +53,12 @@ var _detail_scroll_body: VBoxContainer = null
 
 func set_crafting_snapshot(crafting_snapshot: Dictionary) -> void:
 	_crafting_snapshot = crafting_snapshot.duplicate(true)
+	var requested_recipe := GameManager.consume_crafting_recipe_after_scene_load()
+	if not requested_recipe.is_empty():
+		_selected_recipe_id = requested_recipe
+		var requested_slot := _get_recipe_slot_by_id(requested_recipe, UIScreenHelpers.as_array(_crafting_snapshot.get("recipes", [])))
+		if not requested_slot.is_empty():
+			_active_slot_filter = requested_slot
 
 
 func refresh() -> void:
@@ -192,11 +200,11 @@ func _build_recipe_detail_shell() -> void:
 	_detail_description_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_detail_description_label.add_theme_color_override("font_color", Color("b9afa4"))
 	top_row.add_child(_detail_description_label)
-	var craft_button := UIScreenHelpers.make_small_action_button("Craft", Callable())
-	craft_button.custom_minimum_size = Vector2(118, 44)
-	craft_button.add_theme_font_size_override("font_size", 20)
-	craft_button.size_flags_horizontal = Control.SIZE_SHRINK_END
-	top_row.add_child(craft_button)
+	_craft_button = UIScreenHelpers.make_small_action_button("Craft", Callable(self, "_on_craft_pressed"))
+	_craft_button.custom_minimum_size = Vector2(118, 44)
+	_craft_button.add_theme_font_size_override("font_size", 20)
+	_craft_button.size_flags_horizontal = Control.SIZE_SHRINK_END
+	top_row.add_child(_craft_button)
 	var detail_scroll := ScrollContainer.new()
 	detail_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	detail_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -250,6 +258,7 @@ func _update_recipe_detail(recipe: Dictionary) -> void:
 	if recipe.is_empty():
 		_detail_description_label.text = "Select a recipe to begin."
 		UIScreenHelpers.clear_container(_detail_cost_grid)
+		_craft_button.disabled = true
 		_detail_result_icon.texture = null
 		_detail_result_label.text = ""
 		UIScreenHelpers.clear_container(_detail_stats_body)
@@ -257,6 +266,7 @@ func _update_recipe_detail(recipe: Dictionary) -> void:
 	var result_equipment := UIScreenHelpers.as_dictionary(recipe.get("result_equipment", {}))
 	_detail_description_label.text = String(recipe.get("description", "Placeholder crafting recipe."))
 	_update_cost_grid(UIScreenHelpers.as_array(recipe.get("cost", [])))
+	_craft_button.disabled = not _can_afford_recipe(recipe)
 	_detail_result_icon.texture = UIScreenHelpers.load_texture_from_path(String(result_equipment.get("icon_path", DataLoader.DEFAULT_CATALOG_ICON)))
 	_detail_result_label.text = "[color=#f0d0a8]%s[/color]  [color=#cbbba9](%s)[/color]" % [String(result_equipment.get("name", "Equipment")), String(result_equipment.get("slot", "slot")).capitalize()]
 	_build_stat_rows(UIScreenHelpers.as_dictionary(result_equipment.get("bonuses", {})))
@@ -292,6 +302,14 @@ func _get_selected_recipe(recipes: Array) -> Dictionary:
 		if String(recipe.get("id", "")) == _selected_recipe_id:
 			return recipe
 	return {}
+
+
+func _get_recipe_slot_by_id(recipe_id: String, recipes: Array) -> String:
+	for recipe_value in recipes:
+		var recipe := UIScreenHelpers.as_dictionary(recipe_value)
+		if String(recipe.get("id", "")) == recipe_id:
+			return String(UIScreenHelpers.as_dictionary(recipe.get("result_equipment", {})).get("slot", ""))
+	return ""
 
 
 func _filter_recipes(recipes: Array) -> Array:
@@ -378,6 +396,26 @@ func _has_item_cost(item_id: String, amount: int) -> bool:
 		if String(item_stack.get("definition_id", "")) == item_id:
 			total += int(item_stack.get("quantity", 0))
 	return total >= amount
+
+
+func _can_afford_recipe(recipe: Dictionary) -> bool:
+	for entry_value in UIScreenHelpers.as_array(recipe.get("cost", [])):
+		var entry := UIScreenHelpers.as_dictionary(entry_value)
+		var resource_id := String(entry.get("resource", "")).strip_edges()
+		if not resource_id.is_empty() and not _has_resource_cost(resource_id, int(entry.get("amount", 0))):
+			return false
+		var item_id := String(entry.get("item", "")).strip_edges()
+		if not item_id.is_empty() and not _has_item_cost(item_id, int(entry.get("amount", 0))):
+			return false
+	return true
+
+
+func _on_craft_pressed() -> void:
+	if PUZZLE_SCENES.is_empty():
+		return
+	GameManager.request_crafting_recipe_after_scene_load(_selected_recipe_id)
+	var puzzle_path := String(PUZZLE_SCENES[randi_range(0, PUZZLE_SCENES.size() - 1)])
+	get_tree().change_scene_to_file(puzzle_path)
 
 
 func _build_stat_rows(bonuses: Dictionary) -> void:

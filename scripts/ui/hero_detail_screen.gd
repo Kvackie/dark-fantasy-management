@@ -397,7 +397,7 @@ func _make_equipment_detail_dialog(hero_data: Dictionary, slot_key: String, equi
 	header_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header_row.add_theme_constant_override("separation", 8)
 	body.add_child(header_row)
-	var definition := DataLoader.get_equipment_definition(String(equipment_entry.get("definition_id", "")))
+	var definition := UIScreenHelpers.equipment_definition_from_entry(equipment_entry)
 	var title := UIScreenHelpers.make_label(String(definition.get("name", "Unknown Equipment")), 20)
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header_row.add_child(title)
@@ -427,7 +427,7 @@ func _make_equipment_browser_tile(equipment_entry: Dictionary) -> PanelContainer
 
 
 func _populate_equipment_browser_tile(tile: PanelContainer, equipment_entry: Dictionary) -> void:
-	var definition := DataLoader.get_equipment_definition(String(equipment_entry.get("definition_id", "")))
+	var definition := UIScreenHelpers.equipment_definition_from_entry(equipment_entry)
 	var label_text := String(definition.get("name", "Unknown Equipment"))
 	var detail_text := _equipment_owner_short_text(equipment_entry)
 	_clear_container_immediately(tile)
@@ -460,7 +460,7 @@ func _make_hero_equipment_slot_button(hero_data: Dictionary, slot_key: String) -
 	if current_uid > 0:
 		current_entry = _get_inventory_equipment_entry(current_uid)
 		if not current_entry.is_empty():
-			current_definition = DataLoader.get_equipment_definition(String(current_entry.get("definition_id", "")))
+			current_definition = UIScreenHelpers.equipment_definition_from_entry(current_entry)
 			occupied = not current_definition.is_empty()
 	var tile := PanelContainer.new()
 	tile.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -629,7 +629,7 @@ func _show_equipment_hover_popup(equipment_uid: int) -> void:
 	if equipment_entry.is_empty():
 		return
 	UIScreenHelpers.clear_container(_hover_popup_body)
-	var definition := DataLoader.get_equipment_definition(String(equipment_entry.get("definition_id", "")))
+	var definition := UIScreenHelpers.equipment_definition_from_entry(equipment_entry)
 	var title := HeroDetailViewBuilders.make_tooltip_label(String(definition.get("name", "Unknown Equipment")), 16, Color("fff4e4"), true)
 	_hover_popup_body.add_child(title)
 	var combat_values := UIScreenHelpers.as_dictionary(UIScreenHelpers.as_dictionary(definition.get("bonuses", {})).get("stats", {}))
@@ -716,7 +716,7 @@ func _get_inventory_equipment_entries_for_slot(slot_key: String) -> Array:
 	for equipment_entry in UIScreenHelpers.as_array(_inventory_snapshot.get("equipment", [])):
 		if equipment_entry is not Dictionary:
 			continue
-		var definition := DataLoader.get_equipment_definition(String((equipment_entry as Dictionary).get("definition_id", "")))
+		var definition := UIScreenHelpers.equipment_definition_from_entry(equipment_entry as Dictionary)
 		if String(definition.get("slot", "")) == slot_key:
 			entries.append((equipment_entry as Dictionary).duplicate(true))
 	return entries

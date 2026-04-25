@@ -42,7 +42,7 @@ static func compute_equipment_bonuses(hero_data: Dictionary, get_equipment_insta
 			continue
 		if int(equipment_instance.get("equipped_hero_uid", -1)) != int(hero_data.get("uid", -1)):
 			continue
-		var equipment_definition := DataLoader.get_equipment_definition(String(equipment_instance.get("definition_id", "")))
+		var equipment_definition := _equipment_definition_from_instance(equipment_instance)
 		var definition_bonuses := _as_dictionary(equipment_definition.get("bonuses", {}))
 		for stat_key in DataLoader.DEFAULT_HERO_STATS.keys():
 			var current_stat := int(_as_dictionary(bonuses.get("stats", {})).get(stat_key, 0))
@@ -61,3 +61,10 @@ static func _as_dictionary(value: Variant) -> Dictionary:
 	if value is Dictionary:
 		return value
 	return {}
+
+
+static func _equipment_definition_from_instance(equipment_instance: Dictionary) -> Dictionary:
+	var embedded_definition := _as_dictionary(equipment_instance.get("definition", {}))
+	if not embedded_definition.is_empty():
+		return embedded_definition
+	return DataLoader.get_equipment_definition(String(equipment_instance.get("definition_id", "")))

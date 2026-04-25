@@ -163,7 +163,7 @@ static func build_inventory_entries(items: Array, equipment: Array) -> Array:
 		if equipment_entry is not Dictionary:
 			continue
 		var equipment_data := equipment_entry as Dictionary
-		var definition: Dictionary = DataLoader.get_equipment_definition(String(equipment_data.get("definition_id", "")))
+		var definition := equipment_definition_from_entry(equipment_data)
 		if definition.is_empty():
 			continue
 		entries.append({
@@ -190,6 +190,13 @@ static func make_inventory_slot(entry: Dictionary) -> PanelContainer:
 
 static func equipment_slot_label(slot_key: String) -> String:
 	return _equipment_slot_label(slot_key)
+
+
+static func equipment_definition_from_entry(equipment_entry: Dictionary) -> Dictionary:
+	var embedded_definition := as_dictionary(equipment_entry.get("definition", {}))
+	if not embedded_definition.is_empty():
+		return embedded_definition
+	return DataLoader.get_equipment_definition(String(equipment_entry.get("definition_id", "")))
 
 
 static func build_inventory_tile_content(parent: Control, definition: Dictionary, footer_text: String, footer_color: Color, title_color: Color, icon_size: int, title_font_size: int, footer_font_size: int, title_override: String = "") -> void:

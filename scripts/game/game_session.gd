@@ -606,7 +606,7 @@ func rebuild_equipment_compatibility(hero_list: Array, equipment_list: Array, eq
 			if equipment_index == -1:
 				continue
 			var equipment_instance: Dictionary = _as_dictionary(equipment_list[equipment_index]).duplicate(true)
-			var equipment_definition: Dictionary = get_equipment_definition.call(String(equipment_instance.get("definition_id", "")))
+			var equipment_definition := _equipment_definition_from_instance(equipment_instance, get_equipment_definition)
 			if equipment_definition.is_empty() or String(equipment_definition.get("slot", "")) != slot_key or claimed_equipment_uids.has(equipment_uid):
 				continue
 			normalized_equipment[slot_key] = str(equipment_uid)
@@ -629,7 +629,7 @@ func rebuild_equipment_compatibility(hero_list: Array, equipment_list: Array, eq
 		if not String(hero_equipment.get(slot_key, "")).strip_edges().is_empty():
 			continue
 		var equipment_instance: Dictionary = _as_dictionary(equipment_list[equipment_index]).duplicate(true)
-		var equipment_definition: Dictionary = get_equipment_definition.call(String(equipment_instance.get("definition_id", "")))
+		var equipment_definition := _equipment_definition_from_instance(equipment_instance, get_equipment_definition)
 		if equipment_definition.is_empty() or String(equipment_definition.get("slot", "")) != slot_key:
 			continue
 		hero_equipment[slot_key] = str(equipment_uid)
@@ -887,6 +887,13 @@ func _build_inventory_equipment_snapshot(equipment_value: Variant) -> Dictionary
 	equipment_data["slot_key"] = String(equipment_data.get("equipped_slot", "")).strip_edges()
 	equipment_data["is_equipped"] = int(equipment_data.get("equipped_hero_uid", -1)) > 0
 	return equipment_data
+
+
+func _equipment_definition_from_instance(equipment_instance: Dictionary, get_equipment_definition: Callable) -> Dictionary:
+	var embedded_definition := _as_dictionary(equipment_instance.get("definition", {}))
+	if not embedded_definition.is_empty():
+		return embedded_definition
+	return get_equipment_definition.call(String(equipment_instance.get("definition_id", "")))
 
 
 func _build_world_zone_snapshot(zone_key: String, zone_value: Variant) -> Dictionary:

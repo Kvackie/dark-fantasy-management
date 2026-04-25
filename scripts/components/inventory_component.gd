@@ -75,7 +75,7 @@ func equip_equipment_to_hero(hero_uid: int, slot_key: String, equipment_uid: int
 	if equipment_index == -1:
 		return false
 	var equipment_instance: Dictionary = _inventory_equipment()[equipment_index]
-	var equipment_definition := DataLoader.get_equipment_definition(String(equipment_instance.get("definition_id", "")))
+	var equipment_definition := _equipment_definition_from_instance(equipment_instance)
 	if equipment_definition.is_empty():
 		return false
 	if String(equipment_definition.get("slot", "")) != slot_key:
@@ -171,6 +171,13 @@ func _create_equipment_instance(equipment_definition: Dictionary) -> Dictionary:
 	}
 	_set_next_equipment_uid(_next_equipment_uid() + 1)
 	return equipment_instance
+
+
+func _equipment_definition_from_instance(equipment_instance: Dictionary) -> Dictionary:
+	var embedded_definition := _as_dictionary(equipment_instance.get("definition", {}))
+	if not embedded_definition.is_empty():
+		return embedded_definition
+	return DataLoader.get_equipment_definition(String(equipment_instance.get("definition_id", "")))
 
 
 func _unequip_hero_slot_internal(hero_index: int, slot_key: String) -> int:

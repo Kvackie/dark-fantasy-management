@@ -31,6 +31,8 @@ var resources: Dictionary:
 		return _session().get_resources_state()
 	set(value):
 		_session().set_resources_state(value)
+var _requested_ui_mode_after_scene_load := ""
+var _requested_crafting_recipe_after_scene_load := ""
 var slots: Array:
 	get:
 		return _session().get_slots_state()
@@ -222,6 +224,72 @@ func get_crafting_snapshot() -> Dictionary:
 		"items": _session().duplicate_dict_array(_as_array(get_inventory_snapshot().get("items", []))),
 		"recipes": _get_crafting_recipes_for_smithy_level(highest_smithy_level),
 	}
+
+
+func request_ui_mode_after_scene_load(mode: String) -> void:
+	_requested_ui_mode_after_scene_load = mode
+
+
+func consume_ui_mode_after_scene_load() -> String:
+	var mode := _requested_ui_mode_after_scene_load
+	_requested_ui_mode_after_scene_load = ""
+	return mode
+
+
+func request_crafting_recipe_after_scene_load(recipe_id: String) -> void:
+	_requested_crafting_recipe_after_scene_load = recipe_id
+
+
+func consume_crafting_recipe_after_scene_load() -> String:
+	var recipe_id := _requested_crafting_recipe_after_scene_load
+	_requested_crafting_recipe_after_scene_load = ""
+	return recipe_id
+
+
+func consume_requested_crafting_cost() -> bool:
+	if _requested_crafting_recipe_after_scene_load.is_empty():
+		return false
+	var recipe := DataLoader.get_crafting_recipe_definition(_requested_crafting_recipe_after_scene_load)
+	if recipe.is_empty() or not _can_afford_crafting_recipe(recipe):
+		return false
+	for entry_value in _as_array(recipe.get("cost", [])):
+		var entry := _as_dictionary(entry_value)
+		var resource_id := String(entry.get("resource", "")).strip_edges()
+		if not resource_id.is_empty():
+			resources[resource_id] = SettlementGameData.clamp_resource(int(resources.get(resource_id, 0)) - int(entry.get("amount", 0)))
+			continue
+		var item_id := String(entry.get("item", "")).strip_edges()
+		if not item_id.is_empty():
+			_remove_item_quantity(item_id, int(entry.get("amount", 0)))
+	emit_signal("resources_changed")
+	emit_signal("inventory_changed")
+	return true
+
+
+func complete_requested_crafting(success: bool, failed_strikes: int, max_failed_strikes: int) -> Dictionary:
+	if _requested_crafting_recipe_after_scene_load.is_empty():
+		return {}
+	var recipe := DataLoader.get_crafting_recipe_definition(_requested_crafting_recipe_after_scene_load)
+	if recipe.is_empty() or not consume_requested_crafting_cost():
+		return {}
+	if not success:
+		return {}
+	var equipment_definition := _roll_crafted_equipment_definition(recipe, failed_strikes, max_failed_strikes)
+	if equipment_definition.is_empty():
+		return {}
+	var equipment_instance := {
+		"uid": _next_equipment_uid,
+		"definition_id": String(equipment_definition.get("id", "")),
+		"definition": equipment_definition,
+		"equipped_hero_uid": -1,
+		"equipped_slot": "",
+	}
+	_next_equipment_uid += 1
+	var equipment := inventory_equipment.duplicate(true)
+	equipment.append(equipment_instance)
+	inventory_equipment = equipment
+	emit_signal("inventory_changed")
+	return equipment_instance.duplicate(true)
 
 
 func is_recruitment_unlocked() -> bool:
@@ -1112,6 +1180,87 @@ func apply_cost(costs: Dictionary) -> bool:
 	return true
 
 
+func _can_afford_crafting_recipe(recipe: Dictionary) -> bool:
+	for entry_value in _as_array(recipe.get("cost", [])):
+		var entry := _as_dictionary(entry_value)
+		var resource_id := String(entry.get("resource", "")).strip_edges()
+		if not resource_id.is_empty() and int(resources.get(resource_id, 0)) < int(entry.get("amount", 0)):
+			return false
+		var item_id := String(entry.get("item", "")).strip_edges()
+		if not item_id.is_empty() and _get_item_quantity(item_id) < int(entry.get("amount", 0)):
+			return false
+	return true
+
+
+func _roll_crafted_equipment_definition(recipe: Dictionary, failed_strikes: int, max_failed_strikes: int) -> Dictionary:
+	var source_definition := _as_dictionary(recipe.get("result_equipment", {})).duplicate(true)
+	if source_definition.is_empty():
+		return {}
+	var recipe_id := String(recipe.get("id", "crafted"))
+	source_definition["id"] = "crafted_%s_%d" % [recipe_id, _next_equipment_uid]
+	source_definition["bonuses"] = _roll_crafted_bonus_ranges(_as_dictionary(source_definition.get("bonuses", {})), failed_strikes, max_failed_strikes)
+	return source_definition
+
+
+func _roll_crafted_bonus_ranges(bonuses: Dictionary, failed_strikes: int, max_failed_strikes: int) -> Dictionary:
+	return {
+		"stats": _roll_crafted_bonus_block(_as_dictionary(bonuses.get("stats", {})), failed_strikes, max_failed_strikes),
+		"work_stats": _roll_crafted_bonus_block(_as_dictionary(bonuses.get("work_stats", {})), failed_strikes, max_failed_strikes),
+	}
+
+
+func _roll_crafted_bonus_block(source_values: Dictionary, failed_strikes: int, max_failed_strikes: int) -> Dictionary:
+	var rolled: Dictionary = {}
+	var quality := 1.0
+	if max_failed_strikes > 0:
+		quality = clampf(1.0 - (float(max(0, failed_strikes)) / float(max_failed_strikes)), 0.0, 1.0)
+	for stat_key in source_values.keys():
+		var value: Variant = source_values[stat_key]
+		if value is Dictionary:
+			var range_data := _as_dictionary(value)
+			var min_value := int(range_data.get("min", 0))
+			var max_value := int(range_data.get("max", min_value))
+			if max_value < min_value:
+				var swap_value := min_value
+				min_value = max_value
+				max_value = swap_value
+			var quality_max := min_value + int(round(float(max_value - min_value) * quality))
+			var roll_t := lerpf(randf(), 1.0 - pow(randf(), 1.35), quality * 0.25)
+			rolled[stat_key] = min_value + int(round(float(quality_max - min_value) * roll_t))
+			continue
+		rolled[stat_key] = int(value)
+	return rolled
+
+
+func _get_item_quantity(item_id: String) -> int:
+	var total := 0
+	for item_value in inventory_items:
+		var item_stack := _as_dictionary(item_value)
+		if String(item_stack.get("definition_id", "")) == item_id:
+			total += int(item_stack.get("quantity", 0))
+	return total
+
+
+func _remove_item_quantity(item_id: String, amount: int) -> void:
+	if amount <= 0:
+		return
+	var remaining := amount
+	var updated_items: Array = []
+	for item_value in inventory_items:
+		var item_stack := _as_dictionary(item_value).duplicate(true)
+		if String(item_stack.get("definition_id", "")) != item_id or remaining <= 0:
+			updated_items.append(item_stack)
+			continue
+		var quantity := int(item_stack.get("quantity", 0))
+		var removed: int = min(quantity, remaining)
+		quantity -= removed
+		remaining -= removed
+		if quantity > 0:
+			item_stack["quantity"] = quantity
+			updated_items.append(item_stack)
+	inventory_items = updated_items
+
+
 func add_resources(delta: Dictionary) -> void:
 	for resource_id in delta.keys():
 		resources[resource_id] = SettlementGameData.clamp_resource(int(resources.get(resource_id, 0)) + int(delta[resource_id]))
@@ -1348,9 +1497,11 @@ func _normalize_loaded_equipment_instances(value: Variant) -> Array:
 		if entry is not Dictionary:
 			continue
 		var definition_id := String((entry as Dictionary).get("definition_id", "")).strip_edges()
-		var equipment_definition: Dictionary = DataLoader.get_equipment_definition(definition_id)
+		var equipment_definition := _equipment_definition_from_saved_entry(entry as Dictionary)
 		if equipment_definition.is_empty():
 			continue
+		if definition_id.is_empty():
+			definition_id = String(equipment_definition.get("id", "")).strip_edges()
 		var equipped_slot := String((entry as Dictionary).get("equipped_slot", "")).strip_edges()
 		if not DataLoader.HERO_EQUIPMENT_KEYS.has(equipped_slot):
 			equipped_slot = ""
@@ -1360,6 +1511,8 @@ func _normalize_loaded_equipment_instances(value: Variant) -> Array:
 			"equipped_hero_uid": int((entry as Dictionary).get("equipped_hero_uid", -1)),
 			"equipped_slot": equipped_slot,
 		}
+		if (entry as Dictionary).has("definition"):
+			normalized_entry["definition"] = equipment_definition
 		if int(normalized_entry.get("uid", 0)) <= 0:
 			normalized_entry["uid"] = _next_equipment_uid + normalized.size()
 		if int(normalized_entry.get("equipped_hero_uid", -1)) <= 0:
@@ -1403,6 +1556,13 @@ func _normalize_loaded_world_zones(value: Variant) -> Dictionary:
 			"settlement_name": String(zone_data.get("settlement_name", "")).strip_edges(),
 		}
 	return normalized
+
+
+func _equipment_definition_from_saved_entry(entry: Dictionary) -> Dictionary:
+	var embedded_definition := _as_dictionary(entry.get("definition", {}))
+	if not embedded_definition.is_empty():
+		return embedded_definition
+	return DataLoader.get_equipment_definition(String(entry.get("definition_id", "")))
 
 
 func _normalize_loaded_settlement_states(value: Variant, legacy_slots: Variant) -> Dictionary:

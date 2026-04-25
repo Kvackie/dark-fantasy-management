@@ -135,9 +135,14 @@ func _ready() -> void:
 	_refresh_settlement_title()
 	_apply_mode_layout()
 	_apply_responsive_layout()
-	_show_main_menu()
 	_refresh_recruit_nav_visibility()
 	_refresh_craft_nav_visibility()
+	var requested_mode := GameManager.consume_ui_mode_after_scene_load()
+	if requested_mode.is_empty():
+		_show_main_menu()
+	else:
+		_enter_game_session()
+		_apply_navigation_change(_navigation.request_mode(requested_mode, _selected_slot))
 
 
 func _configure_root_layout() -> void:
