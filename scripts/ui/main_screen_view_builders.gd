@@ -116,10 +116,10 @@ static func build_debug_page(page_content: VBoxContainer, callbacks: Dictionary)
 	var inventory_body := VBoxContainer.new()
 	inventory_panel.add_child(inventory_body)
 	inventory_body.add_child(UIScreenHelpers.make_label("Inventory Generation", 20))
-	inventory_body.add_child(UIScreenHelpers.make_label("Adds one random item stack to inventory.", 16))
-	inventory_body.add_child(UIScreenHelpers.make_button("Generate Random Item", callbacks.get("debug_grant_item", Callable()), false))
-	inventory_body.add_child(UIScreenHelpers.make_label("Adds one random equipment instance to inventory.", 16))
-	inventory_body.add_child(UIScreenHelpers.make_button("Generate Random Equipment", callbacks.get("debug_grant_equipment", Callable()), false))
+	inventory_body.add_child(UIScreenHelpers.make_label("Adds 10 random item stacks to inventory.", 16))
+	inventory_body.add_child(UIScreenHelpers.make_button("Generate 10 Random Items", callbacks.get("debug_grant_item", Callable()), false))
+	inventory_body.add_child(UIScreenHelpers.make_label("Adds 10 random equipment instances to inventory.", 16))
+	inventory_body.add_child(UIScreenHelpers.make_button("Generate 10 Random Equipment", callbacks.get("debug_grant_equipment", Callable()), false))
 
 	var time_panel := UIScreenHelpers.make_panel()
 	page_content.add_child(time_panel)
@@ -268,7 +268,10 @@ static func _make_recruit_offer_card(offer_data: Dictionary, recruit_cost: Dicti
 	portrait.offset_bottom = -6.0
 	portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	portrait.texture = UIScreenHelpers.load_hero_texture(offer_data)
+	var hero_definition := DataLoader.get_hero_definition(String(offer_data.get("definition_id", "")))
+	var portrait_path := String(hero_definition.get("portrait_path", ""))
+	if not portrait_path.is_empty() and portrait_path != DataLoader.DEFAULT_HERO_IMAGE:
+		portrait.texture = UIScreenHelpers.load_texture_from_path(portrait_path)
 	portrait_holder.add_child(portrait)
 	var header_text := VBoxContainer.new()
 	header_text.size_flags_horizontal = Control.SIZE_EXPAND_FILL

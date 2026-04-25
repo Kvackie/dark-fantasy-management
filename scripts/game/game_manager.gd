@@ -721,30 +721,36 @@ func debug_grant_random_item() -> Dictionary:
 	var item_pool := DataLoader.get_all_items()
 	if item_pool.is_empty():
 		return {}
-	var item_definition: Dictionary = item_pool[randi_range(0, item_pool.size() - 1)]
-	var definition_id := String(item_definition.get("id", ""))
-	if definition_id.is_empty():
-		return {}
-	add_item_to_inventory(definition_id, 1)
+	var granted_item: Dictionary = {}
+	for _index in range(10):
+		var item_definition: Dictionary = item_pool[randi_range(0, item_pool.size() - 1)]
+		var definition_id := String(item_definition.get("id", ""))
+		if definition_id.is_empty():
+			continue
+		add_item_to_inventory(definition_id, 1)
+		granted_item = item_definition
 	emit_signal("inventory_changed")
 	_request_persistence_update()
-	return item_definition.duplicate(true)
+	return granted_item.duplicate(true)
 
 
 func debug_grant_random_equipment() -> Dictionary:
 	var equipment_pool := DataLoader.get_all_equipment()
 	if equipment_pool.is_empty():
 		return {}
-	var equipment_definition: Dictionary = equipment_pool[randi_range(0, equipment_pool.size() - 1)]
-	var definition_id := String(equipment_definition.get("id", ""))
-	if definition_id.is_empty():
-		return {}
-	var equipment_instance := add_equipment_to_inventory(definition_id)
-	if equipment_instance.is_empty():
-		return {}
+	var granted_equipment: Dictionary = {}
+	for _index in range(10):
+		var equipment_definition: Dictionary = equipment_pool[randi_range(0, equipment_pool.size() - 1)]
+		var definition_id := String(equipment_definition.get("id", ""))
+		if definition_id.is_empty():
+			continue
+		var equipment_instance := add_equipment_to_inventory(definition_id)
+		if equipment_instance.is_empty():
+			continue
+		granted_equipment = equipment_instance
 	emit_signal("inventory_changed")
 	_request_persistence_update()
-	return equipment_instance
+	return granted_equipment
 
 
 func debug_progress_100_ticks() -> void:

@@ -9,15 +9,13 @@ var _hovered: bool = false
 var _accent_color: Color = Color("8d8478")
 var _has_portrait: bool = false
 
-@onready var _art: TextureRect = get_node("Art")
-@onready var _tint: ColorRect = get_node("Tint")
-@onready var _fallback_stack: VBoxContainer = get_node("Center/FallbackStack")
-@onready var _fallback_icon: TextureRect = get_node("Center/FallbackStack/FallbackIcon")
-@onready var _fallback_label: Label = get_node("Center/FallbackStack/FallbackLabel")
-@onready var _level_badge: PanelContainer = get_node("Chrome/LevelBadge")
-@onready var _level_label: Label = get_node("Chrome/LevelBadge/LevelLabel")
-@onready var _name_bar: PanelContainer = get_node("Chrome/NameBar")
-@onready var _name_label: Label = get_node("Chrome/NameBar/NameMargin/NameLabel")
+@onready var _art: TextureRect = get_node("Content/Art")
+@onready var _tint: ColorRect = get_node("Content/Tint")
+@onready var _fallback_stack: VBoxContainer = get_node("Content/Center/FallbackStack")
+@onready var _fallback_icon: TextureRect = get_node("Content/Center/FallbackStack/FallbackIcon")
+@onready var _fallback_label: Label = get_node("Content/Center/FallbackStack/FallbackLabel")
+@onready var _level_badge: PanelContainer = get_node("Content/Chrome/LevelBadge")
+@onready var _name_level_label: Label = get_node("Content/Chrome/LevelBadge/LevelMargin/NameLevelLabel")
 
 
 func _ready() -> void:
@@ -27,8 +25,8 @@ func _ready() -> void:
 	size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	mouse_entered.connect(_on_mouse_entered)
 	mouse_exited.connect(_on_mouse_exited)
-	_name_label.add_theme_font_size_override("font_size", 22)
-	_name_label.add_theme_color_override("font_color", Color("fff9f1"))
+	_name_level_label.add_theme_font_size_override("font_size", 17)
+	_name_level_label.add_theme_color_override("font_color", Color("fff9f1"))
 	_fallback_icon.texture = FALLBACK_TEXTURE
 	_fallback_icon.custom_minimum_size = Vector2(118, 118)
 	_fallback_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
@@ -36,11 +34,11 @@ func _ready() -> void:
 	_fallback_label.add_theme_font_size_override("font_size", 22)
 	_fallback_label.add_theme_color_override("font_color", Color("f3e7d4"))
 	_fallback_stack.add_theme_constant_override("separation", 10)
-	_level_label.add_theme_font_size_override("font_size", 18)
-	_level_label.add_theme_color_override("font_color", Color("fff9f1"))
 	_refresh_card_style()
 	if not _hero_data.is_empty():
 		_apply_hero_data()
+	call_deferred("_constrain_portrait_area")
+	resized.connect(_constrain_portrait_area)
 
 
 func set_hero(hero_data: Dictionary) -> void:
@@ -61,8 +59,7 @@ func _apply_hero_data() -> void:
 	var hero_class: String = String(hero_data.get("class", hero_definition.get("class", "Hero")))
 	var class_color: Color = _class_color(hero_class)
 	_accent_color = class_color
-	_name_label.text = String(hero_data.get("name", "Unknown Hero"))
-	_level_label.text = "Lv.%d" % int(hero_data.get("level", 1))
+	_name_level_label.text = "%s  Lv.%d" % [String(hero_data.get("name", "Unknown Hero")), int(hero_data.get("level", 1))]
 	_fallback_label.text = hero_class.to_upper()
 
 	var portrait_path := String(hero_definition.get("portrait_path", ""))
@@ -73,7 +70,7 @@ func _apply_hero_data() -> void:
 	if portrait_texture != null:
 		_art.texture = portrait_texture
 		_art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		_art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+		_art.stretch_mode = TextureRect.STRETCH_SCALE
 		_art.self_modulate = Color(1, 1, 1, 1)
 		_fallback_stack.visible = false
 	else:
@@ -116,13 +113,26 @@ func _refresh_card_style() -> void:
 		_fallback_label.self_modulate = Color(1, 1, 1, 1) if not _hovered else Color(1.04, 1.04, 1.04, 1)
 
 
+func _constrain_portrait_area() -> void:
+	var top_offset := 0.0
+	var bottom_offset := -_level_badge.custom_minimum_size.y
+	for node in [_art, _tint]:
+		node.anchor_left = 0.0
+		node.anchor_top = 0.0
+		node.anchor_right = 1.0
+		node.anchor_bottom = 1.0
+		node.offset_left = 0.0
+		node.offset_top = top_offset
+		node.offset_right = 0.0
+		node.offset_bottom = bottom_offset
+
+
 func _refresh_banner_styles() -> void:
 	var name_color := Color(_accent_color.r * 0.24, _accent_color.g * 0.24, _accent_color.b * 0.24, 0.96)
 	var level_color := Color(_accent_color.r * 0.18, _accent_color.g * 0.18, _accent_color.b * 0.18, 0.94)
 	if _hovered:
 		name_color = name_color.lightened(0.08)
 		level_color = level_color.lightened(0.1)
-	_name_bar.add_theme_stylebox_override("panel", _bar_style(name_color, 0, Color(_accent_color.r, _accent_color.g, _accent_color.b, 0.34 if not _hovered else 0.54)))
 	_level_badge.add_theme_stylebox_override("panel", _bar_style(level_color, 0, Color(_accent_color.r, _accent_color.g, _accent_color.b, 0.26 if not _hovered else 0.42)))
 
 

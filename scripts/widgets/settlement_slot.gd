@@ -13,9 +13,9 @@ var slot_index: int = -1
 
 
 func _ready() -> void:
-	custom_minimum_size = Vector2(180, 224)
+	custom_minimum_size = Vector2(180, 286)
 	size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_icon_rect.custom_minimum_size = Vector2(108, 82)
+	_icon_rect.custom_minimum_size = Vector2(190, 144)
 	_icon_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	_icon_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	clip_contents = true

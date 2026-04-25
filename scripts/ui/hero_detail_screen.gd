@@ -168,7 +168,10 @@ func _build_portrait_panel(hero_data: Dictionary) -> void:
 	portrait_texture.offset_bottom = 0.0
 	portrait_texture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	portrait_texture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	portrait_texture.texture = UIScreenHelpers.load_hero_texture(hero_data)
+	var hero_definition: Dictionary = DataLoader.get_hero_definition(String(hero_data.get("definition_id", "")))
+	var portrait_path := String(hero_definition.get("portrait_path", ""))
+	if not portrait_path.is_empty() and portrait_path != DataLoader.DEFAULT_HERO_IMAGE:
+		portrait_texture.texture = UIScreenHelpers.load_texture_from_path(portrait_path)
 	portrait_texture.self_modulate = Color(1, 1, 1, 1)
 	_context_panel.add_child(portrait_texture)
 
