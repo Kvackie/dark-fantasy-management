@@ -177,6 +177,11 @@ text = "Heroes"
 layout_mode = 2
 text = "Inventory"
 
+[node name="CraftButton" type="Button" parent="Shell/BottomBar/BottomBarMargin/NavRow"]
+visible = false
+layout_mode = 2
+text = "Craft"
+
 [node name="DebugButton" type="Button" parent="Shell/BottomBar/BottomBarMargin/NavRow" unique_id=166666666]
 layout_mode = 2
 text = "Debug"

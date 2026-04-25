@@ -8,6 +8,7 @@ const MODE_SAVES := "saves"
 const MODE_WORLD := "world"
 const MODE_HEROES := "heroes"
 const MODE_INVENTORY := "inventory"
+const MODE_CRAFT := "craft"
 const MODE_HERO_DETAIL := "hero_detail"
 const MODE_DEBUG := "debug"
 
@@ -18,6 +19,7 @@ const _FULL_PAGE_MODES := {
 	MODE_WORLD: true,
 	MODE_HEROES: true,
 	MODE_INVENTORY: true,
+	MODE_CRAFT: true,
 	MODE_HERO_DETAIL: true,
 	MODE_DEBUG: true,
 }
@@ -96,6 +98,12 @@ func request_recruit_fallback(current_mode: String) -> Dictionary:
 	return request_heroes()
 
 
+func request_craft_fallback(current_mode: String) -> Dictionary:
+	if current_mode != MODE_CRAFT:
+		return {}
+	return request_heroes()
+
+
 func build_layout(mode: String, selected_slot: int) -> Dictionary:
 	var full_page_mode := is_full_page_mode(mode)
 	return {
@@ -104,9 +112,9 @@ func build_layout(mode: String, selected_slot: int) -> Dictionary:
 		"show_settlement_title": mode == MODE_SETTLEMENT,
 		"show_settlement_scroll": mode == MODE_SETTLEMENT,
 		"show_page_root": full_page_mode,
-		"show_page_title": mode != MODE_HERO_DETAIL and mode != MODE_WORLD and mode != MODE_RECRUIT,
-		"page_scroll_mode": ScrollContainer.SCROLL_MODE_DISABLED if mode == MODE_HERO_DETAIL or mode == MODE_WORLD else ScrollContainer.SCROLL_MODE_AUTO,
-		"reset_page_scroll": mode == MODE_HERO_DETAIL or mode == MODE_WORLD,
+		"show_page_title": mode != MODE_HERO_DETAIL and mode != MODE_WORLD and mode != MODE_RECRUIT and mode != MODE_CRAFT,
+		"page_scroll_mode": ScrollContainer.SCROLL_MODE_DISABLED if mode == MODE_HERO_DETAIL or mode == MODE_WORLD or mode == MODE_CRAFT else ScrollContainer.SCROLL_MODE_AUTO,
+		"reset_page_scroll": mode == MODE_HERO_DETAIL or mode == MODE_WORLD or mode == MODE_CRAFT,
 		"page_title_key": _page_title_key(mode),
 		"page_title_fallback": _page_title_fallback(mode),
 	}
@@ -128,6 +136,8 @@ func _page_title_key(mode: String) -> String:
 			return "page.hero_inventory"
 		MODE_INVENTORY:
 			return "page.inventory"
+		MODE_CRAFT:
+			return "page.craft"
 		MODE_DEBUG:
 			return "page.debug"
 		_:
@@ -137,4 +147,6 @@ func _page_title_key(mode: String) -> String:
 func _page_title_fallback(mode: String) -> String:
 	if mode == MODE_RECRUIT:
 		return "Recruit"
+	if mode == MODE_CRAFT:
+		return "Craft"
 	return ""

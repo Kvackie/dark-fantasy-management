@@ -12,6 +12,7 @@ const RECRUITMENT_CONFIG_PATH := "res://data/recruitment.json"
 const HEROES_PATH := "res://data/heroes.json"
 const ITEMS_PATH := "res://data/items.json"
 const EQUIPMENT_PATH := "res://data/equipment.json"
+const CRAFTING_RECIPES_PATH := "res://data/crafting_recipes.json"
 
 const HERO_MODS_ROOT := "user://mods/heroes"
 const ITEM_MODS_ROOT := "user://mods/items"
@@ -100,11 +101,13 @@ var recruitment_config: Dictionary = {}
 var hero_definitions: Dictionary = {}
 var item_definitions: Dictionary = {}
 var equipment_definitions: Dictionary = {}
+var crafting_recipe_definitions: Dictionary = {}
 
 var settlement_pool: Array = []
 var hero_pool: Array = []
 var item_pool: Array = []
 var equipment_pool: Array = []
+var crafting_recipe_pool: Array = []
 
 
 func _ready() -> void:
@@ -120,10 +123,12 @@ func reload_data() -> void:
 	hero_definitions.clear()
 	item_definitions.clear()
 	equipment_definitions.clear()
+	crafting_recipe_definitions.clear()
 	settlement_pool.clear()
 	hero_pool.clear()
 	item_pool.clear()
 	equipment_pool.clear()
+	crafting_recipe_pool.clear()
 
 	_load_ui_texts()
 	_load_world_config()
@@ -136,6 +141,7 @@ func reload_data() -> void:
 	_load_mod_items()
 	_load_core_equipment()
 	_load_mod_equipment()
+	_load_crafting_recipes()
 
 	emit_signal("data_reloaded")
 
@@ -216,6 +222,14 @@ func get_equipment_definition(equipment_id: String) -> Dictionary:
 
 func get_all_equipment() -> Array:
 	return _duplicate_dictionary_array(equipment_pool)
+
+
+func get_all_crafting_recipes() -> Array:
+	return _duplicate_dictionary_array(crafting_recipe_pool)
+
+
+func get_crafting_recipe_definition(recipe_id: String) -> Dictionary:
+	return (crafting_recipe_definitions.get(recipe_id, {}) as Dictionary).duplicate(true)
 
 
 func get_mod_category_summaries(category: String) -> Array:
@@ -500,6 +514,28 @@ func normalize_equipment_definition(entry: Dictionary, source: String = "core", 
 	return normalized
 
 
+func normalize_crafting_recipe_definition(entry: Dictionary) -> Dictionary:
+	if entry.is_empty():
+		return {}
+	var recipe_id := _sanitize_identifier(String(entry.get("id", "")))
+	if recipe_id.is_empty():
+		return {}
+	var recipe_name := String(entry.get("name", "")).strip_edges()
+	if recipe_name.is_empty():
+		return {}
+	var result_equipment := normalize_equipment_definition(_as_dictionary(entry.get("result_equipment", {})), "crafting", "", "")
+	if result_equipment.is_empty():
+		return {}
+	return {
+		"id": recipe_id,
+		"name": recipe_name,
+		"description": String(entry.get("description", "")).strip_edges(),
+		"level": max(1, int(entry.get("level", 1))),
+		"cost": _duplicate_dictionary_array(entry.get("cost", [])),
+		"result_equipment": result_equipment,
+	}
+
+
 func _load_ui_texts() -> void:
 	var text_payload: Dictionary = _load_json(UI_TEXT_PATH)
 	if text_payload.get("texts", null) is Dictionary:
@@ -541,6 +577,11 @@ func _load_core_items() -> void:
 func _load_core_equipment() -> void:
 	var equipment_payload: Dictionary = _load_json(EQUIPMENT_PATH)
 	_load_catalog_entries(equipment_payload.get("equipment", []), Callable(self, "normalize_equipment_definition").bind("core", "", ""), Callable(self, "_register_equipment_definition"))
+
+
+func _load_crafting_recipes() -> void:
+	var recipes_payload: Dictionary = _load_json(CRAFTING_RECIPES_PATH)
+	_load_catalog_entries(recipes_payload.get("recipes", []), Callable(self, "normalize_crafting_recipe_definition"), Callable(self, "_register_crafting_recipe_definition"))
 
 
 func _load_mod_heroes() -> void:
@@ -598,6 +639,10 @@ func _register_hero_definition(hero_definition: Dictionary) -> void:
 
 func _register_building_definition(building_definition: Dictionary) -> void:
 	_register_definition(building_definition, building_definitions, [], "building")
+
+
+func _register_crafting_recipe_definition(recipe_definition: Dictionary) -> void:
+	_register_definition(recipe_definition, crafting_recipe_definitions, crafting_recipe_pool, "crafting recipe")
 
 
 func _register_settlement_definition(settlement_definition: Dictionary) -> void:

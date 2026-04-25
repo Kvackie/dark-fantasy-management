@@ -4,6 +4,7 @@ const SettlementGameData = preload("res://scripts/game/settlement_game.gd")
 const OverviewScreenScript = preload("res://scripts/ui/overview_screen.gd")
 const HeroesScreenScript = preload("res://scripts/ui/heroes_screen.gd")
 const InventoryScreenScript = preload("res://scripts/ui/inventory_screen.gd")
+const CraftScreenScript = preload("res://scripts/ui/craft_screen.gd")
 const WorldScreenScene = preload("res://scenes/ui/world_screen.tscn")
 const SavesScreenScript = preload("res://scripts/ui/saves_screen.gd")
 const HeroDetailScreenScene = preload("res://scenes/ui/hero_detail_screen.tscn")
@@ -22,10 +23,11 @@ const MODE_SAVES := MainScreenNavigation.MODE_SAVES
 const MODE_WORLD := MainScreenNavigation.MODE_WORLD
 const MODE_HEROES := MainScreenNavigation.MODE_HEROES
 const MODE_INVENTORY := MainScreenNavigation.MODE_INVENTORY
+const MODE_CRAFT := MainScreenNavigation.MODE_CRAFT
 const MODE_HERO_DETAIL := MainScreenNavigation.MODE_HERO_DETAIL
 const MODE_DEBUG := MainScreenNavigation.MODE_DEBUG
 
-const SCENE_BACKED_PAGE_MODES := [MODE_OVERVIEW, MODE_WORLD, MODE_HEROES, MODE_INVENTORY, MODE_SAVES, MODE_HERO_DETAIL]
+const SCENE_BACKED_PAGE_MODES := [MODE_OVERVIEW, MODE_WORLD, MODE_HEROES, MODE_INVENTORY, MODE_CRAFT, MODE_SAVES, MODE_HERO_DETAIL]
 
 const MAIN_MENU_ROOT := "root"
 const MAIN_MENU_SAVES := "saves"
@@ -72,6 +74,7 @@ const RESOURCE_ICONS := {
 @onready var _overview_button: Button = get_node("Shell/BottomBar/BottomBarMargin/NavRow/OverviewButton")
 @onready var _heroes_button: Button = get_node("Shell/BottomBar/BottomBarMargin/NavRow/HeroesButton")
 @onready var _inventory_button: Button = get_node("Shell/BottomBar/BottomBarMargin/NavRow/InventoryButton")
+@onready var _craft_button: Button = get_node("Shell/BottomBar/BottomBarMargin/NavRow/CraftButton")
 @onready var _debug_button: Button = get_node("Shell/BottomBar/BottomBarMargin/NavRow/DebugButton")
 @onready var _saves_button: Button = get_node("Shell/BottomBar/BottomBarMargin/NavRow/SavesButton")
 @onready var _back_button: Button = get_node("Shell/BottomBar/BottomBarMargin/NavRow/BackButton")
@@ -134,6 +137,7 @@ func _ready() -> void:
 	_apply_responsive_layout()
 	_show_main_menu()
 	_refresh_recruit_nav_visibility()
+	_refresh_craft_nav_visibility()
 
 
 func _configure_root_layout() -> void:
@@ -180,12 +184,14 @@ func _apply_theme() -> void:
 		_recruit_button,
 		_heroes_button,
 		_inventory_button,
+		_craft_button,
 		_debug_button,
 		_saves_button,
 		_back_button,
 	]
 	for button in bottom_buttons:
 		UIScreenHelpers.style_button(button)
+		button.custom_minimum_size = Vector2(128, 0)
 		button.add_theme_font_size_override("font_size", 23)
 	UIScreenHelpers.style_label(_settlement_title, 24, true)
 	UIScreenHelpers.style_label(_page_title, 24, true)
@@ -239,9 +245,10 @@ func _wire_navigation() -> void:
 			MODE_WORLD: _world_button,
 			MODE_OVERVIEW: _overview_button,
 			MODE_RECRUIT: _recruit_button,
-			MODE_HEROES: _heroes_button,
-			MODE_INVENTORY: _inventory_button,
-			MODE_DEBUG: _debug_button,
+		MODE_HEROES: _heroes_button,
+		MODE_INVENTORY: _inventory_button,
+		MODE_CRAFT: _craft_button,
+		MODE_DEBUG: _debug_button,
 			MODE_SAVES: _saves_button,
 		},
 		_back_button
@@ -358,6 +365,7 @@ func _on_settlement_changed() -> void:
 	_refresh_settlement_title()
 	_refresh_resource_yields()
 	_refresh_grid()
+	_refresh_craft_nav_visibility()
 	if _is_full_page_mode():
 		if _detail_mode == MODE_OVERVIEW:
 			_refresh_scene_backed_page_screen()
@@ -472,6 +480,7 @@ func _enter_game_session() -> void:
 	_refresh_resource_badges()
 	_refresh_settlement_title()
 	_refresh_grid()
+	_refresh_craft_nav_visibility()
 	_refresh_recruit_nav_visibility()
 	if _is_full_page_mode():
 		_refresh_page_content()
@@ -705,6 +714,13 @@ func _refresh_recruit_nav_visibility() -> void:
 		_apply_navigation_change(_navigation.request_recruit_fallback(_detail_mode))
 
 
+func _refresh_craft_nav_visibility() -> void:
+	var unlocked := GameManager.is_crafting_unlocked()
+	_craft_button.visible = unlocked
+	if not unlocked:
+		_apply_navigation_change(_navigation.request_craft_fallback(_detail_mode))
+
+
 func _refresh_grid() -> void:
 	if _slots_snapshot.is_empty():
 		_slots_snapshot = GameManager.get_slots_snapshot()
@@ -797,6 +813,8 @@ func _instantiate_scene_backed_page_screen(mode: String) -> Control:
 			return _create_simple_page_screen("HeroesScreen", HeroesScreenScript)
 		MODE_INVENTORY:
 			return _create_simple_page_screen("InventoryScreen", InventoryScreenScript)
+		MODE_CRAFT:
+			return _create_simple_page_screen("CraftScreen", CraftScreenScript)
 		MODE_SAVES:
 			return _create_simple_page_screen("SavesScreen", SavesScreenScript)
 		MODE_HERO_DETAIL:
@@ -843,6 +861,8 @@ func _set_scene_backed_page_screen_inputs(screen: Control) -> void:
 		MODE_INVENTORY:
 			screen.call("set_fixed_header_container", _page_root)
 			screen.set_inventory_snapshot(_inventory_snapshot)
+		MODE_CRAFT:
+			screen.set_crafting_snapshot(GameManager.get_crafting_snapshot())
 		MODE_SAVES:
 			screen.set_slots(GameManager.get_save_slot_metadata())
 		MODE_HERO_DETAIL:

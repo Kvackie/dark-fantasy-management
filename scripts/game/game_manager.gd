@@ -212,8 +212,20 @@ func get_recruit_market_snapshot() -> Dictionary:
 	}
 
 
+func get_crafting_snapshot() -> Dictionary:
+	return {
+		"unlocked": is_crafting_unlocked(),
+		"smithy_count": get_built_smithy_count(),
+		"recipes": DataLoader.get_all_crafting_recipes(),
+	}
+
+
 func is_recruitment_unlocked() -> bool:
 	return get_built_tavern_count() > 0
+
+
+func is_crafting_unlocked() -> bool:
+	return get_built_smithy_count() > 0
 
 
 func get_built_tavern_count() -> int:
@@ -223,6 +235,15 @@ func get_built_tavern_count() -> int:
 			if String((slot as Dictionary).get("building_id", "")) == "tavern":
 				tavern_count += 1
 	return tavern_count
+
+
+func get_built_smithy_count() -> int:
+	var smithy_count := 0
+	for settlement_id in owned_settlement_ids:
+		for slot in _get_settlement_slots(String(settlement_id)):
+			if String((slot as Dictionary).get("building_id", "")) == "smithy":
+				smithy_count += 1
+	return smithy_count
 
 
 func get_highest_tavern_level() -> int:
