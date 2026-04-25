@@ -7,6 +7,7 @@ const UIScreenHelpers = preload("res://scripts/ui/ui_screen_helpers.gd")
 var _crafting_snapshot: Dictionary = {"recipes": []}
 var _selected_recipe_id: String = ""
 var _active_slot_filter: String = "head"
+var _sort_level_ascending: bool = true
 var _recipe_list: VBoxContainer = null
 var _recipe_scroll: ScrollContainer = null
 var _detail_panel: VBoxContainer = null
@@ -34,6 +35,7 @@ func refresh() -> void:
 	add_child(content_row)
 	var recipes := UIScreenHelpers.as_array(_crafting_snapshot.get("recipes", []))
 	var filtered_recipes := _filter_recipes(recipes)
+	_sort_recipes_by_level(filtered_recipes)
 	if not _recipe_matches_slot(_get_selected_recipe(recipes), _active_slot_filter):
 		_selected_recipe_id = ""
 	if _selected_recipe_id.is_empty() and not recipes.is_empty():
@@ -137,8 +139,14 @@ func _make_slot_tabs() -> GridContainer:
 	tabs.add_theme_constant_override("h_separation", 6)
 	tabs.add_theme_constant_override("v_separation", 6)
 	for slot_key in DataLoader.HERO_EQUIPMENT_KEYS:
-		var button := UIScreenHelpers.make_small_action_button(slot_key.capitalize(), Callable(self, "_set_slot_filter").bind(slot_key))
-		button.disabled = slot_key == _active_slot_filter
+		var label: String = slot_key.capitalize()
+		if slot_key == _active_slot_filter:
+			var arrow := "↑"
+			if not _sort_level_ascending:
+				arrow = "↓"
+			label = "%s %s" % [label, arrow]
+		var button := UIScreenHelpers.make_small_action_button(label, Callable(self, "_set_slot_filter").bind(slot_key))
+		button.self_modulate = Color("cfa36e") if slot_key == _active_slot_filter else Color.WHITE
 		button.custom_minimum_size = Vector2(0, 34)
 		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		tabs.add_child(button)
@@ -192,6 +200,10 @@ func _select_recipe(recipe_id: String) -> void:
 
 
 func _set_slot_filter(slot_key: String) -> void:
+	if _active_slot_filter == slot_key:
+		_sort_level_ascending = not _sort_level_ascending
+	else:
+		_sort_level_ascending = true
 	_active_slot_filter = slot_key
 	_selected_recipe_id = ""
 	refresh()
@@ -218,6 +230,16 @@ func _filter_recipes(recipes: Array) -> Array:
 		if _recipe_matches_slot(recipe, _active_slot_filter):
 			filtered.append(recipe)
 	return filtered
+
+
+func _sort_recipes_by_level(recipes: Array) -> void:
+	recipes.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		var level_a := int(a.get("level", 1))
+		var level_b := int(b.get("level", 1))
+		if level_a == level_b:
+			return String(a.get("name", "")) < String(b.get("name", ""))
+		return level_a < level_b if _sort_level_ascending else level_a > level_b
+	)
 
 
 func _recipe_matches_slot(recipe: Dictionary, slot_key: String) -> bool:
