@@ -4,6 +4,35 @@ extends VBoxContainer
 const SettlementGameData = preload("res://scripts/game/settlement_game.gd")
 const UIScreenHelpers = preload("res://scripts/ui/ui_screen_helpers.gd")
 
+const STAT_COLORS := {
+	"health": "#d8847b",
+	"sanity": "#c8b8d9",
+	"attack": "#d0a170",
+	"defense": "#88a8c8",
+	"critical_chance": "#f0c96c",
+	"critical_damage": "#e5b86f",
+}
+const WORK_STAT_COLORS := {
+	"farming": "#7f9f84",
+	"mining": "#7f9f84",
+	"lumbering": "#7f9f84",
+}
+const RESOURCE_COLORS := {
+	"wood": "#b98b60",
+	"food": "#d4a25c",
+	"stone": "#b7bcc7",
+	"gold": "#f0cc66",
+	"gems": "#73b5ff",
+	"crystals": "#7dd7ff",
+}
+const RESOURCE_ICONS := {
+	"wood": "res://assets/resources/wood.png",
+	"food": "res://assets/resources/food.png",
+	"stone": "res://assets/resources/metal.png",
+	"gold": "res://assets/resources/coins.png",
+	"gems": "res://assets/resources/gems.png",
+	"crystals": "res://assets/resources/crystals.png",
+}
 var _crafting_snapshot: Dictionary = {"recipes": []}
 var _selected_recipe_id: String = ""
 var _active_slot_filter: String = "head"
@@ -12,11 +41,12 @@ var _recipe_list: VBoxContainer = null
 var _recipe_scroll: ScrollContainer = null
 var _detail_panel: VBoxContainer = null
 var _recipe_buttons: Dictionary = {}
-var _detail_title_label: Label = null
-var _detail_level_label: Label = null
 var _detail_description_label: Label = null
-var _detail_cost_label: Label = null
-var _detail_result_label: Label = null
+var _detail_cost_grid: GridContainer = null
+var _detail_result_icon: TextureRect = null
+var _detail_result_label: RichTextLabel = null
+var _detail_stats_body: VBoxContainer = null
+var _detail_scroll_body: VBoxContainer = null
 
 
 func set_crafting_snapshot(crafting_snapshot: Dictionary) -> void:
@@ -154,41 +184,82 @@ func _make_slot_tabs() -> GridContainer:
 
 
 func _build_recipe_detail_shell() -> void:
-	_detail_title_label = UIScreenHelpers.make_label("", 26)
-	_detail_panel.add_child(_detail_title_label)
-	_detail_level_label = UIScreenHelpers.make_label("", 17)
-	_detail_panel.add_child(_detail_level_label)
-	_detail_description_label = UIScreenHelpers.make_label("", 16)
-	_detail_panel.add_child(_detail_description_label)
-	_detail_cost_label = UIScreenHelpers.make_label("", 16)
-	_detail_panel.add_child(_detail_cost_label)
-	_detail_result_label = UIScreenHelpers.make_label("", 18)
-	_detail_panel.add_child(_detail_result_label)
-	var puzzle_panel := UIScreenHelpers.make_panel()
-	puzzle_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	puzzle_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_detail_panel.add_child(puzzle_panel)
-	var puzzle_body := VBoxContainer.new()
-	puzzle_body.add_theme_constant_override("separation", 8)
-	puzzle_panel.add_child(puzzle_body)
-	puzzle_body.add_child(UIScreenHelpers.make_label("Puzzle Placeholder", 24))
-	puzzle_body.add_child(UIScreenHelpers.make_label("The crafting puzzle for this recipe will be wired here later.", 16))
+	var top_row := HBoxContainer.new()
+	top_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	top_row.add_theme_constant_override("separation", 10)
+	_detail_panel.add_child(top_row)
+	_detail_description_label = UIScreenHelpers.make_label("", 13)
+	_detail_description_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_detail_description_label.add_theme_color_override("font_color", Color("b9afa4"))
+	top_row.add_child(_detail_description_label)
+	var craft_button := UIScreenHelpers.make_small_action_button("Craft", Callable())
+	craft_button.custom_minimum_size = Vector2(118, 44)
+	craft_button.add_theme_font_size_override("font_size", 20)
+	craft_button.size_flags_horizontal = Control.SIZE_SHRINK_END
+	top_row.add_child(craft_button)
+	var detail_scroll := ScrollContainer.new()
+	detail_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	detail_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	detail_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_detail_panel.add_child(detail_scroll)
+	_detail_scroll_body = VBoxContainer.new()
+	_detail_scroll_body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_detail_scroll_body.add_theme_constant_override("separation", 10)
+	detail_scroll.add_child(_detail_scroll_body)
+	var cost_panel := UIScreenHelpers.make_panel()
+	cost_panel.custom_minimum_size = Vector2(0, 120)
+	cost_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	cost_panel.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	_detail_scroll_body.add_child(cost_panel)
+	var cost_body := VBoxContainer.new()
+	cost_body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	cost_body.add_theme_constant_override("separation", 6)
+	cost_panel.add_child(cost_body)
+	var cost_title := UIScreenHelpers.make_label("Cost", 15)
+	cost_title.add_theme_color_override("font_color", Color("d8c0a0"))
+	cost_body.add_child(cost_title)
+	_detail_cost_grid = GridContainer.new()
+	_detail_cost_grid.columns = 4
+	_detail_cost_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_detail_cost_grid.add_theme_constant_override("h_separation", 6)
+	_detail_cost_grid.add_theme_constant_override("v_separation", 6)
+	cost_body.add_child(_detail_cost_grid)
+	var result_panel := UIScreenHelpers.make_panel()
+	result_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_detail_scroll_body.add_child(result_panel)
+	var result_body := HBoxContainer.new()
+	result_body.add_theme_constant_override("separation", 12)
+	result_panel.add_child(result_body)
+	_detail_result_icon = TextureRect.new()
+	_detail_result_icon.custom_minimum_size = Vector2(92, 92)
+	_detail_result_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_detail_result_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	result_body.add_child(_detail_result_icon)
+	var result_text := VBoxContainer.new()
+	result_text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	result_text.add_theme_constant_override("separation", 8)
+	result_body.add_child(result_text)
+	_detail_result_label = _make_rich_text_label("", 20)
+	result_text.add_child(_detail_result_label)
+	_detail_stats_body = VBoxContainer.new()
+	_detail_stats_body.add_theme_constant_override("separation", 4)
+	result_text.add_child(_detail_stats_body)
 
 
 func _update_recipe_detail(recipe: Dictionary) -> void:
 	if recipe.is_empty():
-		_detail_title_label.text = "Select a recipe to begin."
-		_detail_level_label.text = ""
-		_detail_description_label.text = ""
-		_detail_cost_label.text = ""
+		_detail_description_label.text = "Select a recipe to begin."
+		UIScreenHelpers.clear_container(_detail_cost_grid)
+		_detail_result_icon.texture = null
 		_detail_result_label.text = ""
+		UIScreenHelpers.clear_container(_detail_stats_body)
 		return
 	var result_equipment := UIScreenHelpers.as_dictionary(recipe.get("result_equipment", {}))
-	_detail_title_label.text = String(recipe.get("name", "Recipe"))
-	_detail_level_label.text = "Level %d" % int(recipe.get("level", 1))
 	_detail_description_label.text = String(recipe.get("description", "Placeholder crafting recipe."))
-	_detail_cost_label.text = "Cost: %s" % _format_cost(UIScreenHelpers.as_array(recipe.get("cost", [])))
-	_detail_result_label.text = "Result: %s (%s)" % [String(result_equipment.get("name", "Equipment")), String(result_equipment.get("slot", "slot")).capitalize()]
+	_update_cost_grid(UIScreenHelpers.as_array(recipe.get("cost", [])))
+	_detail_result_icon.texture = UIScreenHelpers.load_texture_from_path(String(result_equipment.get("icon_path", DataLoader.DEFAULT_CATALOG_ICON)))
+	_detail_result_label.text = "[color=#f0d0a8]%s[/color]  [color=#cbbba9](%s)[/color]" % [String(result_equipment.get("name", "Equipment")), String(result_equipment.get("slot", "slot")).capitalize()]
+	_build_stat_rows(UIScreenHelpers.as_dictionary(result_equipment.get("bonuses", {})))
 
 
 func _select_recipe(recipe_id: String) -> void:
@@ -246,14 +317,119 @@ func _recipe_matches_slot(recipe: Dictionary, slot_key: String) -> bool:
 	return String(UIScreenHelpers.as_dictionary(recipe.get("result_equipment", {})).get("slot", "")) == slot_key
 
 
-func _format_cost(cost_entries: Array) -> String:
+func _update_cost_grid(cost_entries: Array) -> void:
+	UIScreenHelpers.clear_container(_detail_cost_grid)
 	if cost_entries.is_empty():
-		return "None"
-	var parts: Array[String] = []
+		_detail_cost_grid.add_child(UIScreenHelpers.make_label("None", 14))
+		return
 	for entry_value in cost_entries:
 		var entry := UIScreenHelpers.as_dictionary(entry_value)
 		var resource_id := String(entry.get("resource", "")).strip_edges()
-		if resource_id.is_empty():
+		if not resource_id.is_empty():
+			var amount := int(entry.get("amount", 0))
+			_detail_cost_grid.add_child(_make_cost_chip(resource_id.capitalize(), amount, String(RESOURCE_ICONS.get(resource_id, DataLoader.DEFAULT_CATALOG_ICON)), Color(String(RESOURCE_COLORS.get(resource_id, "#e6ddd3"))), _has_resource_cost(resource_id, amount)))
 			continue
-		parts.append("%s %d" % [resource_id.capitalize(), int(entry.get("amount", 0))])
-	return " | ".join(parts) if not parts.is_empty() else "None"
+		var item_id := String(entry.get("item", "")).strip_edges()
+		if item_id.is_empty():
+			continue
+		var item_definition := DataLoader.get_item_definition(item_id)
+		var amount := int(entry.get("amount", 0))
+		_detail_cost_grid.add_child(_make_cost_chip(String(item_definition.get("name", item_id.capitalize())), amount, String(item_definition.get("icon_path", DataLoader.DEFAULT_CATALOG_ICON)), Color("d9cbb7"), _has_item_cost(item_id, amount)))
+
+
+func _make_cost_chip(label_text: String, amount: int, icon_path: String, text_color: Color, can_afford: bool) -> PanelContainer:
+	var panel := UIScreenHelpers.make_panel()
+	panel.custom_minimum_size = Vector2(104, 46)
+	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	UIScreenHelpers.style_panel(panel, Color("120f10"), Color("5f2e2e") if not can_afford else Color("3f7a4d"), 8)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 6)
+	panel.add_child(row)
+	var icon := TextureRect.new()
+	icon.custom_minimum_size = Vector2(28, 28)
+	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	icon.texture = UIScreenHelpers.load_texture_from_path(icon_path)
+	row.add_child(icon)
+	var text_column := VBoxContainer.new()
+	text_column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	text_column.add_theme_constant_override("separation", 0)
+	row.add_child(text_column)
+	var name_label := UIScreenHelpers.make_label(label_text, 12)
+	name_label.autowrap_mode = TextServer.AUTOWRAP_OFF
+	name_label.clip_text = true
+	name_label.add_theme_color_override("font_color", text_color)
+	text_column.add_child(name_label)
+	var amount_label := UIScreenHelpers.make_label("x%d" % amount, 12)
+	amount_label.add_theme_color_override("font_color", Color("e6ddd3"))
+	text_column.add_child(amount_label)
+	return panel
+
+
+func _has_resource_cost(resource_id: String, amount: int) -> bool:
+	var resources := UIScreenHelpers.as_dictionary(_crafting_snapshot.get("resources", {}))
+	return int(resources.get(resource_id, 0)) >= amount
+
+
+func _has_item_cost(item_id: String, amount: int) -> bool:
+	var total := 0
+	for item_value in UIScreenHelpers.as_array(_crafting_snapshot.get("items", [])):
+		var item_stack := UIScreenHelpers.as_dictionary(item_value)
+		if String(item_stack.get("definition_id", "")) == item_id:
+			total += int(item_stack.get("quantity", 0))
+	return total >= amount
+
+
+func _build_stat_rows(bonuses: Dictionary) -> void:
+	UIScreenHelpers.clear_container(_detail_stats_body)
+	_detail_stats_body.add_child(_make_stat_section("Combat Stats", UIScreenHelpers.as_dictionary(bonuses.get("stats", {})), STAT_COLORS))
+	_detail_stats_body.add_child(_make_stat_section("Work Stats", UIScreenHelpers.as_dictionary(bonuses.get("work_stats", {})), WORK_STAT_COLORS))
+
+
+func _make_stat_section(title: String, values: Dictionary, colors: Dictionary) -> PanelContainer:
+	var panel := UIScreenHelpers.make_panel()
+	UIScreenHelpers.style_panel(panel, Color("120f10"), Color("4f3f36"), 8)
+	var body := VBoxContainer.new()
+	body.add_theme_constant_override("separation", 4)
+	panel.add_child(body)
+	var header := UIScreenHelpers.make_label(title, 15)
+	header.add_theme_color_override("font_color", Color("d8c0a0"))
+	body.add_child(header)
+	if values.is_empty():
+		var empty := UIScreenHelpers.make_label("none", 13)
+		empty.add_theme_color_override("font_color", Color("9f9388"))
+		body.add_child(empty)
+		return panel
+	for stat_key in values.keys():
+		var row := HBoxContainer.new()
+		row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		body.add_child(row)
+		var stat_color := Color(String(colors.get(String(stat_key), "#e6ddd3")))
+		var stat_label := UIScreenHelpers.make_label(String(stat_key).capitalize().replace("_", " "), 14)
+		stat_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		stat_label.add_theme_color_override("font_color", stat_color)
+		row.add_child(stat_label)
+		var value_label := UIScreenHelpers.make_label(_format_stat_value(values[stat_key]), 14)
+		value_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		value_label.add_theme_color_override("font_color", stat_color)
+		row.add_child(value_label)
+	return panel
+
+
+func _format_stat_value(value: Variant) -> String:
+	if value is Dictionary:
+		var range_value := UIScreenHelpers.as_dictionary(value)
+		return "+%d - %d" % [int(range_value.get("min", 0)), int(range_value.get("max", 0))]
+	return "+%d" % int(value)
+
+
+func _make_rich_text_label(bbcode_text: String, font_size: int) -> RichTextLabel:
+	var label := RichTextLabel.new()
+	label.bbcode_enabled = true
+	label.fit_content = true
+	label.scroll_active = false
+	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	label.add_theme_font_size_override("normal_font_size", font_size + 2)
+	label.add_theme_color_override("default_color", Color("e6ddd3"))
+	label.text = bbcode_text
+	return label

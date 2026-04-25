@@ -1,28 +1,1287 @@
 {
 	"recipes": [
-		{ "id": "placeholder_iron_brow", "name": "Iron Brow Pattern", "description": "A placeholder smithing recipe for a sturdy headpiece.", "level": 1, "cost": [{ "resource": "stone", "amount": 12 }, { "resource": "gold", "amount": 8 }], "result_equipment": { "id": "crafted_iron_brow_placeholder", "name": "Crafted Iron Brow", "slot": "head", "icon_path": "res://assets/equipment/head/head_6.png", "bonuses": { "stats": { "defense": 2 }, "work_stats": {} } } },
-		{ "id": "placeholder_ember_amulet", "name": "Ember Amulet Pattern", "description": "A placeholder smithing recipe for a work-focused amulet.", "level": 1, "cost": [{ "resource": "wood", "amount": 8 }, { "resource": "gold", "amount": 14 }], "result_equipment": { "id": "crafted_ember_amulet_placeholder", "name": "Crafted Ember Amulet", "slot": "amulet", "icon_path": "res://assets/equipment/amulet/amulet_5.png", "bonuses": { "stats": {}, "work_stats": { "mining": 1 } } } },
-		{ "id": "placeholder_grave_hood", "name": "Grave Hood Pattern", "description": "A placeholder recipe for a hood sewn with ash-thread.", "level": 1, "cost": [{ "resource": "wood", "amount": 6 }, { "resource": "gold", "amount": 10 }], "result_equipment": { "id": "crafted_grave_hood_placeholder", "name": "Crafted Grave Hood", "slot": "head", "icon_path": "res://assets/equipment/head/head_1.png", "bonuses": { "stats": { "sanity": 2 }, "work_stats": {} } } },
-		{ "id": "placeholder_watcher_cowl", "name": "Watcher Cowl Pattern", "description": "A placeholder recipe for a quiet scout's cowl.", "level": 2, "cost": [{ "resource": "wood", "amount": 10 }, { "resource": "gold", "amount": 12 }], "result_equipment": { "id": "crafted_watcher_cowl_placeholder", "name": "Crafted Watcher Cowl", "slot": "head", "icon_path": "res://assets/equipment/head/head_2.png", "bonuses": { "stats": { "critical_chance": 1 }, "work_stats": {} } } },
-		{ "id": "placeholder_ashen_mask", "name": "Ashen Mask Pattern", "description": "A placeholder recipe for a soot-dark mask.", "level": 2, "cost": [{ "resource": "stone", "amount": 10 }, { "resource": "gold", "amount": 16 }], "result_equipment": { "id": "crafted_ashen_mask_placeholder", "name": "Crafted Ashen Mask", "slot": "head", "icon_path": "res://assets/equipment/head/head_3.png", "bonuses": { "stats": { "defense": 1, "sanity": 1 }, "work_stats": {} } } },
-		{ "id": "placeholder_thorn_circlet", "name": "Thorn Circlet Pattern", "description": "A placeholder recipe for a thorn-bound circlet.", "level": 3, "cost": [{ "resource": "wood", "amount": 12 }, { "resource": "gems", "amount": 1 }], "result_equipment": { "id": "crafted_thorn_circlet_placeholder", "name": "Crafted Thorn Circlet", "slot": "head", "icon_path": "res://assets/equipment/head/head_4.png", "bonuses": { "stats": { "attack": 1 }, "work_stats": { "lumbering": 1 } } } },
-		{ "id": "placeholder_crypt_vest", "name": "Crypt Vest Pattern", "description": "A placeholder recipe for a reinforced chestpiece.", "level": 1, "cost": [{ "resource": "stone", "amount": 14 }, { "resource": "gold", "amount": 12 }], "result_equipment": { "id": "crafted_crypt_vest_placeholder", "name": "Crafted Crypt Vest", "slot": "chest", "icon_path": "res://assets/equipment/chest/chest_1.png", "bonuses": { "stats": { "health": 4 }, "work_stats": {} } } },
-		{ "id": "placeholder_bone_mail", "name": "Bone Mail Pattern", "description": "A placeholder recipe for pale linked armor.", "level": 2, "cost": [{ "resource": "stone", "amount": 18 }, { "resource": "gold", "amount": 18 }], "result_equipment": { "id": "crafted_bone_mail_placeholder", "name": "Crafted Bone Mail", "slot": "chest", "icon_path": "res://assets/equipment/chest/chest_4.png", "bonuses": { "stats": { "defense": 2 }, "work_stats": {} } } },
-		{ "id": "placeholder_mire_plate", "name": "Mire Plate Pattern", "description": "A placeholder recipe for heavy marsh-stained plate.", "level": 3, "cost": [{ "resource": "stone", "amount": 24 }, { "resource": "gold", "amount": 24 }], "result_equipment": { "id": "crafted_mire_plate_placeholder", "name": "Crafted Mire Plate", "slot": "chest", "icon_path": "res://assets/equipment/chest/chest_7.png", "bonuses": { "stats": { "health": 3, "defense": 2 }, "work_stats": {} } } },
-		{ "id": "placeholder_pit_gloves", "name": "Pit Gloves Pattern", "description": "A placeholder recipe for rugged work gloves.", "level": 1, "cost": [{ "resource": "wood", "amount": 8 }, { "resource": "stone", "amount": 6 }], "result_equipment": { "id": "crafted_pit_gloves_placeholder", "name": "Crafted Pit Gloves", "slot": "gloves", "icon_path": "res://assets/equipment/gloves/gloves_1.png", "bonuses": { "stats": {}, "work_stats": { "mining": 1 } } } },
-		{ "id": "placeholder_ember_grips", "name": "Ember Grips Pattern", "description": "A placeholder recipe for heat-scarred grips.", "level": 2, "cost": [{ "resource": "stone", "amount": 12 }, { "resource": "gold", "amount": 12 }], "result_equipment": { "id": "crafted_ember_grips_placeholder", "name": "Crafted Ember Grips", "slot": "gloves", "icon_path": "res://assets/equipment/gloves/gloves_5.png", "bonuses": { "stats": { "attack": 1 }, "work_stats": {} } } },
-		{ "id": "placeholder_rootwrap_gloves", "name": "Rootwrap Gloves Pattern", "description": "A placeholder recipe for gatherer's gloves.", "level": 3, "cost": [{ "resource": "wood", "amount": 16 }, { "resource": "gold", "amount": 16 }], "result_equipment": { "id": "crafted_rootwrap_gloves_placeholder", "name": "Crafted Rootwrap Gloves", "slot": "gloves", "icon_path": "res://assets/equipment/gloves/gloves_9.png", "bonuses": { "stats": {}, "work_stats": { "farming": 1 } } } },
-		{ "id": "placeholder_mud_boots", "name": "Mud Boots Pattern", "description": "A placeholder recipe for reliable boots.", "level": 1, "cost": [{ "resource": "wood", "amount": 8 }, { "resource": "gold", "amount": 9 }], "result_equipment": { "id": "crafted_mud_boots_placeholder", "name": "Crafted Mud Boots", "slot": "boots", "icon_path": "res://assets/equipment/boots/boots_1.png", "bonuses": { "stats": { "sanity": 1 }, "work_stats": {} } } },
-		{ "id": "placeholder_gravesoil_treads", "name": "Gravesoil Treads Pattern", "description": "A placeholder recipe for weighted boots.", "level": 2, "cost": [{ "resource": "stone", "amount": 14 }, { "resource": "gold", "amount": 14 }], "result_equipment": { "id": "crafted_gravesoil_treads_placeholder", "name": "Crafted Gravesoil Treads", "slot": "boots", "icon_path": "res://assets/equipment/boots/boots_6.png", "bonuses": { "stats": { "defense": 1 }, "work_stats": {} } } },
-		{ "id": "placeholder_pathfinder_boots", "name": "Pathfinder Boots Pattern", "description": "A placeholder recipe for fast travel boots.", "level": 3, "cost": [{ "resource": "wood", "amount": 18 }, { "resource": "gems", "amount": 1 }], "result_equipment": { "id": "crafted_pathfinder_boots_placeholder", "name": "Crafted Pathfinder Boots", "slot": "boots", "icon_path": "res://assets/equipment/boots/boots_12.png", "bonuses": { "stats": { "critical_chance": 1 }, "work_stats": { "lumbering": 1 } } } },
-		{ "id": "placeholder_gilded_band", "name": "Gilded Band Pattern", "description": "A placeholder recipe for a simple ring.", "level": 1, "cost": [{ "resource": "gold", "amount": 18 }], "result_equipment": { "id": "crafted_gilded_band_placeholder", "name": "Crafted Gilded Band", "slot": "ring", "icon_path": "res://assets/equipment/ring/ring_1.png", "bonuses": { "stats": { "sanity": 2 }, "work_stats": {} } } },
-		{ "id": "placeholder_crypt_wreath", "name": "Crypt Wreath Pattern", "description": "A placeholder recipe for a grave-metal ring.", "level": 2, "cost": [{ "resource": "stone", "amount": 10 }, { "resource": "gold", "amount": 20 }], "result_equipment": { "id": "crafted_crypt_wreath_placeholder", "name": "Crafted Crypt Wreath", "slot": "ring", "icon_path": "res://assets/equipment/ring/ring_5.png", "bonuses": { "stats": { "critical_damage": 2 }, "work_stats": {} } } },
-		{ "id": "placeholder_veil_loop", "name": "Veil Loop Pattern", "description": "A placeholder recipe for a strange luminous ring.", "level": 3, "cost": [{ "resource": "gold", "amount": 24 }, { "resource": "gems", "amount": 1 }], "result_equipment": { "id": "crafted_veil_loop_placeholder", "name": "Crafted Veil Loop", "slot": "ring", "icon_path": "res://assets/equipment/ring/ring_10.png", "bonuses": { "stats": { "critical_chance": 1, "sanity": 1 }, "work_stats": {} } } },
-		{ "id": "placeholder_green_reliquary", "name": "Green Reliquary Pattern", "description": "A placeholder recipe for a farming amulet.", "level": 2, "cost": [{ "resource": "wood", "amount": 12 }, { "resource": "gold", "amount": 18 }], "result_equipment": { "id": "crafted_green_reliquary_placeholder", "name": "Crafted Green Reliquary", "slot": "amulet", "icon_path": "res://assets/equipment/amulet/amulet_1.png", "bonuses": { "stats": {}, "work_stats": { "farming": 1 } } } },
-		{ "id": "placeholder_duskglass_charm", "name": "Duskglass Charm Pattern", "description": "A placeholder recipe for a balanced charm.", "level": 3, "cost": [{ "resource": "gold", "amount": 28 }, { "resource": "gems", "amount": 1 }], "result_equipment": { "id": "crafted_duskglass_charm_placeholder", "name": "Crafted Duskglass Charm", "slot": "amulet", "icon_path": "res://assets/equipment/amulet/amulet_10.png", "bonuses": { "stats": { "health": 2, "sanity": 2 }, "work_stats": {} } } },
-		{ "id": "placeholder_veil_cap", "name": "Veil Cap Pattern", "description": "A placeholder recipe for a light veil cap.", "level": 1, "cost": [{ "resource": "wood", "amount": 7 }, { "resource": "gold", "amount": 9 }], "result_equipment": { "id": "crafted_veil_cap_placeholder", "name": "Crafted Veil Cap", "slot": "head", "icon_path": "res://assets/equipment/head/head_5.png", "bonuses": { "stats": { "sanity": 1 }, "work_stats": {} } } },
-		{ "id": "placeholder_bone_visor", "name": "Bone Visor Pattern", "description": "A placeholder recipe for a grim bone visor.", "level": 2, "cost": [{ "resource": "stone", "amount": 13 }, { "resource": "gold", "amount": 15 }], "result_equipment": { "id": "crafted_bone_visor_placeholder", "name": "Crafted Bone Visor", "slot": "head", "icon_path": "res://assets/equipment/head/head_7.png", "bonuses": { "stats": { "defense": 1 }, "work_stats": {} } } },
-		{ "id": "placeholder_lantern_veil", "name": "Lantern Veil Pattern", "description": "A placeholder recipe for a lantern-lit veil.", "level": 3, "cost": [{ "resource": "gold", "amount": 22 }, { "resource": "gems", "amount": 1 }], "result_equipment": { "id": "crafted_lantern_veil_placeholder", "name": "Crafted Lantern Veil", "slot": "head", "icon_path": "res://assets/equipment/head/head_8.png", "bonuses": { "stats": { "critical_chance": 1, "sanity": 1 }, "work_stats": {} } } },
-		{ "id": "placeholder_mire_hat", "name": "Mire Hat Pattern", "description": "A placeholder recipe for a swamp-worn hat.", "level": 4, "cost": [{ "resource": "wood", "amount": 18 }, { "resource": "gold", "amount": 24 }], "result_equipment": { "id": "crafted_mire_hat_placeholder", "name": "Crafted Mire Hat", "slot": "head", "icon_path": "res://assets/equipment/head/head_9.png", "bonuses": { "stats": { "health": 2 }, "work_stats": { "farming": 1 } } } }
+		{
+			"id": "placeholder_iron_brow",
+			"name": "Iron Brow",
+			"description": "A placeholder smithing recipe for a sturdy headpiece.",
+			"level": 1,
+			"cost": [
+				{
+					"resource": "stone",
+					"amount": 12
+				},
+				{
+					"resource": "gold",
+					"amount": 8
+				},
+				{
+					"item": "timber_bundle",
+					"amount": 2
+				}
+			],
+			"result_equipment": {
+				"id": "crafted_iron_brow_placeholder",
+				"name": "Iron Brow",
+				"slot": "head",
+				"icon_path": "res://assets/equipment/head/head_6.png",
+				"bonuses": {
+					"stats": {
+						"defense": {
+							"min": 1,
+							"max": 30
+						}
+					},
+					"work_stats": {}
+				}
+			}
+		},
+		{
+			"id": "placeholder_ember_amulet",
+			"name": "Ember Amulet",
+			"description": "A placeholder smithing recipe for a work-focused amulet.",
+			"level": 1,
+			"cost": [
+				{
+					"resource": "wood",
+					"amount": 8
+				},
+				{
+					"resource": "gold",
+					"amount": 14
+				}
+			],
+			"result_equipment": {
+				"id": "crafted_ember_amulet_placeholder",
+				"name": "Ember Amulet",
+				"slot": "amulet",
+				"icon_path": "res://assets/equipment/amulet/amulet_5.png",
+				"bonuses": {
+					"stats": {},
+					"work_stats": {
+						"mining": {
+							"min": 1,
+							"max": 30
+						}
+					}
+				}
+			}
+		},
+		{
+			"id": "placeholder_grave_hood",
+			"name": "Grave Hood",
+			"description": "A placeholder recipe for a hood sewn with ash-thread.",
+			"level": 1,
+			"cost": [
+				{
+					"resource": "wood",
+					"amount": 6
+				},
+				{
+					"resource": "gold",
+					"amount": 10
+				}
+			],
+			"result_equipment": {
+				"id": "crafted_grave_hood_placeholder",
+				"name": "Grave Hood",
+				"slot": "head",
+				"icon_path": "res://assets/equipment/head/head_1.png",
+				"bonuses": {
+					"stats": {
+						"sanity": {
+							"min": 1,
+							"max": 30
+						}
+					},
+					"work_stats": {}
+				}
+			}
+		},
+		{
+			"id": "placeholder_watcher_cowl",
+			"name": "Watcher Cowl",
+			"description": "A placeholder recipe for a quiet scout's cowl.",
+			"level": 2,
+			"cost": [
+				{
+					"resource": "wood",
+					"amount": 10
+				},
+				{
+					"resource": "gold",
+					"amount": 12
+				}
+			],
+			"result_equipment": {
+				"id": "crafted_watcher_cowl_placeholder",
+				"name": "Watcher Cowl",
+				"slot": "head",
+				"icon_path": "res://assets/equipment/head/head_2.png",
+				"bonuses": {
+					"stats": {
+						"critical_chance": {
+							"min": 1,
+							"max": 30
+						}
+					},
+					"work_stats": {}
+				}
+			}
+		},
+		{
+			"id": "placeholder_ashen_mask",
+			"name": "Ashen Mask",
+			"description": "A placeholder recipe for a soot-dark mask.",
+			"level": 2,
+			"cost": [
+				{
+					"resource": "stone",
+					"amount": 10
+				},
+				{
+					"resource": "gold",
+					"amount": 16
+				}
+			],
+			"result_equipment": {
+				"id": "crafted_ashen_mask_placeholder",
+				"name": "Ashen Mask",
+				"slot": "head",
+				"icon_path": "res://assets/equipment/head/head_3.png",
+				"bonuses": {
+					"stats": {
+						"defense": {
+							"min": 1,
+							"max": 30
+						},
+						"sanity": {
+							"min": 1,
+							"max": 30
+						}
+					},
+					"work_stats": {}
+				}
+			}
+		},
+		{
+			"id": "placeholder_thorn_circlet",
+			"name": "Thorn Circlet",
+			"description": "A placeholder recipe for a thorn-bound circlet.",
+			"level": 3,
+			"cost": [
+				{
+					"resource": "wood",
+					"amount": 12
+				},
+				{
+					"resource": "gems",
+					"amount": 1
+				}
+			],
+			"result_equipment": {
+				"id": "crafted_thorn_circlet_placeholder",
+				"name": "Thorn Circlet",
+				"slot": "head",
+				"icon_path": "res://assets/equipment/head/head_4.png",
+				"bonuses": {
+					"stats": {
+						"attack": {
+							"min": 1,
+							"max": 30
+						}
+					},
+					"work_stats": {
+						"lumbering": {
+							"min": 1,
+							"max": 30
+						}
+					}
+				}
+			}
+		},
+		{
+			"id": "placeholder_crypt_vest",
+			"name": "Crypt Vest",
+			"description": "A placeholder recipe for a reinforced chestpiece.",
+			"level": 1,
+			"cost": [
+				{
+					"resource": "stone",
+					"amount": 14
+				},
+				{
+					"resource": "gold",
+					"amount": 12
+				}
+			],
+			"result_equipment": {
+				"id": "crafted_crypt_vest_placeholder",
+				"name": "Crypt Vest",
+				"slot": "chest",
+				"icon_path": "res://assets/equipment/chest/chest_1.png",
+				"bonuses": {
+					"stats": {
+						"health": {
+							"min": 1,
+							"max": 30
+						}
+					},
+					"work_stats": {}
+				}
+			}
+		},
+		{
+			"id": "placeholder_bone_mail",
+			"name": "Bone Mail",
+			"description": "A placeholder recipe for pale linked armor.",
+			"level": 2,
+			"cost": [
+				{
+					"resource": "stone",
+					"amount": 18
+				},
+				{
+					"resource": "gold",
+					"amount": 18
+				}
+			],
+			"result_equipment": {
+				"id": "crafted_bone_mail_placeholder",
+				"name": "Bone Mail",
+				"slot": "chest",
+				"icon_path": "res://assets/equipment/chest/chest_4.png",
+				"bonuses": {
+					"stats": {
+						"defense": {
+							"min": 1,
+							"max": 30
+						}
+					},
+					"work_stats": {}
+				}
+			}
+		},
+		{
+			"id": "placeholder_mire_plate",
+			"name": "Mire Plate",
+			"description": "A placeholder recipe for heavy marsh-stained plate.",
+			"level": 3,
+			"cost": [
+				{
+					"resource": "stone",
+					"amount": 24
+				},
+				{
+					"resource": "gold",
+					"amount": 24
+				}
+			],
+			"result_equipment": {
+				"id": "crafted_mire_plate_placeholder",
+				"name": "Mire Plate",
+				"slot": "chest",
+				"icon_path": "res://assets/equipment/chest/chest_7.png",
+				"bonuses": {
+					"stats": {
+						"health": {
+							"min": 1,
+							"max": 30
+						},
+						"defense": {
+							"min": 1,
+							"max": 30
+						}
+					},
+					"work_stats": {}
+				}
+			}
+		},
+		{
+			"id": "placeholder_pit_gloves",
+			"name": "Pit Gloves",
+			"description": "A placeholder recipe for rugged work gloves.",
+			"level": 1,
+			"cost": [
+				{
+					"resource": "wood",
+					"amount": 8
+				},
+				{
+					"resource": "stone",
+					"amount": 6
+				}
+			],
+			"result_equipment": {
+				"id": "crafted_pit_gloves_placeholder",
+				"name": "Pit Gloves",
+				"slot": "gloves",
+				"icon_path": "res://assets/equipment/gloves/gloves_1.png",
+				"bonuses": {
+					"stats": {},
+					"work_stats": {
+						"mining": {
+							"min": 1,
+							"max": 30
+						}
+					}
+				}
+			}
+		},
+		{
+			"id": "placeholder_ember_grips",
+			"name": "Ember Grips",
+			"description": "A placeholder recipe for heat-scarred grips.",
+			"level": 2,
+			"cost": [
+				{
+					"resource": "stone",
+					"amount": 12
+				},
+				{
+					"resource": "gold",
+					"amount": 12
+				}
+			],
+			"result_equipment": {
+				"id": "crafted_ember_grips_placeholder",
+				"name": "Ember Grips",
+				"slot": "gloves",
+				"icon_path": "res://assets/equipment/gloves/gloves_5.png",
+				"bonuses": {
+					"stats": {
+						"attack": {
+							"min": 1,
+							"max": 30
+						}
+					},
+					"work_stats": {}
+				}
+			}
+		},
+		{
+			"id": "placeholder_rootwrap_gloves",
+			"name": "Rootwrap Gloves",
+			"description": "A placeholder recipe for gatherer's gloves.",
+			"level": 3,
+			"cost": [
+				{
+					"resource": "wood",
+					"amount": 16
+				},
+				{
+					"resource": "gold",
+					"amount": 16
+				}
+			],
+			"result_equipment": {
+				"id": "crafted_rootwrap_gloves_placeholder",
+				"name": "Rootwrap Gloves",
+				"slot": "gloves",
+				"icon_path": "res://assets/equipment/gloves/gloves_9.png",
+				"bonuses": {
+					"stats": {},
+					"work_stats": {
+						"farming": {
+							"min": 1,
+							"max": 30
+						}
+					}
+				}
+			}
+		},
+		{
+			"id": "placeholder_mud_boots",
+			"name": "Mud Boots",
+			"description": "A placeholder recipe for reliable boots.",
+			"level": 1,
+			"cost": [
+				{
+					"resource": "wood",
+					"amount": 8
+				},
+				{
+					"resource": "gold",
+					"amount": 9
+				}
+			],
+			"result_equipment": {
+				"id": "crafted_mud_boots_placeholder",
+				"name": "Mud Boots",
+				"slot": "boots",
+				"icon_path": "res://assets/equipment/boots/boots_1.png",
+				"bonuses": {
+					"stats": {
+						"sanity": {
+							"min": 1,
+							"max": 30
+						}
+					},
+					"work_stats": {}
+				}
+			}
+		},
+		{
+			"id": "placeholder_gravesoil_treads",
+			"name": "Gravesoil Treads",
+			"description": "A placeholder recipe for weighted boots.",
+			"level": 2,
+			"cost": [
+				{
+					"resource": "stone",
+					"amount": 14
+				},
+				{
+					"resource": "gold",
+					"amount": 14
+				}
+			],
+			"result_equipment": {
+				"id": "crafted_gravesoil_treads_placeholder",
+				"name": "Gravesoil Treads",
+				"slot": "boots",
+				"icon_path": "res://assets/equipment/boots/boots_6.png",
+				"bonuses": {
+					"stats": {
+						"defense": {
+							"min": 1,
+							"max": 30
+						}
+					},
+					"work_stats": {}
+				}
+			}
+		},
+		{
+			"id": "placeholder_pathfinder_boots",
+			"name": "Pathfinder Boots",
+			"description": "A placeholder recipe for fast travel boots.",
+			"level": 3,
+			"cost": [
+				{
+					"resource": "wood",
+					"amount": 18
+				},
+				{
+					"resource": "gems",
+					"amount": 1
+				}
+			],
+			"result_equipment": {
+				"id": "crafted_pathfinder_boots_placeholder",
+				"name": "Pathfinder Boots",
+				"slot": "boots",
+				"icon_path": "res://assets/equipment/boots/boots_12.png",
+				"bonuses": {
+					"stats": {
+						"critical_chance": {
+							"min": 1,
+							"max": 30
+						}
+					},
+					"work_stats": {
+						"lumbering": {
+							"min": 1,
+							"max": 30
+						}
+					}
+				}
+			}
+		},
+		{
+			"id": "placeholder_gilded_band",
+			"name": "Gilded Band",
+			"description": "A placeholder recipe for a simple ring.",
+			"level": 1,
+			"cost": [
+				{
+					"resource": "gold",
+					"amount": 18
+				}
+			],
+			"result_equipment": {
+				"id": "crafted_gilded_band_placeholder",
+				"name": "Gilded Band",
+				"slot": "ring",
+				"icon_path": "res://assets/equipment/ring/ring_1.png",
+				"bonuses": {
+					"stats": {
+						"sanity": {
+							"min": 1,
+							"max": 30
+						}
+					},
+					"work_stats": {}
+				}
+			}
+		},
+		{
+			"id": "placeholder_crypt_wreath",
+			"name": "Crypt Wreath",
+			"description": "A placeholder recipe for a grave-metal ring.",
+			"level": 2,
+			"cost": [
+				{
+					"resource": "stone",
+					"amount": 10
+				},
+				{
+					"resource": "gold",
+					"amount": 20
+				}
+			],
+			"result_equipment": {
+				"id": "crafted_crypt_wreath_placeholder",
+				"name": "Crypt Wreath",
+				"slot": "ring",
+				"icon_path": "res://assets/equipment/ring/ring_5.png",
+				"bonuses": {
+					"stats": {
+						"critical_damage": {
+							"min": 1,
+							"max": 30
+						}
+					},
+					"work_stats": {}
+				}
+			}
+		},
+		{
+			"id": "placeholder_veil_loop",
+			"name": "Veil Loop",
+			"description": "A placeholder recipe for a strange luminous ring.",
+			"level": 3,
+			"cost": [
+				{
+					"resource": "gold",
+					"amount": 24
+				},
+				{
+					"resource": "gems",
+					"amount": 1
+				}
+			],
+			"result_equipment": {
+				"id": "crafted_veil_loop_placeholder",
+				"name": "Veil Loop",
+				"slot": "ring",
+				"icon_path": "res://assets/equipment/ring/ring_10.png",
+				"bonuses": {
+					"stats": {
+						"critical_chance": {
+							"min": 1,
+							"max": 30
+						},
+						"sanity": {
+							"min": 1,
+							"max": 30
+						}
+					},
+					"work_stats": {}
+				}
+			}
+		},
+		{
+			"id": "placeholder_green_reliquary",
+			"name": "Green Reliquary",
+			"description": "A placeholder recipe for a farming amulet.",
+			"level": 2,
+			"cost": [
+				{
+					"resource": "wood",
+					"amount": 12
+				},
+				{
+					"resource": "gold",
+					"amount": 18
+				}
+			],
+			"result_equipment": {
+				"id": "crafted_green_reliquary_placeholder",
+				"name": "Green Reliquary",
+				"slot": "amulet",
+				"icon_path": "res://assets/equipment/amulet/amulet_1.png",
+				"bonuses": {
+					"stats": {},
+					"work_stats": {
+						"farming": {
+							"min": 1,
+							"max": 30
+						}
+					}
+				}
+			}
+		},
+		{
+			"id": "placeholder_duskglass_charm",
+			"name": "Duskglass Charm",
+			"description": "A placeholder recipe for a balanced charm.",
+			"level": 3,
+			"cost": [
+				{
+					"resource": "gold",
+					"amount": 28
+				},
+				{
+					"resource": "gems",
+					"amount": 1
+				}
+			],
+			"result_equipment": {
+				"id": "crafted_duskglass_charm_placeholder",
+				"name": "Duskglass Charm",
+				"slot": "amulet",
+				"icon_path": "res://assets/equipment/amulet/amulet_10.png",
+				"bonuses": {
+					"stats": {
+						"health": {
+							"min": 1,
+							"max": 30
+						},
+						"sanity": {
+							"min": 1,
+							"max": 30
+						}
+					},
+					"work_stats": {}
+				}
+			}
+		},
+		{
+			"id": "placeholder_veil_cap",
+			"name": "Veil Cap",
+			"description": "A placeholder recipe for a light veil cap.",
+			"level": 1,
+			"cost": [
+				{
+					"resource": "wood",
+					"amount": 7
+				},
+				{
+					"resource": "gold",
+					"amount": 9
+				}
+			],
+			"result_equipment": {
+				"id": "crafted_veil_cap_placeholder",
+				"name": "Veil Cap",
+				"slot": "head",
+				"icon_path": "res://assets/equipment/head/head_5.png",
+				"bonuses": {
+					"stats": {
+						"sanity": {
+							"min": 1,
+							"max": 30
+						}
+					},
+					"work_stats": {}
+				}
+			}
+		},
+		{
+			"id": "placeholder_bone_visor",
+			"name": "Bone Visor",
+			"description": "A placeholder recipe for a grim bone visor.",
+			"level": 2,
+			"cost": [
+				{
+					"resource": "stone",
+					"amount": 13
+				},
+				{
+					"resource": "gold",
+					"amount": 15
+				}
+			],
+			"result_equipment": {
+				"id": "crafted_bone_visor_placeholder",
+				"name": "Bone Visor",
+				"slot": "head",
+				"icon_path": "res://assets/equipment/head/head_7.png",
+				"bonuses": {
+					"stats": {
+						"defense": {
+							"min": 1,
+							"max": 30
+						}
+					},
+					"work_stats": {}
+				}
+			}
+		},
+		{
+			"id": "placeholder_lantern_veil",
+			"name": "Lantern Veil",
+			"description": "A placeholder recipe for a lantern-lit veil.",
+			"level": 3,
+			"cost": [
+				{
+					"resource": "gold",
+					"amount": 22
+				},
+				{
+					"resource": "gems",
+					"amount": 1
+				}
+			],
+			"result_equipment": {
+				"id": "crafted_lantern_veil_placeholder",
+				"name": "Lantern Veil",
+				"slot": "head",
+				"icon_path": "res://assets/equipment/head/head_8.png",
+				"bonuses": {
+					"stats": {
+						"critical_chance": {
+							"min": 1,
+							"max": 30
+						},
+						"sanity": {
+							"min": 1,
+							"max": 30
+						}
+					},
+					"work_stats": {}
+				}
+			}
+		},
+		{
+			"id": "placeholder_mire_hat",
+			"name": "Mire Hat",
+			"description": "A placeholder recipe for a swamp-worn hat.",
+			"level": 4,
+			"cost": [
+				{
+					"resource": "wood",
+					"amount": 18
+				},
+				{
+					"resource": "gold",
+					"amount": 24
+				}
+			],
+			"result_equipment": {
+				"id": "crafted_mire_hat_placeholder",
+				"name": "Mire Hat",
+				"slot": "head",
+				"icon_path": "res://assets/equipment/head/head_9.png",
+				"bonuses": {
+					"stats": {
+						"health": {
+							"min": 1,
+							"max": 30
+						}
+					},
+					"work_stats": {
+						"farming": {
+							"min": 1,
+							"max": 30
+						}
+					}
+				}
+			}
+		},
+		{
+			"id": "placeholder_level_5_head",
+			"name": "Apex Crown",
+			"description": "A level 5 placeholder head recipe with every stat range enabled.",
+			"level": 5,
+			"cost": [
+				{
+					"resource": "gold",
+					"amount": 100
+				},
+				{
+					"resource": "gems",
+					"amount": 3
+				},
+				{
+					"item": "iron",
+					"amount": 220
+				},
+				{
+					"item": "bones",
+					"amount": 180
+				},
+				{
+					"item": "fabrics",
+					"amount": 260
+				},
+				{
+					"item": "ruby",
+					"amount": 120
+				},
+				{
+					"item": "quartz",
+					"amount": 340
+				}
+			],
+			"result_equipment": {
+				"id": "crafted_head_level_5_placeholder",
+				"name": "Apex Crown",
+				"slot": "head",
+				"icon_path": "res://assets/equipment/head/head_10.png",
+				"bonuses": {
+					"stats": {
+						"health": {
+							"min": 10,
+							"max": 100
+						},
+						"sanity": {
+							"min": 10,
+							"max": 100
+						},
+						"attack": {
+							"min": 10,
+							"max": 100
+						},
+						"defense": {
+							"min": 10,
+							"max": 100
+						},
+						"critical_chance": {
+							"min": 10,
+							"max": 100
+						},
+						"critical_damage": {
+							"min": 10,
+							"max": 100
+						}
+					},
+					"work_stats": {
+						"farming": {
+							"min": 10,
+							"max": 100
+						},
+						"mining": {
+							"min": 10,
+							"max": 100
+						},
+						"lumbering": {
+							"min": 10,
+							"max": 100
+						}
+					}
+				}
+			}
+		},
+		{
+			"id": "placeholder_level_5_chest",
+			"name": "Apex Plate",
+			"description": "A level 5 placeholder chest recipe with every stat range enabled.",
+			"level": 5,
+			"cost": [
+				{
+					"resource": "gold",
+					"amount": 100
+				},
+				{
+					"resource": "gems",
+					"amount": 3
+				},
+				{
+					"item": "criomsonrock",
+					"amount": 240
+				},
+				{
+					"item": "herbs",
+					"amount": 210
+				},
+				{
+					"item": "trade_goods",
+					"amount": 300
+				},
+				{
+					"item": "diamond",
+					"amount": 110
+				},
+				{
+					"item": "onyx",
+					"amount": 360
+				}
+			],
+			"result_equipment": {
+				"id": "crafted_chest_level_5_placeholder",
+				"name": "Apex Plate",
+				"slot": "chest",
+				"icon_path": "res://assets/equipment/chest/chest_10.png",
+				"bonuses": {
+					"stats": {
+						"health": {
+							"min": 10,
+							"max": 100
+						},
+						"sanity": {
+							"min": 10,
+							"max": 100
+						},
+						"attack": {
+							"min": 10,
+							"max": 100
+						},
+						"defense": {
+							"min": 10,
+							"max": 100
+						},
+						"critical_chance": {
+							"min": 10,
+							"max": 100
+						},
+						"critical_damage": {
+							"min": 10,
+							"max": 100
+						}
+					},
+					"work_stats": {
+						"farming": {
+							"min": 10,
+							"max": 100
+						},
+						"mining": {
+							"min": 10,
+							"max": 100
+						},
+						"lumbering": {
+							"min": 10,
+							"max": 100
+						}
+					}
+				}
+			}
+		},
+		{
+			"id": "placeholder_level_5_gloves",
+			"name": "Apex Grips",
+			"description": "A level 5 placeholder gloves recipe with every stat range enabled.",
+			"level": 5,
+			"cost": [
+				{
+					"resource": "gold",
+					"amount": 100
+				},
+				{
+					"resource": "gems",
+					"amount": 3
+				},
+				{
+					"item": "viridis",
+					"amount": 230
+				},
+				{
+					"item": "spices",
+					"amount": 190
+				},
+				{
+					"item": "fabrics",
+					"amount": 280
+				},
+				{
+					"item": "amethyst",
+					"amount": 130
+				},
+				{
+					"item": "firebrand",
+					"amount": 330
+				}
+			],
+			"result_equipment": {
+				"id": "crafted_gloves_level_5_placeholder",
+				"name": "Apex Grips",
+				"slot": "gloves",
+				"icon_path": "res://assets/equipment/gloves/gloves_10.png",
+				"bonuses": {
+					"stats": {
+						"health": {
+							"min": 10,
+							"max": 100
+						},
+						"sanity": {
+							"min": 10,
+							"max": 100
+						},
+						"attack": {
+							"min": 10,
+							"max": 100
+						},
+						"defense": {
+							"min": 10,
+							"max": 100
+						},
+						"critical_chance": {
+							"min": 10,
+							"max": 100
+						},
+						"critical_damage": {
+							"min": 10,
+							"max": 100
+						}
+					},
+					"work_stats": {
+						"farming": {
+							"min": 10,
+							"max": 100
+						},
+						"mining": {
+							"min": 10,
+							"max": 100
+						},
+						"lumbering": {
+							"min": 10,
+							"max": 100
+						}
+					}
+				}
+			}
+		},
+		{
+			"id": "placeholder_level_5_boots",
+			"name": "Apex Treads",
+			"description": "A level 5 placeholder boots recipe with every stat range enabled.",
+			"level": 5,
+			"cost": [
+				{
+					"resource": "gold",
+					"amount": 100
+				},
+				{
+					"resource": "gems",
+					"amount": 3
+				},
+				{
+					"item": "lapis",
+					"amount": 250
+				},
+				{
+					"item": "bones",
+					"amount": 200
+				},
+				{
+					"item": "herbs",
+					"amount": 270
+				},
+				{
+					"item": "sapphire",
+					"amount": 140
+				},
+				{
+					"item": "venetus",
+					"amount": 350
+				}
+			],
+			"result_equipment": {
+				"id": "crafted_boots_level_5_placeholder",
+				"name": "Apex Treads",
+				"slot": "boots",
+				"icon_path": "res://assets/equipment/boots/boots_10.png",
+				"bonuses": {
+					"stats": {
+						"health": {
+							"min": 10,
+							"max": 100
+						},
+						"sanity": {
+							"min": 10,
+							"max": 100
+						},
+						"attack": {
+							"min": 10,
+							"max": 100
+						},
+						"defense": {
+							"min": 10,
+							"max": 100
+						},
+						"critical_chance": {
+							"min": 10,
+							"max": 100
+						},
+						"critical_damage": {
+							"min": 10,
+							"max": 100
+						}
+					},
+					"work_stats": {
+						"farming": {
+							"min": 10,
+							"max": 100
+						},
+						"mining": {
+							"min": 10,
+							"max": 100
+						},
+						"lumbering": {
+							"min": 10,
+							"max": 100
+						}
+					}
+				}
+			}
+		},
+		{
+			"id": "placeholder_level_5_amulet",
+			"name": "Apex Reliquary",
+			"description": "A level 5 placeholder amulet recipe with every stat range enabled.",
+			"level": 5,
+			"cost": [
+				{
+					"resource": "gold",
+					"amount": 100
+				},
+				{
+					"resource": "gems",
+					"amount": 3
+				},
+				{
+					"item": "aureus",
+					"amount": 260
+				},
+				{
+					"item": "trade_goods",
+					"amount": 220
+				},
+				{
+					"item": "spices",
+					"amount": 290
+				},
+				{
+					"item": "emerald",
+					"amount": 150
+				},
+				{
+					"item": "voidcrystal",
+					"amount": 370
+				}
+			],
+			"result_equipment": {
+				"id": "crafted_amulet_level_5_placeholder",
+				"name": "Apex Reliquary",
+				"slot": "amulet",
+				"icon_path": "res://assets/equipment/amulet/amulet_10.png",
+				"bonuses": {
+					"stats": {
+						"health": {
+							"min": 10,
+							"max": 100
+						},
+						"sanity": {
+							"min": 10,
+							"max": 100
+						},
+						"attack": {
+							"min": 10,
+							"max": 100
+						},
+						"defense": {
+							"min": 10,
+							"max": 100
+						},
+						"critical_chance": {
+							"min": 10,
+							"max": 100
+						},
+						"critical_damage": {
+							"min": 10,
+							"max": 100
+						}
+					},
+					"work_stats": {
+						"farming": {
+							"min": 10,
+							"max": 100
+						},
+						"mining": {
+							"min": 10,
+							"max": 100
+						},
+						"lumbering": {
+							"min": 10,
+							"max": 100
+						}
+					}
+				}
+			}
+		},
+		{
+			"id": "placeholder_level_5_ring",
+			"name": "Apex Band",
+			"description": "A level 5 placeholder ring recipe with every stat range enabled.",
+			"level": 5,
+			"cost": [
+				{
+					"resource": "gold",
+					"amount": 100
+				},
+				{
+					"resource": "gems",
+					"amount": 3
+				},
+				{
+					"item": "iron",
+					"amount": 280
+				},
+				{
+					"item": "amber",
+					"amount": 230
+				},
+				{
+					"item": "quartz",
+					"amount": 310
+				},
+				{
+					"item": "ruby",
+					"amount": 160
+				},
+				{
+					"item": "fabrics",
+					"amount": 390
+				}
+			],
+			"result_equipment": {
+				"id": "crafted_ring_level_5_placeholder",
+				"name": "Apex Band",
+				"slot": "ring",
+				"icon_path": "res://assets/equipment/ring/ring_10.png",
+				"bonuses": {
+					"stats": {
+						"health": {
+							"min": 10,
+							"max": 100
+						},
+						"sanity": {
+							"min": 10,
+							"max": 100
+						},
+						"attack": {
+							"min": 10,
+							"max": 100
+						},
+						"defense": {
+							"min": 10,
+							"max": 100
+						},
+						"critical_chance": {
+							"min": 10,
+							"max": 100
+						},
+						"critical_damage": {
+							"min": 10,
+							"max": 100
+						}
+					},
+					"work_stats": {
+						"farming": {
+							"min": 10,
+							"max": 100
+						},
+						"mining": {
+							"min": 10,
+							"max": 100
+						},
+						"lumbering": {
+							"min": 10,
+							"max": 100
+						}
+					}
+				}
+			}
+		}
 	]
 }

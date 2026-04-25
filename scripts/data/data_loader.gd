@@ -505,7 +505,7 @@ func normalize_equipment_definition(entry: Dictionary, source: String = "core", 
 		"name": equipment_name,
 		"slot": slot_key,
 		"icon_path": _resolve_catalog_image_path(entry, mod_folder_path, "icon_path", "icon.png", DEFAULT_CATALOG_ICON),
-		"bonuses": _normalize_equipment_bonuses(entry.get("bonuses", {})),
+		"bonuses": _normalize_equipment_bonuses(entry.get("bonuses", {}), source == "crafting"),
 		"source": source,
 		"mod_id": mod_id if source == "mod" else "",
 	}
@@ -733,7 +733,7 @@ func _resource_path_exists(path: String) -> bool:
 	return FileAccess.file_exists(path)
 
 
-func _normalize_equipment_bonuses(value: Variant) -> Dictionary:
+func _normalize_equipment_bonuses(value: Variant, keep_ranges: bool = false) -> Dictionary:
 	var source_data := _as_dictionary(value)
 	var stats_source := _as_dictionary(source_data.get("stats", {}))
 	var work_source := _as_dictionary(source_data.get("work_stats", {}))
@@ -741,15 +741,23 @@ func _normalize_equipment_bonuses(value: Variant) -> Dictionary:
 		stats_source = source_data
 		work_source = source_data
 	return {
-		"stats": _normalize_bonus_block(stats_source, DEFAULT_HERO_STATS.keys()),
-		"work_stats": _normalize_bonus_block(work_source, DEFAULT_HERO_WORK_STATS.keys()),
+		"stats": _normalize_bonus_block(stats_source, DEFAULT_HERO_STATS.keys(), keep_ranges),
+		"work_stats": _normalize_bonus_block(work_source, DEFAULT_HERO_WORK_STATS.keys(), keep_ranges),
 	}
 
 
-func _normalize_bonus_block(source_data: Dictionary, allowed_keys: Array) -> Dictionary:
+func _normalize_bonus_block(source_data: Dictionary, allowed_keys: Array, keep_ranges: bool = false) -> Dictionary:
 	var normalized: Dictionary = {}
 	for stat_key in allowed_keys:
-		var amount := int(source_data.get(stat_key, 0))
+		var value: Variant = source_data.get(stat_key, 0)
+		if keep_ranges and value is Dictionary:
+			var range_value := _as_dictionary(value)
+			normalized[stat_key] = {
+				"min": int(range_value.get("min", 0)),
+				"max": int(range_value.get("max", range_value.get("min", 0))),
+			}
+			continue
+		var amount := int(value)
 		if amount != 0:
 			normalized[stat_key] = amount
 	return normalized

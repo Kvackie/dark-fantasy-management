@@ -213,10 +213,14 @@ func get_recruit_market_snapshot() -> Dictionary:
 
 
 func get_crafting_snapshot() -> Dictionary:
+	var highest_smithy_level := get_highest_smithy_level()
 	return {
 		"unlocked": is_crafting_unlocked(),
 		"smithy_count": get_built_smithy_count(),
-		"recipes": DataLoader.get_all_crafting_recipes(),
+		"highest_smithy_level": highest_smithy_level,
+		"resources": get_resource_snapshot(),
+		"items": _session().duplicate_dict_array(_as_array(get_inventory_snapshot().get("items", []))),
+		"recipes": _get_crafting_recipes_for_smithy_level(highest_smithy_level),
 	}
 
 
@@ -244,6 +248,25 @@ func get_built_smithy_count() -> int:
 			if String((slot as Dictionary).get("building_id", "")) == "smithy":
 				smithy_count += 1
 	return smithy_count
+
+
+func get_highest_smithy_level() -> int:
+	var highest_level := 0
+	for settlement_id in owned_settlement_ids:
+		for slot in _get_settlement_slots(String(settlement_id)):
+			if String((slot as Dictionary).get("building_id", "")) != "smithy":
+				continue
+			highest_level = max(highest_level, int((slot as Dictionary).get("level", 1)))
+	return highest_level
+
+
+func _get_crafting_recipes_for_smithy_level(smithy_level: int) -> Array:
+	var recipes: Array = []
+	for recipe_value in DataLoader.get_all_crafting_recipes():
+		var recipe := _as_dictionary(recipe_value)
+		if int(recipe.get("level", 1)) <= smithy_level:
+			recipes.append(recipe)
+	return recipes
 
 
 func get_highest_tavern_level() -> int:
@@ -791,7 +814,7 @@ func debug_grant_random_item() -> Dictionary:
 	if item_pool.is_empty():
 		return {}
 	var granted_item: Dictionary = {}
-	for _index in range(10):
+	for _index in range(100):
 		var item_definition: Dictionary = item_pool[randi_range(0, item_pool.size() - 1)]
 		var definition_id := String(item_definition.get("id", ""))
 		if definition_id.is_empty():
