@@ -426,12 +426,24 @@ func normalize_building_definition(entry: Dictionary) -> Dictionary:
 		"upgrade_growth": float(entry.get("upgrade_growth", 1.0)),
 		"base_production": _duplicate_dictionary_array(entry.get("base_production", [])),
 		"worker_slots": max(0, int(entry.get("worker_slots", 0))),
+		"assignment_requirements": _normalize_assignment_requirements(entry.get("assignment_requirements", {})),
 		"max_level": max(1, int(entry.get("max_level", 1))),
 	}
 	if entry.has("recruit_cost"):
 		normalized["recruit_cost"] = _duplicate_dictionary_array(entry.get("recruit_cost", []))
 	if entry.has("schema_version"):
 		normalized["schema_version"] = entry["schema_version"]
+	return normalized
+
+
+func _normalize_assignment_requirements(value: Variant) -> Dictionary:
+	var normalized: Dictionary = {}
+	var source := _as_dictionary(value)
+	for stat_key_variant in source.keys():
+		var stat_key := String(stat_key_variant).strip_edges()
+		if stat_key.is_empty():
+			continue
+		normalized[stat_key] = max(0, int(source.get(stat_key_variant, 0)))
 	return normalized
 
 

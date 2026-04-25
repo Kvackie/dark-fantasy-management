@@ -101,6 +101,14 @@ var _main_menu_mode: String = MAIN_MENU_ROOT
 var _main_menu_mod_category: String = ""
 var _main_menu_pending_action: String = ""
 var _main_menu_pending_slot: int = -1
+var _assign_heroes_overlay: ColorRect = null
+var _assign_heroes_title: Label = null
+var _assign_heroes_status: Label = null
+var _assign_heroes_content: VBoxContainer = null
+var _assign_heroes_apply_button: Button = null
+var _assign_heroes_slot_index: int = -1
+var _assign_heroes_selected: Dictionary = {}
+var _assign_heroes_checkboxes: Dictionary = {}
 var _zone_reward_toast: PanelContainer = null
 var _zone_reward_toast_title: Label = null
 var _zone_reward_toast_body: Label = null
@@ -858,6 +866,7 @@ func _build_settlement_detail_panel() -> void:
 			"build_selected_building": Callable(self, "_build_selected_building"),
 			"upgrade_slot": Callable(self, "_upgrade_slot"),
 			"dismantle_slot": Callable(self, "_dismantle_slot"),
+			"open_assign_heroes": Callable(self, "_open_assign_heroes_dialog"),
 			"assign_hero": Callable(self, "_assign_hero"),
 			"unassign_hero": Callable(self, "_unassign_hero"),
 		}
@@ -887,6 +896,137 @@ func _assign_hero(hero_uid: int, slot_index: int) -> void:
 
 func _unassign_hero(hero_uid: int) -> void:
 	GameManager.unassign_hero(hero_uid)
+
+
+func _setup_assign_heroes_overlay() -> void:
+	if _assign_heroes_overlay != null and is_instance_valid(_assign_heroes_overlay):
+		return
+	_assign_heroes_overlay = ColorRect.new()
+	_assign_heroes_overlay.visible = false
+	_assign_heroes_overlay.color = Color(0, 0, 0, 0.62)
+	_assign_heroes_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	_assign_heroes_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	add_child(_assign_heroes_overlay)
+	var center := CenterContainer.new()
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_assign_heroes_overlay.add_child(center)
+	var panel := UIScreenHelpers.make_panel()
+	panel.custom_minimum_size = Vector2(620, 520)
+	center.add_child(panel)
+	var body := VBoxContainer.new()
+	body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	body.add_theme_constant_override("separation", 12)
+	panel.add_child(body)
+	_assign_heroes_title = UIScreenHelpers.make_label("Assign Heroes", 26)
+	_assign_heroes_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	body.add_child(_assign_heroes_title)
+	_assign_heroes_status = UIScreenHelpers.make_label("", 15)
+	_assign_heroes_status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_assign_heroes_status.add_theme_color_override("font_color", Color("cbbba9"))
+	body.add_child(_assign_heroes_status)
+	var scroll := ScrollContainer.new()
+	scroll.custom_minimum_size = Vector2(0, 360)
+	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	body.add_child(scroll)
+	_assign_heroes_content = VBoxContainer.new()
+	_assign_heroes_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_assign_heroes_content.add_theme_constant_override("separation", 8)
+	scroll.add_child(_assign_heroes_content)
+	var action_row := HBoxContainer.new()
+	action_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	action_row.add_theme_constant_override("separation", 10)
+	body.add_child(action_row)
+	_assign_heroes_apply_button = UIScreenHelpers.make_small_action_button("Apply", Callable(self, "_apply_assign_heroes_dialog"))
+	action_row.add_child(_assign_heroes_apply_button)
+	action_row.add_child(UIScreenHelpers.make_small_action_button("Cancel", Callable(self, "_close_assign_heroes_dialog")))
+
+
+func _open_assign_heroes_dialog(slot_index: int) -> void:
+	var building_definition := GameManager.get_slot_building_definition(slot_index)
+	var worker_slots := int(building_definition.get("worker_slots", 0))
+	if worker_slots <= 0:
+		return
+	_setup_assign_heroes_overlay()
+	_assign_heroes_slot_index = slot_index
+	_assign_heroes_selected.clear()
+	_assign_heroes_checkboxes.clear()
+	UIScreenHelpers.clear_container(_assign_heroes_content)
+	_assign_heroes_title.text = "Assign Heroes: %s" % String(building_definition.get("name", "Building"))
+	var rows: Array = []
+	var added_uids: Dictionary = {}
+	for hero_data in _heroes_snapshot:
+		var hero := UIScreenHelpers.as_dictionary(hero_data)
+		if int(hero.get("assigned_slot", -1)) == slot_index and String(hero.get("assigned_settlement_id", "")) == GameManager.active_settlement_id:
+			var hero_uid := int(hero.get("uid", -1))
+			_assign_heroes_selected[hero_uid] = true
+			added_uids[hero_uid] = true
+			rows.append(hero)
+	for hero_data in GameManager.get_available_heroes_for_slot(slot_index):
+		var hero := UIScreenHelpers.as_dictionary(hero_data)
+		var hero_uid := int(hero.get("uid", -1))
+		if added_uids.has(hero_uid):
+			continue
+		added_uids[hero_uid] = true
+		rows.append(hero)
+	if rows.is_empty():
+		_assign_heroes_content.add_child(UIScreenHelpers.make_label("No eligible heroes available.", 16))
+	else:
+		for hero in rows:
+			var hero_uid := int(hero.get("uid", -1))
+			var row := MainScreenSettlementBuilders.make_assign_hero_checkbox_entry(hero, _assign_heroes_selected.has(hero_uid), Callable(self, "_on_assign_heroes_toggled"))
+			var checkbox: Button = row.get_node("Selector")
+			_assign_heroes_checkboxes[hero_uid] = checkbox
+			_assign_heroes_content.add_child(row)
+	_update_assign_heroes_limit_state()
+	_assign_heroes_overlay.visible = true
+
+
+func _on_assign_heroes_toggled(pressed: bool, hero_uid: int) -> void:
+	if pressed:
+		_assign_heroes_selected[hero_uid] = true
+	else:
+		_assign_heroes_selected.erase(hero_uid)
+	if _assign_heroes_checkboxes.has(hero_uid):
+		var selector: Button = _assign_heroes_checkboxes[hero_uid]
+		selector.text = "X" if pressed else ""
+	_update_assign_heroes_limit_state()
+
+
+func _update_assign_heroes_limit_state() -> void:
+	var building_definition := GameManager.get_slot_building_definition(_assign_heroes_slot_index)
+	var worker_slots := int(building_definition.get("worker_slots", 0))
+	var selected_count := _assign_heroes_selected.size()
+	_assign_heroes_status.text = "%d / %d assigned" % [selected_count, worker_slots]
+	for hero_uid in _assign_heroes_checkboxes.keys():
+		var checkbox: Button = _assign_heroes_checkboxes[hero_uid]
+		checkbox.disabled = selected_count >= worker_slots and not checkbox.button_pressed
+
+
+func _apply_assign_heroes_dialog() -> void:
+	if _assign_heroes_slot_index < 0:
+		_close_assign_heroes_dialog()
+		return
+	for hero_data in _heroes_snapshot:
+		var hero := UIScreenHelpers.as_dictionary(hero_data)
+		var hero_uid := int(hero.get("uid", -1))
+		if hero_uid <= 0:
+			continue
+		var is_assigned_here := int(hero.get("assigned_slot", -1)) == _assign_heroes_slot_index and String(hero.get("assigned_settlement_id", "")) == GameManager.active_settlement_id
+		if is_assigned_here and not _assign_heroes_selected.has(hero_uid):
+			GameManager.unassign_hero(hero_uid)
+	for hero_uid in _assign_heroes_selected.keys():
+		GameManager.assign_hero_to_slot(int(hero_uid), _assign_heroes_slot_index)
+	_close_assign_heroes_dialog()
+
+
+func _close_assign_heroes_dialog() -> void:
+	if _assign_heroes_overlay != null and is_instance_valid(_assign_heroes_overlay):
+		_assign_heroes_overlay.visible = false
+	_assign_heroes_slot_index = -1
+	_assign_heroes_selected.clear()
+	_assign_heroes_checkboxes.clear()
 
 
 func _close_settlement_details() -> void:

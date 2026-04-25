@@ -76,24 +76,24 @@ static func _build_building_panel(detail_content: VBoxContainer, slot_index: int
 	action_body.add_child(_make_danger_action_button(_txt("settlement.dismantle_button"), callbacks.get("dismantle_slot", Callable()).bind(slot_index)))
 
 	if worker_slots > 0:
-		_add_section(detail_content, _txt("settlement.assigned_heroes"))
-		var assigned_any := false
+		var assigned_heroes: Array = []
 		for hero_data in heroes_snapshot:
 			var hero: Dictionary = hero_data
 			if int(hero.get("assigned_slot", -1)) == slot_index and String(hero.get("assigned_settlement_id", "")) == GameManager.active_settlement_id:
-				assigned_any = true
-				_add_hero_entry(detail_content, hero, true, detail_mode, slot_index, callbacks)
-		if not assigned_any:
-			_add_empty_state(detail_content, _txt("settlement.no_assigned_heroes"))
-		_add_section(detail_content, _txt("settlement.available_heroes"))
-		var available_heroes: Array = GameManager.get_available_heroes_for_slot(slot_index)
-		if available_heroes.is_empty():
-			_add_empty_state(detail_content, _txt("settlement.no_available_heroes"))
+				assigned_heroes.append(hero)
+		_add_section(detail_content, _txt("settlement.assigned_heroes"))
+		var assigned_body := _make_section_panel(detail_content, "")
+		if assigned_heroes.is_empty():
+			assigned_body.add_child(_make_muted_label(_txt("settlement.no_assigned_heroes"), 14))
 		else:
-			for hero_data in available_heroes:
-				var hero: Dictionary = hero_data
-				if not (int(hero.get("assigned_slot", -1)) == slot_index and String(hero.get("assigned_settlement_id", "")) == GameManager.active_settlement_id):
-					_add_hero_entry(detail_content, hero, false, detail_mode, slot_index, callbacks)
+			var assigned_row := HBoxContainer.new()
+			assigned_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			assigned_row.add_theme_constant_override("separation", 8)
+			assigned_body.add_child(assigned_row)
+			for hero in assigned_heroes:
+				assigned_row.add_child(_make_hero_icon(hero))
+		if detail_mode == "settlement":
+			assigned_body.add_child(_make_primary_action_button("Assign Heroes", callbacks.get("open_assign_heroes", Callable()).bind(slot_index), false))
 
 
 static func _add_hero_entry(detail_content: VBoxContainer, hero: Dictionary, assigned: bool, detail_mode: String, selected_slot: int, callbacks: Dictionary) -> void:
@@ -134,6 +134,62 @@ static func _add_hero_entry(detail_content: VBoxContainer, hero: Dictionary, ass
 		else:
 			var button_text := _txt("hero.move_here") if assigned_slot >= 0 and not assigned_settlement_id.is_empty() else _txt("hero.assign")
 			body.add_child(_make_secondary_action_button(button_text, callbacks.get("assign_hero", Callable()).bind(int(hero.get("uid", -1)), selected_slot)))
+
+
+static func make_assign_hero_checkbox_entry(hero: Dictionary, checked: bool, check_toggled: Callable) -> HBoxContainer:
+	var row := HBoxContainer.new()
+	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_theme_constant_override("separation", 10)
+	var checkbox := Button.new()
+	checkbox.name = "Selector"
+	checkbox.toggle_mode = true
+	checkbox.button_pressed = checked
+	checkbox.text = "X" if checked else ""
+	checkbox.custom_minimum_size = Vector2(38, 38)
+	checkbox.add_theme_font_size_override("font_size", 28)
+	checkbox.add_theme_color_override("font_color", Color("f0d0a8"))
+	checkbox.toggled.connect(check_toggled.bind(int(hero.get("uid", -1))))
+	_style_selector_button(checkbox)
+	row.add_child(checkbox)
+	row.add_child(_make_hero_icon(hero))
+	var text_column := VBoxContainer.new()
+	text_column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	text_column.add_theme_constant_override("separation", 4)
+	row.add_child(text_column)
+	var hero_name := UIScreenHelpers.make_label(String(hero.get("name", "Unknown Hero")), 15)
+	hero_name.add_theme_color_override("font_color", Color("f0d0a8"))
+	text_column.add_child(hero_name)
+	var work_stats: Dictionary = GameManager.get_hero_effective_work_stats(int(hero.get("uid", -1)))
+	if work_stats.is_empty():
+		work_stats = UIScreenHelpers.as_dictionary(hero.get("work_stats", {}))
+	text_column.add_child(_make_rich_text_label(_format_work_stats_bbcode(work_stats), 13))
+	return row
+
+
+static func _style_selector_button(selector: Button) -> void:
+	var normal := StyleBoxFlat.new()
+	normal.bg_color = Color("120f10")
+	normal.border_color = Color("7a5e4b")
+	normal.set_border_width_all(2)
+	normal.set_corner_radius_all(4)
+	var hover := normal.duplicate()
+	hover.bg_color = Color("211a1c")
+	var pressed := normal.duplicate()
+	pressed.bg_color = Color("3a2722")
+	pressed.border_color = Color("d0a170")
+	selector.add_theme_stylebox_override("normal", normal)
+	selector.add_theme_stylebox_override("hover", hover)
+	selector.add_theme_stylebox_override("pressed", pressed)
+	selector.add_theme_stylebox_override("focus", pressed)
+
+
+static func _make_hero_icon(hero: Dictionary) -> TextureRect:
+	var icon := TextureRect.new()
+	icon.custom_minimum_size = Vector2(48, 48)
+	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	icon.texture = UIScreenHelpers.load_hero_texture(hero)
+	return icon
 
 
 static func _add_detail_header(detail_content: VBoxContainer, text: String, close_callback: Callable) -> void:
