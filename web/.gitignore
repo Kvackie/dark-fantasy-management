@@ -1,0 +1,7 @@
+node_modules/
+dist/
+*.local
+coverage/
+.vite/
+*.tsbuildinfo
+*.save.json
