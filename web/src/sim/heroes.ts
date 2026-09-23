@@ -2,12 +2,7 @@
  * Heroes: joining, growing, and what they come to with their gear on.
  */
 
-import {
-  experienceCeiling,
-  getHeroDefinition,
-  type Amount,
-  type HeroDefinition,
-} from './config';
+import { experienceCeiling, getHeroDefinition, type Amount, type HeroDefinition } from './config';
 import { equipmentDefinitionOf } from './inventory';
 import { randomInt } from './rng';
 import {
@@ -59,7 +54,11 @@ function grownWorkStats(base: WorkStats, growth: WorkStats, level: number): Work
 }
 
 /** A hero straight from the roster, at the definition's own level. */
-export function createHero(world: World, definition: HeroDefinition, level = definition.level): Hero {
+export function createHero(
+  world: World,
+  definition: HeroDefinition,
+  level = definition.level,
+): Hero {
   const statGrowth = rollGrowth(world, definition.statGrowth);
   const workStatGrowth = rollGrowth(world, definition.workStatGrowth);
   const hero: Hero = {

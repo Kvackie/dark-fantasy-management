@@ -30,7 +30,11 @@ describe('save slots', () => {
     expect(loaded).toEqual(JSON.parse(JSON.stringify(sim.world)));
 
     saves.rename(slot, '  Ashfall  ');
-    expect(saves.summary(slot)).toMatchObject({ name: 'Ashfall', heroCount: 1, settlementCount: 1 });
+    expect(saves.summary(slot)).toMatchObject({
+      name: 'Ashfall',
+      heroCount: 1,
+      settlementCount: 1,
+    });
     saves.delete(slot);
     expect(saves.exists(slot)).toBe(false);
     expect(saves.lastPlayedSlot()).toBe(0);

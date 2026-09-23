@@ -35,7 +35,8 @@ export function availableRecipes(world: World): Recipe[] {
 }
 
 export function hasRecipeCost(world: World, entry: Recipe['cost'][number]): boolean {
-  const have = entry.kind === 'resource' ? resourceAmount(world, entry.id) : itemQuantity(world, entry.id);
+  const have =
+    entry.kind === 'resource' ? resourceAmount(world, entry.id) : itemQuantity(world, entry.id);
   return have >= entry.amount;
 }
 

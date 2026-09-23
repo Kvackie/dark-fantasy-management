@@ -19,7 +19,13 @@ import {
   type RewardEntry,
   type RewardTable,
 } from './config';
-import { effectiveStats, effectiveWorkStats, findHero, grantExperience, isHeroIdle } from './heroes';
+import {
+  effectiveStats,
+  effectiveWorkStats,
+  findHero,
+  grantExperience,
+  isHeroIdle,
+} from './heroes';
 import { addEquipment, addItem } from './inventory';
 import { seedZoneBonusOffer } from './recruitment';
 import { addResources, hasNonZero, spend } from './resources';
@@ -207,7 +213,8 @@ function applyOverride(zone: Zone): void {
   if (override.biome !== undefined) zone.biome = override.biome;
   if (override.no_settlement !== undefined) zone.noSettlement = override.no_settlement;
   if (override.claimed_reward) zone.claimedReward = { ...override.claimed_reward };
-  if (override.clear_duration !== undefined) zone.clearDuration = Math.max(0, override.clear_duration);
+  if (override.clear_duration !== undefined)
+    zone.clearDuration = Math.max(0, override.clear_duration);
   if (override.requirements) zone.requirements = normalizeRequirements(override.requirements);
   if (override.sanity_loss !== undefined) zone.sanityLoss = Math.max(0, override.sanity_loss);
   if (override.claim_cost) zone.claimCost = { ...override.claim_cost };

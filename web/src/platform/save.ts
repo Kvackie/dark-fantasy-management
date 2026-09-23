@@ -105,7 +105,11 @@ export class SaveManager {
 
   nextNewSlot(): number {
     const manifest = this.manifest();
-    const highest = Math.max(0, manifest.lastPlayedSlot, ...Object.keys(manifest.slots).map(Number));
+    const highest = Math.max(
+      0,
+      manifest.lastPlayedSlot,
+      ...Object.keys(manifest.slots).map(Number),
+    );
     return highest + 1;
   }
 
@@ -197,7 +201,9 @@ export class SaveManager {
 type Json = Record<string, unknown>;
 
 function record(value: unknown): Json {
-  return value !== null && typeof value === 'object' && !Array.isArray(value) ? (value as Json) : {};
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Json)
+    : {};
 }
 
 function list(value: unknown): unknown[] {
@@ -253,7 +259,10 @@ function normalizeHero(value: unknown): Hero | null {
       // Not capped at the stored maximum: gear raises the cap the Triage heals up to.
       current_health: Math.max(0, num(stats.current_health, base.health)),
       max_sanity: num(stats.max_sanity, base.sanity),
-      current_sanity: Math.min(num(stats.current_sanity, base.sanity), num(stats.max_sanity, base.sanity)),
+      current_sanity: Math.min(
+        num(stats.current_sanity, base.sanity),
+        num(stats.max_sanity, base.sanity),
+      ),
     },
     workStats: statBlock(source.workStats, WORK_STAT_KEYS) as WorkStats,
     equipment: Object.fromEntries(
@@ -329,7 +338,9 @@ function normalizeZone(value: unknown, fallback: Zone | undefined): Zone | null 
     state,
     ticksRemaining: Math.max(0, num(source.ticksRemaining)),
     clearDuration: Math.max(0, num(source.clearDuration, fallback?.clearDuration ?? 3)),
-    assignedHeroUids: list(source.assignedHeroUids).map((uid) => num(uid)).filter((uid) => uid > 0),
+    assignedHeroUids: list(source.assignedHeroUids)
+      .map((uid) => num(uid))
+      .filter((uid) => uid > 0),
     generatedName: text(source.generatedName),
     biome: text(source.biome) || fallback?.biome || 'neutral',
     requirements: normalizeRequirements(record(source.requirements) as Record<string, number>),
@@ -400,7 +411,8 @@ export function normalizeWorld(value: unknown): World | null {
   for (const [id, stateValue] of Object.entries(record(source.settlements))) {
     const slots = list(record(stateValue).slots).map((slotValue) => {
       const slot = record(slotValue);
-      const buildingId = typeof slot.buildingId === 'string' && slot.buildingId ? slot.buildingId : null;
+      const buildingId =
+        typeof slot.buildingId === 'string' && slot.buildingId ? slot.buildingId : null;
       return { buildingId, level: buildingId ? Math.max(1, num(slot.level, 1)) : 0 };
     });
     world.settlements[id] = { slots };
@@ -437,7 +449,11 @@ export function normalizeWorld(value: unknown): World | null {
 
   repairLinks(world);
 
-  world.nextHeroUid = Math.max(num(source.nextHeroUid, 1), ...world.heroes.map((h) => h.uid + 1), 1);
+  world.nextHeroUid = Math.max(
+    num(source.nextHeroUid, 1),
+    ...world.heroes.map((h) => h.uid + 1),
+    1,
+  );
   world.nextEquipmentUid = Math.max(
     num(source.nextEquipmentUid, 1),
     ...world.equipment.map((e) => e.uid + 1),
@@ -518,7 +534,9 @@ function repairLinks(world: World): void {
       zone.ticksRemaining = 0;
       continue;
     }
-    zone.assignedHeroUids = zone.assignedHeroUids.filter((uid) => heroUids.has(uid) && !onTask.has(uid));
+    zone.assignedHeroUids = zone.assignedHeroUids.filter(
+      (uid) => heroUids.has(uid) && !onTask.has(uid),
+    );
     zone.assignedHeroUids.forEach((uid) => onTask.add(uid));
     if (zone.assignedHeroUids.length === 0) {
       zone.state = 'discovered';

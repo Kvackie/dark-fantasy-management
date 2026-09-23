@@ -33,7 +33,8 @@ export function offerCapacity(world: World): number {
   const taverns = tavernCount(world);
   if (taverns <= 0) return 0;
   return (
-    recruitmentConfig.baseOfferCount + Math.max(taverns - 1, 0) * recruitmentConfig.extraOfferPerTavern
+    recruitmentConfig.baseOfferCount +
+    Math.max(taverns - 1, 0) * recruitmentConfig.extraOfferPerTavern
   );
 }
 

@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { allBuildings, allRecipes, getBuilding, getHeroDefinition, worldConfig } from '@/sim/config';
+import {
+  allBuildings,
+  allRecipes,
+  getBuilding,
+  getHeroDefinition,
+  worldConfig,
+} from '@/sim/config';
 import { craftQuality, rollBonuses } from '@/sim/crafting';
 import { createHero, effectiveStats, effectiveWorkStats, needsTriage } from '@/sim/heroes';
 import { addEquipment, addItem, itemQuantity } from '@/sim/inventory';

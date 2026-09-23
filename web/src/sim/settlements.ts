@@ -92,7 +92,12 @@ export function dismantleRefund(world: World, settlementId: string, index: numbe
   return scaleResources(totalInvestment(world, settlementId, index), DISMANTLE_REFUND);
 }
 
-export function build(world: World, settlementId: string, index: number, buildingId: string): boolean {
+export function build(
+  world: World,
+  settlementId: string,
+  index: number,
+  buildingId: string,
+): boolean {
   const slot = slotAt(world, settlementId, index);
   const building = getBuilding(buildingId);
   if (!slot || slot.buildingId || !building) return false;
@@ -176,7 +181,10 @@ export function unassignHero(hero: Hero): boolean {
 }
 
 /** How many of a building stand across every owned settlement, and the highest level among them. */
-export function buildingCensus(world: World, buildingId: string): { count: number; highest: number } {
+export function buildingCensus(
+  world: World,
+  buildingId: string,
+): { count: number; highest: number } {
   let count = 0;
   let highest = 0;
   for (const settlementId of world.ownedSettlementIds) {

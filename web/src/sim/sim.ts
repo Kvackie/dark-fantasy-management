@@ -8,28 +8,12 @@
  * which is how the rest of the game knows to save and redraw.
  */
 
-import {
-  TICK_MS,
-  SPECIAL_BUILDING_EFFECTS,
-  allEquipment,
-  allHeroes,
-  allItems,
-} from './config';
+import { TICK_MS, SPECIAL_BUILDING_EFFECTS, allEquipment, allHeroes, allItems } from './config';
 import { completeCraft } from './crafting';
-import {
-  createHero,
-  effectiveStats,
-  findHero,
-  grantExperience,
-} from './heroes';
+import { createHero, effectiveStats, findHero, grantExperience } from './heroes';
 import { addEquipment, addItem, equip, stripHero, unequip } from './inventory';
 import { settlementProduction } from './production';
-import {
-  reconcileMarket,
-  recruitFromOffer,
-  refreshOffers,
-  rollWeighted,
-} from './recruitment';
+import { reconcileMarket, recruitFromOffer, refreshOffers, rollWeighted } from './recruitment';
 import { addResources } from './resources';
 import { randomInt } from './rng';
 import {
@@ -50,7 +34,13 @@ import {
   type World,
   type ZoneClearReport,
 } from './types';
-import { claimZone, removeHeroFromZones, startClearing, tickClaimedRewards, tickZones } from './zones';
+import {
+  claimZone,
+  removeHeroFromZones,
+  startClearing,
+  tickClaimedRewards,
+  tickZones,
+} from './zones';
 
 /**
  * How much missed time a returning tab may catch up on.

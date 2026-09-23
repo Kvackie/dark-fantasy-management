@@ -95,7 +95,9 @@ export function experienceCeiling(level: number): number {
 type Json = Record<string, unknown>;
 
 function asRecord(value: unknown): Json {
-  return value !== null && typeof value === 'object' && !Array.isArray(value) ? (value as Json) : {};
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Json)
+    : {};
 }
 
 function asArray(value: unknown): unknown[] {

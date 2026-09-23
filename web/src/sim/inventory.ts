@@ -6,13 +6,7 @@
  */
 
 import { getEquipmentDefinition, getItemDefinition } from './config';
-import type {
-  EquipmentDefinition,
-  EquipmentInstance,
-  EquipmentSlot,
-  Hero,
-  World,
-} from './types';
+import type { EquipmentDefinition, EquipmentInstance, EquipmentSlot, Hero, World } from './types';
 
 export function equipmentDefinitionOf(instance: EquipmentInstance): EquipmentDefinition | null {
   return instance.definition ?? getEquipmentDefinition(instance.definitionId);
