@@ -1,0 +1,43 @@
+# Check every pull request the way the deploy will, plus a real browser.
+#
+# The same gates as the Pages workflow — formatting, the simulation suite, a
+# type-checked build — so a pull request that is green here will deploy. Then a
+# headless Chromium loads the build, starts a game and opens a zone, which
+# catches what the unit suite cannot see: a throw on load, a missing asset, a
+# map that no longer answers a tap.
+name: CI
+
+on:
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run format:check
+
+      - run: npm test
+
+      - run: npm run build
+
+      - run: npx playwright-core install --with-deps chromium
+
+      - run: npm run smoke
