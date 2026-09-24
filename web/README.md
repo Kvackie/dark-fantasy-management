@@ -25,7 +25,7 @@ npm run dev        # http://localhost:5173
 ## Playing it on GitHub Pages
 
 `.github/workflows/pages.yml` (at the repository root) checks formatting, runs the tests,
-builds `web/`, and publishes `web/dist/` on every push to `main`. Switch Pages on once under
+builds `web/`, and publishes `web/dist/` on every push to `master`. Switch Pages on once under
 **Settings → Pages → Build and deployment → Source: GitHub Actions**; the site then lands at
 `https://<owner>.github.io/dark-fantasy-management/`. `vite.config.ts` sets `base: './'` so every
 asset path is relative and the same build works at that subpath or at a domain root.
