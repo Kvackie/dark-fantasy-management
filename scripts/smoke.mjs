@@ -36,6 +36,9 @@ try {
   });
 
   await page.goto(url);
+  await page.getByRole('button', { name: 'Credits' }).click();
+  await page.getByText('game-icons.net').first().waitFor();
+  await page.getByRole('button', { name: 'Back', exact: true }).click();
   await page.getByRole('button', { name: 'New Game' }).click();
   const canvas = page.locator('#stage canvas');
   await canvas.waitFor();

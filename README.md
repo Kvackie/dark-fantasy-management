@@ -95,7 +95,14 @@ steps them each frame and feeds them button presses (or Space and the arrow keys
 
 ## Credits
 
-Map icons (`public/icons/`) are from [game-icons.net](https://game-icons.net) by Lorc
-(castle, crossed swords, crystal cluster, skull and crossbones) and Delapouite (tower flag),
-licensed under [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/). They were recoloured for
-the map by removing their background square.
+The same list is on the main menu under **Credits**.
+
+- **Map icons** (`public/icons/`) from [game-icons.net](https://game-icons.net), licensed under
+  [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/): castle, crossed swords, crystal
+  cluster, and skull and crossbones by Lorc; tower flag by Delapouite. Their background square is
+  removed and they are recoloured on the map.
+- **Fonts**: Cinzel by Natanael Gama and Crimson Pro by Jacques Le Bailly, served by Google Fonts
+  under the [SIL Open Font License 1.1](https://openfontlicense.org).
+- **Engine**: [Phaser](https://phaser.io) by Phaser Studio, MIT License; built with Vite and
+  TypeScript.
+- The terrain, interface icons and sound are generated in code for this game.

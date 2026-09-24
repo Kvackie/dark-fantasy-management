@@ -608,8 +608,8 @@ export class Shell implements Ui {
   private onKey(event: KeyboardEvent): void {
     if (event.key === 'Escape') {
       if (this.state.confirm) this.set({ confirm: null });
-      else if (this.state.menu && this.activeSlot > 0)
-        this.set({ menu: this.state.menu === 'saves' ? 'root' : null });
+      else if (this.state.menu && this.state.menu !== 'root') this.set({ menu: 'root' });
+      else if (this.state.menu && this.activeSlot > 0) this.set({ menu: null });
       else if (this.state.zone) this.set({ zone: null });
       else if (this.state.assign) this.set({ assign: null });
       else if (this.state.heroPiece !== null) this.set({ heroPiece: null });

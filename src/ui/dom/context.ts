@@ -53,7 +53,7 @@ export interface UiState {
   forge: ForgeState | null;
   confirm: ConfirmRequest | null;
   /** The main menu overlay, or null while playing. */
-  menu: 'root' | 'saves' | null;
+  menu: 'root' | 'saves' | 'credits' | null;
   /** The welcome-back summary after time away. */
   away: AwaySummary | null;
 }

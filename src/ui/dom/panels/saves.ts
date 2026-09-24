@@ -219,6 +219,11 @@ export function renderMenu(ui: Ui, canResume: boolean): HTMLElement {
       );
     }
     body.push(button(t('common.back'), () => ui.set({ menu: 'root' }), { variant: 'ghost' }));
+  } else if (mode === 'credits') {
+    body.push(
+      ...renderCredits(),
+      button(t('common.back'), () => ui.set({ menu: 'root' }), { variant: 'ghost' }),
+    );
   } else {
     const last = ui.saves.lastPlayedSlot();
     if (canResume)
@@ -228,6 +233,7 @@ export function renderMenu(ui: Ui, canResume: boolean): HTMLElement {
       button(t('menu.continue'), () => ui.loadSlot(last), { disabled: last <= 0 }),
       button(t('menu.load_save'), () => ui.set({ menu: 'saves' })),
       importButton(ui),
+      button(t('menu.credits'), () => ui.set({ menu: 'credits' }), { variant: 'ghost' }),
     );
   }
 
@@ -236,23 +242,70 @@ export function renderMenu(ui: Ui, canResume: boolean): HTMLElement {
       el('h1', { class: 'menu-title', text: t('game.title') }),
       el('p', {
         class: 'muted menu-subtitle',
-        text: mode === 'saves' ? t('menu.load_save') : t('game.tagline'),
+        text:
+          mode === 'saves'
+            ? t('menu.load_save')
+            : mode === 'credits'
+              ? t('menu.credits')
+              : t('game.tagline'),
       }),
       el('div', { class: 'menu-body' }, body),
-      credits(),
     ]),
   ]);
 }
 
-/** The map icons are CC BY 3.0, which asks for credit where they are used. */
-function credits(): HTMLElement {
-  const link = (href: string, text: string) =>
-    el('a', { href, text, target: '_blank', rel: 'noopener noreferrer' });
-  return el('p', { class: 'muted small menu-credits' }, [
-    t('menu.credits_icons'),
-    ' ',
-    link('https://game-icons.net', 'game-icons.net'),
-    ' · ',
-    link('https://creativecommons.org/licenses/by/3.0/', 'CC BY 3.0'),
+const link = (href: string, text: string) =>
+  el('a', { href, text, target: '_blank', rel: 'noopener noreferrer' });
+
+/** One credit: a heading, then lines of text and links. */
+function credit(title: string, lines: Array<Array<string | HTMLElement>>): HTMLElement {
+  return card([
+    el('strong', { text: title }),
+    ...lines.map((line) => el('p', { class: 'muted small credit-line' }, line)),
   ]);
+}
+
+/**
+ * Everything the game uses that someone else made, and the licence it came
+ * under. The map icons are CC BY 3.0, which asks for exactly this.
+ */
+function renderCredits(): Node[] {
+  const ccBy = link('https://creativecommons.org/licenses/by/3.0/', 'CC BY 3.0');
+  const ofl = link('https://openfontlicense.org', 'SIL Open Font License 1.1');
+  return [
+    credit(t('credits.game'), [[t('credits.game_line')]]),
+    credit(t('credits.icons'), [
+      [t('credits.icons_lorc'), ' ', link('https://lorcblog.blogspot.com', 'Lorc')],
+      [t('credits.icons_delapouite'), ' ', link('https://delapouite.com', 'Delapouite')],
+      [
+        t('credits.icons_source'),
+        ' ',
+        link('https://game-icons.net', 'game-icons.net'),
+        ' · ',
+        ccBy,
+        '. ',
+        t('credits.icons_changes'),
+      ],
+    ]),
+    credit(t('credits.fonts'), [
+      [link('https://fonts.google.com/specimen/Cinzel', 'Cinzel'), ' ', t('credits.cinzel')],
+      [
+        link('https://fonts.google.com/specimen/Crimson+Pro', 'Crimson Pro'),
+        ' ',
+        t('credits.crimson'),
+      ],
+      [t('credits.fonts_licence'), ' ', ofl, '.'],
+    ]),
+    credit(t('credits.engine'), [
+      [link('https://phaser.io', 'Phaser'), ' ', t('credits.phaser')],
+      [
+        link('https://vite.dev', 'Vite'),
+        ', ',
+        link('https://www.typescriptlang.org', 'TypeScript'),
+        ' ',
+        t('credits.tools'),
+      ],
+    ]),
+    credit(t('credits.made_here'), [[t('credits.made_here_line')]]),
+  ];
 }

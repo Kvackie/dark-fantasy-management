@@ -1189,12 +1189,11 @@ button.item-tile {
 .menu-body .card {
   margin: 0;
 }
-.menu-credits {
-  margin: 1.6em 0 0;
-  text-align: center;
+.credit-line {
+  margin: 0.3em 0 0;
 }
-.menu-credits a {
-  color: inherit;
+.credit-line a {
+  color: var(--accent);
 }
 
 .text-input {
