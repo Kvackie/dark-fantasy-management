@@ -11,6 +11,7 @@ import { play } from '@/ui/sound';
 import { AUTOSAVE_CHOICES, resetSettings, settings, updateSettings } from '@/ui/settings';
 import { button, checkRow, el, heading, muted } from '../components';
 import type { Ui } from '../context';
+import { versionLine } from '../version';
 
 function section(title: string, rows: Node[]): HTMLElement {
   return el('section', { class: 'settings-section' }, [heading(title, 3), ...rows]);
@@ -130,5 +131,5 @@ export function renderSettings(ui: Ui): Node[] {
     ]),
   ]);
 
-  return [el('div', { class: 'settings' }, [sound, notices, map, saving, data])];
+  return [el('div', { class: 'settings' }, [sound, notices, map, saving, data, versionLine()])];
 }

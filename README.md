@@ -33,6 +33,11 @@ npm run dev        # http://localhost:5173
 GitHub Pages on every push to `master`. `vite.config.ts` sets `base: './'`, so every asset path is
 relative and the same build works at the project subpath or at a domain root.
 
+The main menu and Settings show which build is running: the `version` from `package.json`, the
+commit it was built from (linked on GitHub) and the build date, all stamped in by `vite.config.ts`.
+Raise the number in `package.json` when a release deserves one; the commit changes on every deploy
+by itself.
+
 The save lives in the browser, so it is per-browser and per-origin: the Pages copy and a local
 `npm run dev` copy are different games.
 

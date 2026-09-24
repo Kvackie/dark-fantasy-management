@@ -6,6 +6,7 @@ import { formatDate, t } from '@/i18n';
 import { button, card, el, heading, muted } from '../components';
 import type { Ui } from '../context';
 import { renderSettings } from './settings';
+import { versionLine } from '../version';
 
 function slotName(ui: Ui, slot: number): string {
   return ui.saves.summary(slot).name || t('save.slot_default_name', { slot });
@@ -259,6 +260,7 @@ export function renderMenu(ui: Ui, canResume: boolean): HTMLElement {
                 : t('game.tagline'),
       }),
       el('div', { class: 'menu-body' }, body),
+      mode === 'settings' ? null : versionLine('menu-version'),
     ]),
   ]);
 }

@@ -417,5 +417,7 @@
   "settings.reset_warning": "Sound, notices, map and saving go back to their defaults. Your saves are not touched.",
   "settings.wipe": "Delete all data",
   "settings.wipe_confirm": "Delete every save and setting?",
-  "settings.wipe_warning": "Every save slot on this browser is deleted, settings are reset, and the game starts over. Exported save files are not affected. This cannot be undone."
+  "settings.wipe_warning": "Every save slot on this browser is deleted, settings are reset, and the game starts over. Exported save files are not affected. This cannot be undone.",
+  "version.label": "Version {version}",
+  "version.commit": "The commit this build was made from"
 }

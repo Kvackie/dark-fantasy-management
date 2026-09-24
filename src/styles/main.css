@@ -1489,3 +1489,15 @@ button.item-tile {
 .menu-body .settings {
   max-width: none;
 }
+
+.version-line {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+.version-line a {
+  color: inherit;
+}
+.menu-version {
+  margin-top: 1.4em;
+  text-align: center;
+}
