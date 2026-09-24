@@ -26,15 +26,6 @@ npm run dev        # http://localhost:5173
 | `npm run typecheck` | Type check without building |
 | `npm run format` | Format every file with Prettier |
 | `npm run format:check` | Fail if any file is not formatted — the deploy runs this |
-| `npm run smoke` | Load the built game in headless Chromium, start a game and open a zone |
-
-## Checks
-
-The deploy workflow is the only one: it checks formatting, runs the tests and type-checks the build
-before publishing. `npm run smoke` is a local extra that serves `dist/` and plays the opening in a
-real browser, failing on any page error, console error or missing file. Run `npm run build` first;
-the browser comes from `npx playwright-core install chromium`, or set `CHROMIUM_PATH` to one you
-already have.
 
 ## Deploying
 
