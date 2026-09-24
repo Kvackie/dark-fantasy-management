@@ -15,6 +15,7 @@ import {
   TimingStrike,
   type ForgePuzzle,
 } from '@/sim/puzzles';
+import { play } from '@/ui/sound';
 import { forgeColors, palette } from '@/ui/theme';
 
 type Stop = [offset: number, color: number, alpha: number];
@@ -230,6 +231,7 @@ export class ForgeScene extends Phaser.Scene {
       color = puzzle.success ? palette.good : palette.danger;
     this.seen = { hits, misses, done: puzzle.completed };
     if (color === null) return;
+    play(color === palette.good ? 'hit' : 'miss');
     this.flash.setSize(width, height).setFillStyle(color, 1).setAlpha(0.34);
     this.tweens.killTweensOf(this.flash);
     this.tweens.add({ targets: this.flash, alpha: 0, duration: 220 });

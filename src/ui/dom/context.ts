@@ -7,9 +7,12 @@
 
 import type { SaveManager } from '@/platform/save';
 import type { ForgePuzzle } from '@/sim/puzzles';
-import type { Simulation } from '@/sim/sim';
+import type { AwaySummary, Simulation } from '@/sim/sim';
 import type { EquipmentSlot } from '@/sim/types';
 import type { ScreenId } from '@/ui/bus';
+
+/** The `data-clock` key of the tavern's free-refresh countdown. */
+export const RECRUIT_CLOCK = '@recruit';
 
 export type HeroTab = 'info' | 'equipment' | 'skills' | 'lore';
 
@@ -51,6 +54,8 @@ export interface UiState {
   confirm: ConfirmRequest | null;
   /** The main menu overlay, or null while playing. */
   menu: 'root' | 'saves' | null;
+  /** The welcome-back summary after time away. */
+  away: AwaySummary | null;
 }
 
 export function initialUiState(): UiState {
@@ -71,6 +76,7 @@ export function initialUiState(): UiState {
     forge: null,
     confirm: null,
     menu: 'root',
+    away: null,
   };
 }
 
@@ -91,6 +97,8 @@ export interface Ui {
   startNewGame(): void;
   loadSlot(slot: number): void;
   saveTo(slot: number): void;
+  exportSave(): void;
+  importSave(file: File): void;
   recenterMap(): void;
   zoomMap(factor: number): void;
 }

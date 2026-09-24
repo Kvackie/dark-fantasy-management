@@ -2,9 +2,16 @@
  * Heroes: joining, growing, and what they come to with their gear on.
  */
 
-import { experienceCeiling, getHeroDefinition, type Amount, type HeroDefinition } from './config';
+import {
+  experienceCeiling,
+  experienceForLevel,
+  getHeroDefinition,
+  type Amount,
+  type HeroDefinition,
+} from './config';
 import { equipmentDefinitionOf } from './inventory';
 import { randomInt } from './rng';
+import { heroEffects } from './skills';
 import {
   EQUIPMENT_SLOTS,
   STAT_KEYS,
@@ -67,13 +74,15 @@ export function createHero(
     name: definition.name,
     heroClass: definition.heroClass,
     level,
-    experience: Math.max(level - 1, 0) * 10,
+    experience: experienceForLevel(level),
     statGrowth,
     workStatGrowth,
     stats: grownStats(definition.stats, statGrowth, level),
     workStats: grownWorkStats(definition.workStats, workStatGrowth, level),
     equipment: emptyEquipment(),
     assignment: null,
+    broken: false,
+    wounded: false,
   };
   world.nextHeroUid += 1;
   return hero;
@@ -95,13 +104,15 @@ export function createHeroFromOffer(world: World, offer: RecruitOffer): Hero {
     name: offer.name,
     heroClass: offer.heroClass,
     level: offer.level,
-    experience: Math.max(offer.level - 1, 0) * 10,
+    experience: experienceForLevel(offer.level),
     statGrowth: zeroStats(),
     workStatGrowth: { farming: 0, mining: 0, lumbering: 0 },
     stats: grownStats(offer.stats, zeroStats(), 1),
     workStats: { ...offer.workStats },
     equipment: emptyEquipment(),
     assignment: null,
+    broken: false,
+    wounded: false,
   };
   world.nextHeroUid += 1;
   return hero;
@@ -123,10 +134,15 @@ export function levelUp(hero: Hero): void {
   hero.level += 1;
 }
 
-/** Add experience and take every level it pays for. */
-export function grantExperience(hero: Hero, amount: number): void {
+/** Add experience and take every level it pays for. Returns how many levels that was. */
+export function grantExperience(hero: Hero, amount: number): number {
   hero.experience += amount;
-  while (hero.experience >= experienceCeiling(hero.level)) levelUp(hero);
+  let levels = 0;
+  while (hero.experience >= experienceCeiling(hero.level)) {
+    levelUp(hero);
+    levels += 1;
+  }
+  return levels;
 }
 
 export function findHero(world: World, uid: number): Hero | null {
@@ -146,6 +162,40 @@ export function heroWorldTask(world: World, uid: number): string | null {
 /** Idle: neither working a plot nor away clearing a zone. */
 export function isHeroIdle(world: World, hero: Hero): boolean {
   return hero.assignment === null && heroWorldTask(world, hero.uid) === null;
+}
+
+/** Idle and fit: free to be sent on an expedition or put to ordinary work. */
+export function isHeroAvailable(world: World, hero: Hero): boolean {
+  return isHeroIdle(world, hero) && !hero.broken && !hero.wounded;
+}
+
+export type Condition = 'broken' | 'restored' | 'wounded' | 'healed';
+
+/**
+ * Bring a hero's broken and wounded flags in line with their pools.
+ *
+ * A hero breaks at zero sanity and is wounded at zero health; either stays
+ * until the pool is full again, not merely above zero, so a spell in the Chapel
+ * or the Triage is a real stretch of time. Returns what changed, for the log.
+ */
+export function updateCondition(world: World, hero: Hero): Condition[] {
+  const stats = effectiveStats(world, hero);
+  const changes: Condition[] = [];
+  if (!hero.broken && stats.current_sanity <= 0) {
+    hero.broken = true;
+    changes.push('broken');
+  } else if (hero.broken && stats.current_sanity >= stats.max_sanity) {
+    hero.broken = false;
+    changes.push('restored');
+  }
+  if (!hero.wounded && stats.current_health <= 0) {
+    hero.wounded = true;
+    changes.push('wounded');
+  } else if (hero.wounded && stats.current_health >= stats.max_health) {
+    hero.wounded = false;
+    changes.push('healed');
+  }
+  return changes;
 }
 
 /** The sum of every bonus on the gear this hero is actually wearing. */
@@ -171,19 +221,28 @@ export function equipmentBonuses(world: World, hero: Hero): EquipmentBonuses {
 }
 
 /**
- * Combat stats with gear.
+ * Combat stats with gear and skills.
  *
- * Gear raises the caps of the two pools but not what is in them: a helm with
- * +10 health gives a hero ten more to lose, not ten more to spend, which is
- * what the Triage is for.
+ * Gear and skills raise the caps of the two pools but not what is in them: a
+ * helm with +10 health gives a hero ten more to lose, not ten more to spend,
+ * which is what the Triage is for. Flat bonuses apply before percentages.
  */
 export function effectiveStats(world: World, hero: Hero): HeroStats {
-  const bonus = equipmentBonuses(world, hero).stats;
+  const gear = equipmentBonuses(world, hero).stats;
+  const flat: Partial<Record<string, number>> = {};
+  const pct: Partial<Record<string, number>> = {};
+  for (const effect of heroEffects(hero)) {
+    if (effect.type === 'stat_flat') flat[effect.stat] = (flat[effect.stat] ?? 0) + effect.value;
+    if (effect.type === 'stat_pct') pct[effect.stat] = (pct[effect.stat] ?? 0) + effect.value;
+  }
+  const grow = (key: string, base: number) =>
+    Math.round((base + (flat[key] ?? 0)) * (1 + (pct[key] ?? 0) / 100));
+
   const stats = { ...hero.stats };
-  for (const key of STAT_KEYS) stats[key] = hero.stats[key] + (bonus[key] ?? 0);
-  stats.max_health = hero.stats.max_health + (bonus.health ?? 0);
-  stats.current_health = hero.stats.current_health;
-  stats.max_sanity = hero.stats.max_sanity + (bonus.sanity ?? 0);
+  for (const key of STAT_KEYS) stats[key] = grow(key, hero.stats[key] + (gear[key] ?? 0));
+  stats.max_health = grow('health', hero.stats.max_health + (gear.health ?? 0));
+  stats.current_health = Math.min(hero.stats.current_health, stats.max_health);
+  stats.max_sanity = grow('sanity', hero.stats.max_sanity + (gear.sanity ?? 0));
   stats.current_sanity = Math.min(hero.stats.current_sanity, stats.max_sanity);
   return stats;
 }
@@ -192,10 +251,18 @@ export function effectiveWorkStats(world: World, hero: Hero): WorkStats {
   const bonus = equipmentBonuses(world, hero).work_stats;
   const stats = { ...hero.workStats };
   for (const key of WORK_STAT_KEYS) stats[key] += bonus[key] ?? 0;
+  for (const effect of heroEffects(hero)) {
+    if (effect.type === 'work_flat') stats[effect.stat] += effect.value;
+  }
   return stats;
 }
 
 export function needsTriage(world: World, hero: Hero): boolean {
   const stats = effectiveStats(world, hero);
   return stats.current_health < stats.max_health;
+}
+
+export function needsChapel(world: World, hero: Hero): boolean {
+  const stats = effectiveStats(world, hero);
+  return stats.current_sanity < stats.max_sanity;
 }

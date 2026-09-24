@@ -13,6 +13,7 @@
 
 import {
   getBuilding,
+  getEnemy,
   getEquipmentDefinition,
   getHeroDefinition,
   getItemDefinition,
@@ -29,6 +30,8 @@ import {
   type BaseStats,
   type EquipmentInstance,
   type EquipmentSlot,
+  type LogEntry,
+  type LogKind,
   type Hero,
   type RecruitOffer,
   type ResourceMap,
@@ -41,7 +44,8 @@ import {
   applyVisibility,
   generatedSettlementDefinition,
   initializeZones,
-  normalizeRequirements,
+  generateEnemies,
+  zoneSanityLoss,
 } from '@/sim/zones';
 import type { KeyValueStore } from './storage';
 
@@ -275,6 +279,8 @@ function normalizeHero(value: unknown): Hero | null {
       typeof assignment.settlementId === 'string' && num(assignment.slot, -1) >= 0
         ? { settlementId: assignment.settlementId, slot: num(assignment.slot) }
         : null,
+    broken: source.broken === true,
+    wounded: source.wounded === true,
   };
 }
 
@@ -343,7 +349,12 @@ function normalizeZone(value: unknown, fallback: Zone | undefined): Zone | null 
       .filter((uid) => uid > 0),
     generatedName: text(source.generatedName),
     biome: text(source.biome) || fallback?.biome || 'neutral',
-    requirements: normalizeRequirements(record(source.requirements) as Record<string, number>),
+    enemies: list(source.enemies).flatMap((value) => {
+      const enemy = record(value);
+      return typeof enemy.id === 'string' && getEnemy(enemy.id)
+        ? [{ id: enemy.id, power: Math.max(0.1, Number(enemy.power) || 1) }]
+        : [];
+    }),
     sanityLoss: Math.max(0, num(source.sanityLoss, fallback?.sanityLoss ?? 0)),
     noSettlement: source.noSettlement === true,
     claimedReward:
@@ -389,7 +400,13 @@ export function normalizeWorld(value: unknown): World | null {
     world.zones = {};
     for (const zoneValue of Object.values(zoneSource)) {
       const zone = normalizeZone(zoneValue, undefined);
-      if (zone) world.zones[zone.key] = zone;
+      if (!zone) continue;
+      // A save from before zones had defenders gets them now.
+      if (zone.enemies.length === 0 && zone.key !== '0,0' && zone.state !== 'claimed') {
+        zone.enemies = generateEnemies(seed, zone.x, zone.y, zone.biome);
+        zone.sanityLoss = zoneSanityLoss(zone.x, zone.y, zone.enemies);
+      }
+      world.zones[zone.key] = zone;
     }
     if (!world.zones['0,0']) initializeZones(world);
   }
@@ -446,6 +463,28 @@ export function normalizeWorld(value: unknown): World | null {
   world.tickCount = Math.max(0, num(source.tickCount));
   world.tickProgressMs = Math.max(0, Number(source.tickProgressMs) || 0);
   world.rng = num(source.rng, world.rng) | 0;
+  world.savedAt = Math.max(0, Number(source.savedAt) || 0);
+  world.recruitRefreshTick = Math.min(world.tickCount, Math.max(0, num(source.recruitRefreshTick)));
+  world.log = list(source.log).flatMap((value): LogEntry[] => {
+    const entry = record(value);
+    if (typeof entry.key !== 'string' || typeof entry.kind !== 'string') return [];
+    return [
+      {
+        id: num(entry.id),
+        tick: num(entry.tick),
+        kind: entry.kind as LogKind,
+        key: entry.key,
+        params: record(entry.params) as LogEntry['params'],
+        details: list(entry.details).flatMap((d) => {
+          const detail = record(d);
+          return typeof detail.key === 'string'
+            ? [{ key: detail.key, params: record(detail.params) as LogEntry['params'] }]
+            : [];
+        }),
+      },
+    ];
+  });
+  world.nextLogId = Math.max(num(source.nextLogId, 1), ...world.log.map((e) => e.id + 1), 1);
 
   repairLinks(world);
 

@@ -4,11 +4,12 @@
  */
 
 import { formatClock, t } from '@/i18n';
-import { TICK_MS, worldConfig } from '@/sim/config';
+import { TICK_MS, getEnemy, worldConfig } from '@/sim/config';
+import { enemyFighter } from '@/sim/combat';
 import { effectiveStats, findHero, isHeroIdle } from '@/sim/heroes';
 import { canAfford, resourceAmount } from '@/sim/resources';
-import { partyPreview } from '@/sim/zones';
-import type { Zone, ZoneRequirements } from '@/sim/types';
+import { partyPreview, zoneDistance } from '@/sim/zones';
+import type { Zone } from '@/sim/types';
 import {
   button,
   checkRow,
@@ -46,8 +47,45 @@ export function renderWorld(ui: Ui): Node[] {
   return out;
 }
 
-function requirementsText(requirements: ZoneRequirements): string {
-  return t('world.requirements', { attack: requirements.attack, defense: requirements.defense });
+/** Ring and biome, the line under every zone dialog's title. */
+function zoneSubtitle(zone: Zone): string {
+  return t('world.zone_line', {
+    ring: zoneDistance(zone.x, zone.y),
+    biome: t(`biome.${zone.biome}`),
+  });
+}
+
+/** The enemies holding a zone, grouped: "Bog Ghoul ×2 · HP 46 · ATK 11 · DEF 6". */
+function enemyList(zone: Zone): HTMLElement {
+  if (zone.enemies.length === 0) return muted(t('world.no_enemies'));
+  const groups = new Map<string, number>();
+  for (const enemy of zone.enemies) groups.set(enemy.id, (groups.get(enemy.id) ?? 0) + 1);
+  return el(
+    'ul',
+    { class: 'enemy-list' },
+    [...groups].map(([id, count]) => {
+      const sample = zone.enemies.find((enemy) => enemy.id === id)!;
+      const fighter = enemyFighter(sample);
+      const definition = getEnemy(id);
+      return el('li', {}, [
+        el('span', {
+          class: `tier tier-${definition?.tier ?? 1}`,
+          text: t('world.tier', { tier: definition?.tier ?? 1 }),
+        }),
+        el('strong', { text: `${definition?.name ?? id}${count > 1 ? ` ×${count}` : ''}` }),
+        fighter
+          ? el('span', {
+              class: 'muted small',
+              text: t('world.enemy_stats', {
+                health: fighter.maxHealth,
+                attack: fighter.attack,
+                defense: fighter.defense,
+              }),
+            })
+          : null,
+      ]);
+    }),
+  );
 }
 
 function zoneDialog(ui: Ui): HTMLElement | null {
@@ -74,6 +112,8 @@ function discoveredDialog(ui: Ui, zone: Zone, party: number[], close: () => void
   const world = ui.sim.world;
   const max = worldConfig.maxClearingParty;
   const idle = world.heroes.filter((hero) => isHeroIdle(world, hero));
+  const fit = idle.filter((hero) => !hero.broken && !hero.wounded);
+  const unfit = idle.filter((hero) => hero.broken || hero.wounded);
   const preview = partyPreview(world, zone.key, party);
   const seconds = (zone.clearDuration * TICK_MS) / 1000;
 
@@ -82,7 +122,7 @@ function discoveredDialog(ui: Ui, zone: Zone, party: number[], close: () => void
     ui.set({ zone: { key: zone.key, party: next.slice(0, max) } });
   };
 
-  const rows = idle.map((hero) => {
+  const rows = fit.map((hero) => {
     const stats = effectiveStats(world, hero);
     const checked = party.includes(hero.uid);
     return checkRow(checked, !checked && party.length >= max, (on) => toggle(hero.uid, on), [
@@ -104,25 +144,28 @@ function discoveredDialog(ui: Ui, zone: Zone, party: number[], close: () => void
     ]);
   });
 
-  const status = el('p', {
-    class: `party-status${preview.meets ? ' ok' : ''}`,
-    text: t('world.party_status', {
-      attack: preview.totals.attack,
-      needAttack: preview.requirements.attack,
-      defense: preview.totals.defense,
-      needDefense: preview.requirements.defense,
-    }),
-  });
+  const chance = Math.round(preview.winChance * 100);
+  const status =
+    party.length === 0
+      ? el('p', { class: 'party-status', text: t('world.pick_party') })
+      : el('p', {
+          class: `party-status ${chance >= 75 ? 'ok' : chance >= 40 ? 'risky' : 'bad'}`,
+          text: t('world.win_chance', { chance, sanity: preview.sanityLoss }),
+        });
 
   return modal(
     t('world.title_discovered'),
     [
-      el('p', { class: 'muted', text: t('world.biome_line', { biome: t(`biome.${zone.biome}`) }) }),
+      el('p', { class: 'label', text: t('world.defenders') }),
+      enemyList(zone),
       el('p', { class: 'small', text: t('world.sanity_cost', { amount: zone.sanityLoss }) }),
       el('p', { class: 'small', text: t('world.party_limit', { count: max }) }),
       rows.length
         ? el('div', { class: 'check-list' }, rows)
         : muted(t('world.no_available_heroes')),
+      unfit.length
+        ? muted(t('world.unfit', { names: unfit.map((hero) => hero.name).join(', ') }), 'small')
+        : null,
       status,
     ],
     [
@@ -133,12 +176,12 @@ function discoveredDialog(ui: Ui, zone: Zone, party: number[], close: () => void
           ui.act(() => ui.sim.startClearing(zone.key, party));
           ui.set({ zone: { key: zone.key, party: [] } });
         },
-        { variant: 'primary', disabled: party.length === 0 || !preview.meets },
+        { variant: 'primary', disabled: party.length === 0 },
       ),
     ],
     close,
     {
-      subtitle: `${t('world.clearing_seconds', { seconds })}  ·  ${requirementsText(zone.requirements)}`,
+      subtitle: `${zoneSubtitle(zone)}  ·  ${t('world.clearing_seconds', { seconds })}`,
     },
   );
 }
@@ -158,10 +201,12 @@ function clearingDialog(ui: Ui, zone: Zone, close: () => void): HTMLElement {
         { class: 'plain-list' },
         names.map((name) => el('li', { text: name })),
       ),
+      el('p', { class: 'label', text: t('world.defenders') }),
+      enemyList(zone),
     ],
     [button(t('world.button_close'), close, { variant: 'ghost' })],
     close,
-    { subtitle: requirementsText(zone.requirements) },
+    { subtitle: zoneSubtitle(zone) },
   );
 }
 
@@ -172,7 +217,6 @@ function clearedDialog(ui: Ui, zone: Zone, close: () => void): HTMLElement {
     t('world.title_cleared'),
     [
       el('h4', { text: zone.generatedName }),
-      el('p', { class: 'muted', text: t('world.biome_line', { biome: t(`biome.${zone.biome}`) }) }),
       zone.noSettlement ? el('p', { class: 'note', text: t('world.special_area') }) : null,
       !zone.noSettlement ? el('p', { class: 'small', text: t('world.settlement_preview') }) : null,
       el('p', { class: 'label', text: t('world.claim_cost') }),
@@ -190,7 +234,7 @@ function clearedDialog(ui: Ui, zone: Zone, close: () => void): HTMLElement {
       ),
     ],
     close,
-    { subtitle: requirementsText(zone.requirements) },
+    { subtitle: zoneSubtitle(zone) },
   );
 }
 

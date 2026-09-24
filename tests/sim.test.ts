@@ -25,6 +25,7 @@ import {
   determineBiome,
   generateClaimCost,
   generateZoneName,
+  generateEnemies,
   partyPreview,
   zoneDistance,
 } from '@/sim/zones';
@@ -189,7 +190,7 @@ describe('world map', () => {
     expect(cost.wood).toBeLessThanOrEqual(35 + 10 + 6);
   });
 
-  it('clears a zone with a party, rewards it, and claims it as a new settlement', () => {
+  it('clears a zone by winning its battle, pays out, and claims it as a new settlement', () => {
     const sim = new Simulation(rich(createWorld(1234, 1234)));
     const hero = hireHero(sim);
     const key = '1,0';
@@ -197,7 +198,9 @@ describe('world map', () => {
     zone.biome = 'plains';
     zone.noSettlement = false;
     zone.claimedReward = null;
-    expect(partyPreview(sim.world, key, [hero.uid]).meets).toBe(true);
+    // One feeble defender, so the battle cannot be lost.
+    zone.enemies = [{ id: 'carrion_rat', power: 0.2 }];
+    expect(partyPreview(sim.world, key, [hero.uid]).winChance).toBe(1);
     expect(sim.startClearing(key, [hero.uid])).toBe(true);
     expect(sim.world.zones[key]?.state).toBe('clearing');
     // Away heroes cannot be put to work.
@@ -207,10 +210,11 @@ describe('world map', () => {
     const xp = hero.experience;
     sim.advanceBy(worldConfig.defaultClearDuration * 2000);
     expect(sim.world.zones[key]?.state).toBe('cleared');
-    expect(hero.experience).toBe(xp + worldConfig.clearRewards.experienceBase);
-    const [report] = sim.takeReports();
-    expect(report?.heroNames).toEqual([hero.name]);
-    expect(report?.bonusRecruit).toBe(true);
+    // Ring-1 experience, plus two per tier of the enemy beaten.
+    expect(hero.experience).toBe(xp + worldConfig.clearRewards.experienceBase + 2);
+    const victory = sim.world.log.find((entry) => entry.kind === 'victory');
+    expect(victory?.params.key).toBe(key);
+    expect(victory?.details.some((d) => d.key === 'log.detail.recruit')).toBe(true);
     // No tavern yet: the bonus hero waits.
     expect(sim.world.queuedBonusOffers).toHaveLength(1);
     // The fog lifts around the cleared zone.
@@ -227,15 +231,36 @@ describe('world map', () => {
     expect(sim.build(1, 'tavern')).toBe(false); // plains allow only farms
   });
 
-  it('asks more of a party the further out a zone lies', () => {
+  it('sends a beaten party home wounded, with half the experience and the zone unchanged', () => {
+    const sim = new Simulation(createWorld(4321, 4321));
+    const hero = hireHero(sim, 'grave_forager');
+    const zone = sim.world.zones['0,1']!;
+    zone.enemies = [{ id: 'dread_knight', power: 4 }];
+    expect(partyPreview(sim.world, zone.key, [hero.uid]).winChance).toBe(0);
+    sim.startClearing(zone.key, [hero.uid]);
+    const xp = hero.experience;
+    sim.advanceBy(worldConfig.defaultClearDuration * 2000);
+    expect(zone.state).toBe('discovered');
+    expect(hero.stats.current_health).toBe(0);
+    expect(hero.wounded).toBe(true);
+    expect(hero.experience).toBeGreaterThan(xp);
+    expect(sim.world.log.map((entry) => entry.kind)).toEqual(
+      expect.arrayContaining(['defeat', 'wounded']),
+    );
+    // Wounded heroes can march nowhere and work nowhere but the Triage.
+    expect(sim.startClearing(zone.key, [hero.uid])).toBe(false);
+  });
+
+  it('gives every zone past home a defending force that grows with distance', () => {
     const world = createWorld(5, 5);
+    expect(world.zones['0,0']?.enemies).toEqual([]);
     const near = world.zones['1,1']!;
     expect(zoneDistance(near.x, near.y)).toBe(1);
-    expect(near.requirements.attack).toBe(0);
-    // Four rings out is two past the safe radius.
-    const far = { x: 4, y: 0 };
-    const rings = zoneDistance(far.x, far.y) - worldConfig.clearRequirements.safeRadius;
-    expect(rings).toBe(2);
+    expect(near.enemies.length).toBeGreaterThanOrEqual(1);
+    const far = generateEnemies(5, 12, 0, 'forest');
+    expect(far.length).toBeGreaterThan(near.enemies.length);
+    expect(far[0]!.power).toBeGreaterThan(near.enemies[0]!.power);
+    expect(near.sanityLoss).toBeGreaterThan(0);
   });
 
   it('pays a claimed crystal cavern on its interval', () => {

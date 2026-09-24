@@ -15,6 +15,7 @@ import { Simulation } from '@/sim/sim';
 import { createWorld } from '@/sim/state';
 import { Shell, type ShellDeps } from '@/ui/dom/shell';
 import { createGame, type GameHandle } from '@/ui/phaser/game';
+import { unlockAudio } from '@/ui/sound';
 
 const BOOT_KEY = 'dark-fantasy-settlement.boot';
 
@@ -47,6 +48,9 @@ function reboot(slot: number): void {
 const bootSlot = takeBootSlot();
 const loaded = bootSlot > 0 ? saves.load(bootSlot) : null;
 const sim = new Simulation(loaded ?? createWorld());
+// The settlement carried on while the game was closed: run that time now,
+// before anything is drawn, so the first frame already shows it.
+const awayOnLoad = loaded ? sim.catchUp(Date.now()) : null;
 
 // The stage must be in the document before Phaser measures it.
 const stage = document.createElement('div');
@@ -71,7 +75,13 @@ const deps: ShellDeps = {
     if (saves.save(slot, createWorld())) reboot(slot);
   },
   onLoad: (slot) => reboot(slot),
+  onImport: (world) => {
+    const slot = saves.nextNewSlot();
+    world.savedAt = Date.now();
+    if (saves.save(slot, world)) reboot(slot);
+  },
   onSave: (slot) => {
+    sim.world.savedAt = Date.now();
     const ok = saves.save(slot, sim.world);
     // Saving into a slot makes it this game's slot from then on, as in Godot.
     if (ok) {
@@ -83,6 +93,9 @@ const deps: ShellDeps = {
 };
 
 const shell = new Shell(deps);
+// Browsers only let audio start from a gesture; the first press anywhere is it.
+document.addEventListener('pointerdown', unlockAudio, { capture: true });
+document.addEventListener('keydown', unlockAudio, { capture: true });
 shell.mount(root, stage);
 
 // Only now, with the bars either side of it laid out, does the stage have the
@@ -90,11 +103,14 @@ shell.mount(root, stage);
 game = createGame(stage, sim, () => shell.selectedZone);
 game.setScreen(shell.state.screen);
 if (deps.activeSlot > 0) shell.set({ menu: null });
+if (awayOnLoad) shell.showAway(awayOnLoad);
 
 // -- the frame loop -----------------------------------------------------------
 
-function persist(): void {
-  if (deps.activeSlot <= 0 || sim.revision === savedRevision) return;
+/** Save if anything changed — or regardless, when the page is going away. */
+function persist(force = false): void {
+  if (deps.activeSlot <= 0 || (!force && sim.revision === savedRevision)) return;
+  sim.world.savedAt = Date.now();
   if (saves.save(deps.activeSlot, sim.world)) savedRevision = sim.revision;
 }
 
@@ -113,7 +129,19 @@ function frame(now: number): void {
 
 requestAnimationFrame(frame);
 
+/*
+ * A hidden tab gets no frames. Rather than let the first frame back swallow the
+ * whole gap as one long step, the time away is caught up here, in one go, and
+ * reported — the same path a reopened save takes.
+ */
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'hidden') persist();
+  if (document.visibilityState === 'hidden') {
+    persist(true);
+    return;
+  }
+  if (deps.activeSlot <= 0) return;
+  shell.showAway(sim.catchUp(Date.now()));
+  sim.world.savedAt = Date.now();
+  lastFrame = performance.now();
 });
-window.addEventListener('pagehide', persist);
+window.addEventListener('pagehide', () => persist(true));

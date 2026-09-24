@@ -1,0 +1,468 @@
+{
+  "enemies": [
+    {
+      "id": "carrion_rat",
+      "name": "Carrion Rat Swarm",
+      "tier": 1,
+      "biomes": ["forest", "plains", "neutral", "mixed"],
+      "stats": {
+        "health": 28,
+        "attack": 9,
+        "defense": 3,
+        "critical_chance": 5,
+        "critical_damage": 140
+      },
+      "dread": 1,
+      "drops": [
+        {
+          "definition_id": "bones",
+          "chance": 50,
+          "min": 1,
+          "max": 2
+        }
+      ]
+    },
+    {
+      "id": "bog_ghoul",
+      "name": "Bog Ghoul",
+      "tier": 1,
+      "biomes": ["neutral", "mixed", "plains"],
+      "stats": {
+        "health": 42,
+        "attack": 10,
+        "defense": 5,
+        "critical_chance": 5,
+        "critical_damage": 150
+      },
+      "dread": 2,
+      "drops": [
+        {
+          "definition_id": "bones",
+          "chance": 60,
+          "min": 1,
+          "max": 3
+        },
+        {
+          "definition_id": "herbs",
+          "chance": 30,
+          "min": 1,
+          "max": 2
+        }
+      ]
+    },
+    {
+      "id": "hollow_wolf",
+      "name": "Hollow Wolf",
+      "tier": 1,
+      "biomes": ["forest", "mixed"],
+      "stats": {
+        "health": 34,
+        "attack": 12,
+        "defense": 3,
+        "critical_chance": 12,
+        "critical_damage": 150
+      },
+      "dread": 1,
+      "drops": [
+        {
+          "definition_id": "fabrics",
+          "chance": 40,
+          "min": 1,
+          "max": 2
+        }
+      ]
+    },
+    {
+      "id": "rock_mite",
+      "name": "Rock Mite",
+      "tier": 1,
+      "biomes": ["mountain"],
+      "stats": {
+        "health": 36,
+        "attack": 8,
+        "defense": 9,
+        "critical_chance": 4,
+        "critical_damage": 140
+      },
+      "dread": 1,
+      "drops": [
+        {
+          "definition_id": "iron",
+          "chance": 55,
+          "min": 1,
+          "max": 3
+        },
+        {
+          "definition_id": "quartz",
+          "chance": 30,
+          "min": 1,
+          "max": 2
+        }
+      ]
+    },
+    {
+      "id": "blighted_scarecrow",
+      "name": "Blighted Scarecrow",
+      "tier": 1,
+      "biomes": ["plains"],
+      "stats": {
+        "health": 40,
+        "attack": 9,
+        "defense": 4,
+        "critical_chance": 6,
+        "critical_damage": 140
+      },
+      "dread": 2,
+      "drops": [
+        {
+          "definition_id": "fabrics",
+          "chance": 50,
+          "min": 1,
+          "max": 3
+        },
+        {
+          "definition_id": "herbs",
+          "chance": 40,
+          "min": 1,
+          "max": 2
+        }
+      ]
+    },
+    {
+      "id": "crystal_husk",
+      "name": "Crystal Husk",
+      "tier": 1,
+      "biomes": ["crystal_cavern"],
+      "stats": {
+        "health": 44,
+        "attack": 9,
+        "defense": 8,
+        "critical_chance": 5,
+        "critical_damage": 150
+      },
+      "dread": 2,
+      "drops": [
+        {
+          "definition_id": "quartz",
+          "chance": 60,
+          "min": 1,
+          "max": 3
+        },
+        {
+          "definition_id": "amethyst",
+          "chance": 15,
+          "min": 1,
+          "max": 1
+        }
+      ]
+    },
+    {
+      "id": "barrow_wight",
+      "name": "Barrow Wight",
+      "tier": 2,
+      "biomes": ["neutral", "mixed", "plains"],
+      "stats": {
+        "health": 70,
+        "attack": 15,
+        "defense": 8,
+        "critical_chance": 8,
+        "critical_damage": 150
+      },
+      "dread": 4,
+      "drops": [
+        {
+          "definition_id": "bones",
+          "chance": 60,
+          "min": 2,
+          "max": 4
+        },
+        {
+          "definition_id": "trade_goods",
+          "chance": 35,
+          "min": 1,
+          "max": 3
+        }
+      ]
+    },
+    {
+      "id": "fen_hag",
+      "name": "Fen Hag",
+      "tier": 2,
+      "biomes": ["forest", "mixed", "neutral"],
+      "stats": {
+        "health": 58,
+        "attack": 18,
+        "defense": 6,
+        "critical_chance": 10,
+        "critical_damage": 160
+      },
+      "dread": 5,
+      "drops": [
+        {
+          "definition_id": "herbs",
+          "chance": 60,
+          "min": 2,
+          "max": 4
+        },
+        {
+          "definition_id": "spices",
+          "chance": 40,
+          "min": 1,
+          "max": 3
+        }
+      ]
+    },
+    {
+      "id": "stone_revenant",
+      "name": "Stone Revenant",
+      "tier": 2,
+      "biomes": ["mountain"],
+      "stats": {
+        "health": 85,
+        "attack": 13,
+        "defense": 14,
+        "critical_chance": 5,
+        "critical_damage": 150
+      },
+      "dread": 3,
+      "drops": [
+        {
+          "definition_id": "lapis",
+          "chance": 45,
+          "min": 1,
+          "max": 3
+        },
+        {
+          "definition_id": "criomsonrock",
+          "chance": 45,
+          "min": 1,
+          "max": 3
+        }
+      ]
+    },
+    {
+      "id": "briar_stalker",
+      "name": "Briar Stalker",
+      "tier": 2,
+      "biomes": ["forest"],
+      "stats": {
+        "health": 62,
+        "attack": 17,
+        "defense": 7,
+        "critical_chance": 15,
+        "critical_damage": 160
+      },
+      "dread": 3,
+      "drops": [
+        {
+          "definition_id": "viridis",
+          "chance": 45,
+          "min": 1,
+          "max": 3
+        },
+        {
+          "definition_id": "fabrics",
+          "chance": 40,
+          "min": 1,
+          "max": 3
+        }
+      ]
+    },
+    {
+      "id": "ashen_cultist",
+      "name": "Ashen Cultist",
+      "tier": 2,
+      "biomes": ["plains", "mixed", "neutral", "mountain"],
+      "stats": {
+        "health": 60,
+        "attack": 16,
+        "defense": 7,
+        "critical_chance": 10,
+        "critical_damage": 160
+      },
+      "dread": 5,
+      "drops": [
+        {
+          "definition_id": "spices",
+          "chance": 40,
+          "min": 1,
+          "max": 3
+        },
+        {
+          "definition_id": "amber",
+          "chance": 25,
+          "min": 1,
+          "max": 2
+        }
+      ]
+    },
+    {
+      "id": "geode_warden",
+      "name": "Geode Warden",
+      "tier": 2,
+      "biomes": ["crystal_cavern"],
+      "stats": {
+        "health": 90,
+        "attack": 14,
+        "defense": 14,
+        "critical_chance": 5,
+        "critical_damage": 150
+      },
+      "dread": 4,
+      "drops": [
+        {
+          "definition_id": "amethyst",
+          "chance": 35,
+          "min": 1,
+          "max": 2
+        },
+        {
+          "definition_id": "sapphire",
+          "chance": 20,
+          "min": 1,
+          "max": 2
+        }
+      ]
+    },
+    {
+      "id": "dread_knight",
+      "name": "Dread Knight",
+      "tier": 3,
+      "biomes": ["neutral", "mixed", "plains", "mountain"],
+      "stats": {
+        "health": 96,
+        "attack": 18,
+        "defense": 13,
+        "critical_chance": 10,
+        "critical_damage": 170
+      },
+      "dread": 7,
+      "drops": [
+        {
+          "definition_id": "onyx",
+          "chance": 45,
+          "min": 2,
+          "max": 4
+        },
+        {
+          "definition_id": "firebrand",
+          "chance": 40,
+          "min": 2,
+          "max": 4
+        }
+      ]
+    },
+    {
+      "id": "veil_horror",
+      "name": "Veil Horror",
+      "tier": 3,
+      "biomes": ["forest", "neutral", "mixed", "plains"],
+      "stats": {
+        "health": 80,
+        "attack": 20,
+        "defense": 8,
+        "critical_chance": 14,
+        "critical_damage": 180
+      },
+      "dread": 9,
+      "drops": [
+        {
+          "definition_id": "voidcrystal",
+          "chance": 25,
+          "min": 1,
+          "max": 2
+        },
+        {
+          "definition_id": "venetus",
+          "chance": 40,
+          "min": 2,
+          "max": 4
+        }
+      ]
+    },
+    {
+      "id": "cinder_wyrmling",
+      "name": "Cinder Wyrmling",
+      "tier": 3,
+      "biomes": ["mountain"],
+      "stats": {
+        "health": 104,
+        "attack": 20,
+        "defense": 14,
+        "critical_chance": 8,
+        "critical_damage": 170
+      },
+      "dread": 6,
+      "drops": [
+        {
+          "definition_id": "firebrand",
+          "chance": 50,
+          "min": 2,
+          "max": 4
+        },
+        {
+          "definition_id": "ruby",
+          "chance": 25,
+          "min": 1,
+          "max": 2
+        }
+      ]
+    },
+    {
+      "id": "void_maw",
+      "name": "Void Maw",
+      "tier": 3,
+      "biomes": ["crystal_cavern"],
+      "stats": {
+        "health": 112,
+        "attack": 19,
+        "defense": 12,
+        "critical_chance": 10,
+        "critical_damage": 170
+      },
+      "dread": 8,
+      "drops": [
+        {
+          "definition_id": "voidcrystal",
+          "chance": 40,
+          "min": 1,
+          "max": 3
+        },
+        {
+          "definition_id": "diamond",
+          "chance": 25,
+          "min": 1,
+          "max": 2
+        }
+      ]
+    },
+    {
+      "id": "gilded_revenant",
+      "name": "Gilded Revenant",
+      "tier": 3,
+      "biomes": ["plains", "mixed", "neutral"],
+      "stats": {
+        "health": 88,
+        "attack": 17,
+        "defense": 14,
+        "critical_chance": 9,
+        "critical_damage": 170
+      },
+      "dread": 6,
+      "drops": [
+        {
+          "definition_id": "aureus",
+          "chance": 50,
+          "min": 2,
+          "max": 4
+        },
+        {
+          "definition_id": "emerald",
+          "chance": 25,
+          "min": 1,
+          "max": 2
+        }
+      ]
+    }
+  ]
+}

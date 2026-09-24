@@ -3,8 +3,13 @@
  */
 
 import { t } from '@/i18n';
-import { getBuilding } from '@/sim/config';
-import { effectiveWorkStats, needsTriage } from '@/sim/heroes';
+import {
+  RESOURCE_WORK_STAT,
+  buildingEffect,
+  getBuilding,
+  type BuildingDefinition,
+} from '@/sim/config';
+import { effectiveStats, effectiveWorkStats } from '@/sim/heroes';
 import { slotProduction } from '@/sim/production';
 import { canAfford, resourceAmount } from '@/sim/resources';
 import {
@@ -14,11 +19,12 @@ import {
   builtPlotCount,
   dismantleRefund,
   eligibleHeroes,
+  mayWork,
   settlementDefinition,
   settlementSlots,
   upgradeCost,
 } from '@/sim/settlements';
-import type { Hero } from '@/sim/types';
+import type { Hero, WorkStatKey, World } from '@/sim/types';
 import {
   button,
   card,
@@ -34,6 +40,7 @@ import {
   workStatsLine,
 } from '../components';
 import type { Ui } from '../context';
+import { conditionBadges } from './heroes';
 
 export function renderSettlement(ui: Ui): Node[] {
   const world = ui.sim.world;
@@ -158,9 +165,7 @@ function plotDetail(ui: Ui, index: number): Node[] {
     ];
   }
 
-  const staff = assignedHeroes(world, id, index).filter(
-    (hero) => building.id !== 'triage' || needsTriage(world, hero),
-  );
+  const staff = assignedHeroes(world, id, index).filter((hero) => mayWork(world, hero, building));
   const atMax = slot.level >= building.maxLevel;
   const upgrade = upgradeCost(world, id, index);
   const production = slotProduction(world, id, index);
@@ -181,6 +186,7 @@ function plotDetail(ui: Ui, index: number): Node[] {
           ])
         : null,
       requirementsNote(building.assignmentRequirements),
+      specialEffect(building, slot.level),
     ]),
     card([
       el('div', { class: 'cost-line' }, [
@@ -240,6 +246,26 @@ function plotDetail(ui: Ui, index: number): Node[] {
   ].filter(Boolean) as Node[];
 }
 
+/** What a Triage, Chapel or Barracks does per tick at its level. */
+function specialEffect(building: BuildingDefinition, level: number): HTMLElement | null {
+  let text = '';
+  if (building.id === 'triage') {
+    text = t('settlement.effect_triage', {
+      heal: buildingEffect(building, 'heal_health_per_hero', 'heal_per_level', level),
+      gold: buildingEffect(building, 'gold_per_hero', '', level),
+    });
+  } else if (building.id === 'chapel') {
+    text = t('settlement.effect_chapel', {
+      amount: buildingEffect(building, 'restore_sanity_per_hero', 'restore_per_level', level),
+    });
+  } else if (building.id === 'barracks') {
+    text = t('settlement.effect_barracks', {
+      amount: buildingEffect(building, 'experience_per_hero', 'experience_per_level', level),
+    });
+  }
+  return text ? el('p', { class: 'small note', text }) : null;
+}
+
 function requirementsNote(requirements: Record<string, number | undefined>): HTMLElement | null {
   const parts = Object.entries(requirements)
     .filter(([, value]) => (value ?? 0) > 0)
@@ -251,6 +277,50 @@ function requirementsNote(requirements: Record<string, number | undefined>): HTM
   });
 }
 
+/**
+ * How well a hero suits a building, and the figure that says so.
+ *
+ * Production buildings want the work stat their output scales with; the Triage
+ * wants the most hurt first, the Chapel the most shaken, and the Barracks the
+ * greenest recruits, who have the most to gain.
+ */
+function suitability(
+  world: World,
+  hero: Hero,
+  building: BuildingDefinition,
+): { score: number; label: string } {
+  const stats = effectiveStats(world, hero);
+  if (building.id === 'triage') {
+    return {
+      score: stats.max_health - stats.current_health,
+      label: `${t('stat.health')} ${stats.current_health}/${stats.max_health}`,
+    };
+  }
+  if (building.id === 'chapel') {
+    return {
+      score: stats.max_sanity - stats.current_sanity,
+      label: `${t('stat.sanity')} ${stats.current_sanity}/${stats.max_sanity}`,
+    };
+  }
+  if (building.id === 'barracks') {
+    return { score: -hero.level, label: t('common.level', { level: hero.level }) };
+  }
+  const work = effectiveWorkStats(world, hero);
+  const keys = [
+    ...new Set(
+      building.baseProduction
+        .map((entry) => RESOURCE_WORK_STAT[entry.resource])
+        .filter((key): key is WorkStatKey => key !== undefined),
+    ),
+  ];
+  if (keys.length === 0) {
+    const total = work.farming + work.mining + work.lumbering;
+    return { score: total, label: t('settlement.total_work', { amount: total }) };
+  }
+  const score = keys.reduce((sum, key) => sum + work[key], 0);
+  return { score, label: keys.map((key) => `${t(`work.${key}`)} ${work[key]}`).join(' · ') };
+}
+
 function assignDialog(ui: Ui): HTMLElement | null {
   const state = ui.state.assign;
   if (!state) return null;
@@ -260,14 +330,13 @@ function assignDialog(ui: Ui): HTMLElement | null {
   if (!building) return null;
   const close = () => ui.set({ assign: null });
 
-  const here = assignedHeroes(world, id, state.slot).filter(
-    (hero) => building.id !== 'triage' || needsTriage(world, hero),
+  const here = assignedHeroes(world, id, state.slot).filter((hero) =>
+    mayWork(world, hero, building),
   );
   const seen = new Set(here.map((hero) => hero.uid));
-  const rows: Hero[] = [
-    ...here,
-    ...eligibleHeroes(world, id, state.slot).filter((h) => !seen.has(h.uid)),
-  ];
+  const rows = [...here, ...eligibleHeroes(world, id, state.slot).filter((h) => !seen.has(h.uid))]
+    .map((hero) => ({ hero, ...suitability(world, hero, building) }))
+    .sort((a, b) => b.score - a.score || a.hero.name.localeCompare(b.hero.name));
   const full = state.selected.length >= building.workerSlots;
 
   const toggle = (uid: number, on: boolean) => {
@@ -276,6 +345,14 @@ function assignDialog(ui: Ui): HTMLElement | null {
       : state.selected.filter((entry) => entry !== uid);
     ui.set({ assign: { slot: state.slot, selected } });
   };
+
+  const best = () =>
+    ui.set({
+      assign: {
+        slot: state.slot,
+        selected: rows.slice(0, building.workerSlots).map((row) => row.hero.uid),
+      },
+    });
 
   const apply = () => {
     ui.act(() => {
@@ -286,34 +363,45 @@ function assignDialog(ui: Ui): HTMLElement | null {
     close();
   };
 
+  const empty =
+    building.id === 'triage'
+      ? t('settlement.no_patients')
+      : building.id === 'chapel'
+        ? t('settlement.no_shaken')
+        : t('settlement.no_eligible');
+
   return modal(
     t('settlement.assign_title', { name: building.name }),
     [
-      el('p', {
-        class: 'muted small',
-        text: t('settlement.assign_status', {
-          count: state.selected.length,
-          capacity: building.workerSlots,
+      el('div', { class: 'summary-row' }, [
+        el('p', {
+          class: 'muted small',
+          text: t('settlement.assign_status', {
+            count: state.selected.length,
+            capacity: building.workerSlots,
+          }),
         }),
-      }),
+        rows.length
+          ? button(t('settlement.assign_best'), best, { small: true, variant: 'ghost' })
+          : null,
+      ]),
       rows.length
         ? el(
             'div',
             { class: 'check-list' },
-            rows.map((hero) => {
+            rows.map(({ hero, label }) => {
               const checked = state.selected.includes(hero.uid);
               return checkRow(checked, full && !checked, (on) => toggle(hero.uid, on), [
                 heroAvatar(hero.name, hero.heroClass),
                 el('span', { class: 'check-main' }, [
                   el('strong', { text: hero.name }),
-                  workStatsLine(effectiveWorkStats(world, hero)),
+                  el('span', { class: 'small suit', text: label }),
                 ]),
+                ...conditionBadges(hero),
               ]);
             }),
           )
-        : muted(
-            building.id === 'triage' ? t('settlement.no_patients') : t('settlement.no_eligible'),
-          ),
+        : muted(empty),
     ],
     [
       button(t('common.cancel'), close, { variant: 'ghost' }),

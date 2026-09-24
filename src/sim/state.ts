@@ -31,6 +31,10 @@ export function createWorld(seed: number = randomSeed(), rngSeed: number = rando
     nextEquipmentUid: 1,
     nextOfferId: 1,
     rng: rngSeed | 0,
+    log: [],
+    nextLogId: 1,
+    recruitRefreshTick: 0,
+    savedAt: 0,
   };
   if (home) settlementSlots(world, home);
   initializeZones(world);

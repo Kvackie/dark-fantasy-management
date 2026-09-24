@@ -22,7 +22,7 @@ import {
   statName,
   workStatsLine,
 } from '../components';
-import type { Ui } from '../context';
+import { RECRUIT_CLOCK, type Ui } from '../context';
 import { statColors } from '@/ui/theme';
 
 export function renderRecruit(ui: Ui): Node[] {
@@ -45,6 +45,10 @@ export function renderRecruit(ui: Ui): Node[] {
             class: 'muted small',
             text: areGemRecruitsUnlocked(world) ? t('recruit.gems_open') : t('recruit.gems_locked'),
           }),
+          el('p', { class: 'small' }, [
+            `${t('recruit.free_refresh')} `,
+            el('strong', { class: 'live-clock', 'data-clock': RECRUIT_CLOCK }),
+          ]),
         ]),
         el('div', { class: 'summary-actions' }, [
           el('div', { class: 'cost-line' }, [

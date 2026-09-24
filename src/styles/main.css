@@ -1230,3 +1230,197 @@ button.item-tile {
     animation: none !important;
   }
 }
+
+/* -- additions: sound, enemies, skills, log --------------------------------------- */
+
+.hud-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.hud-row .hud-resources {
+  flex: 1;
+  min-width: 0;
+}
+.btn.hud-sound {
+  flex: none;
+  width: 40px;
+  padding: 0;
+  color: var(--text-dim);
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.badge.danger {
+  border-color: var(--danger);
+  background: #3a1a1a;
+  color: #ffd0c4;
+  margin-right: 4px;
+}
+
+.enemy-list {
+  list-style: none;
+  margin: 4px 0 10px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.enemy-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+  padding: 6px 10px;
+  background: #1a1112;
+  border: 1px solid #4f2e2a;
+  border-radius: 8px;
+}
+.tier {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: #3a2622;
+  color: #f0c8a0;
+}
+.tier-2 {
+  background: #4a2320;
+  color: #ffb49a;
+}
+.tier-3 {
+  background: #5a1818;
+  color: #ff9a8a;
+}
+
+.party-status.risky {
+  color: #f0c96c;
+}
+.party-status.bad {
+  color: #f08070;
+}
+
+.suit {
+  color: var(--text-dim);
+}
+
+.stat-row .delta {
+  margin-left: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+.delta.up {
+  color: var(--good);
+}
+.delta.down {
+  color: #f08070;
+}
+
+.skill-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr));
+  gap: 10px;
+}
+.skill {
+  padding: 10px 12px;
+  background: #100d0f;
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  color: var(--text-faint);
+}
+.skill.unlocked {
+  background: var(--bg-panel);
+  border: 1px solid #b88a58;
+  color: var(--text);
+}
+.skill-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 4px;
+}
+.skill p {
+  margin: 0;
+}
+
+.log-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.log-entry {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  padding: 8px 12px;
+}
+.log-entry summary {
+  cursor: pointer;
+  list-style: none;
+}
+.log-entry summary::-webkit-details-marker {
+  display: none;
+}
+.log-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+}
+.log-ago {
+  margin-left: auto;
+}
+.log-kind {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: #241b1b;
+  color: var(--text-dim);
+}
+.kind-victory,
+.kind-healed,
+.kind-restored,
+.kind-level {
+  background: #1d2e1f;
+  color: #9fd8a1;
+}
+.kind-defeat,
+.kind-broken,
+.kind-wounded {
+  background: #3a1a1a;
+  color: #ffb0a0;
+}
+.log-details {
+  margin: 8px 0 0;
+  padding-left: 1.1em;
+  color: var(--text-dim);
+  font-size: 0.92rem;
+}
+
+.toast-victory {
+  border-color: var(--good);
+}
+.toast-defeat,
+.toast-broken,
+.toast-wounded {
+  border-color: var(--danger);
+}
+.toast span {
+  color: var(--text-dim);
+}

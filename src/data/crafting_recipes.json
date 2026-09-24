@@ -3,7 +3,7 @@
     {
       "id": "placeholder_iron_brow",
       "name": "Iron Brow",
-      "description": "A placeholder smithing recipe for a sturdy headpiece.",
+      "description": "A smithing recipe for a sturdy headpiece.",
       "level": 1,
       "cost": [
         {
@@ -15,8 +15,8 @@
           "amount": 8
         },
         {
-          "item": "timber_bundle",
-          "amount": 2
+          "item": "iron",
+          "amount": 4
         }
       ],
       "result_equipment": {
@@ -38,7 +38,7 @@
     {
       "id": "placeholder_ember_amulet",
       "name": "Ember Amulet",
-      "description": "A placeholder smithing recipe for a work-focused amulet.",
+      "description": "A smithing recipe for a work-focused amulet.",
       "level": 1,
       "cost": [
         {
@@ -69,7 +69,7 @@
     {
       "id": "placeholder_grave_hood",
       "name": "Grave Hood",
-      "description": "A placeholder recipe for a hood sewn with ash-thread.",
+      "description": "A recipe for a hood sewn with ash-thread.",
       "level": 1,
       "cost": [
         {
@@ -100,7 +100,7 @@
     {
       "id": "placeholder_watcher_cowl",
       "name": "Watcher Cowl",
-      "description": "A placeholder recipe for a quiet scout's cowl.",
+      "description": "A recipe for a quiet scout's cowl.",
       "level": 2,
       "cost": [
         {
@@ -131,7 +131,7 @@
     {
       "id": "placeholder_ashen_mask",
       "name": "Ashen Mask",
-      "description": "A placeholder recipe for a soot-dark mask.",
+      "description": "A recipe for a soot-dark mask.",
       "level": 2,
       "cost": [
         {
@@ -166,7 +166,7 @@
     {
       "id": "placeholder_thorn_circlet",
       "name": "Thorn Circlet",
-      "description": "A placeholder recipe for a thorn-bound circlet.",
+      "description": "A recipe for a thorn-bound circlet.",
       "level": 3,
       "cost": [
         {
@@ -202,7 +202,7 @@
     {
       "id": "placeholder_crypt_vest",
       "name": "Crypt Vest",
-      "description": "A placeholder recipe for a reinforced chestpiece.",
+      "description": "A recipe for a reinforced chestpiece.",
       "level": 1,
       "cost": [
         {
@@ -233,7 +233,7 @@
     {
       "id": "placeholder_bone_mail",
       "name": "Bone Mail",
-      "description": "A placeholder recipe for pale linked armor.",
+      "description": "A recipe for pale linked armor.",
       "level": 2,
       "cost": [
         {
@@ -264,7 +264,7 @@
     {
       "id": "placeholder_mire_plate",
       "name": "Mire Plate",
-      "description": "A placeholder recipe for heavy marsh-stained plate.",
+      "description": "A recipe for heavy marsh-stained plate.",
       "level": 3,
       "cost": [
         {
@@ -299,7 +299,7 @@
     {
       "id": "placeholder_pit_gloves",
       "name": "Pit Gloves",
-      "description": "A placeholder recipe for rugged work gloves.",
+      "description": "A recipe for rugged work gloves.",
       "level": 1,
       "cost": [
         {
@@ -330,7 +330,7 @@
     {
       "id": "placeholder_ember_grips",
       "name": "Ember Grips",
-      "description": "A placeholder recipe for heat-scarred grips.",
+      "description": "A recipe for heat-scarred grips.",
       "level": 2,
       "cost": [
         {
@@ -361,7 +361,7 @@
     {
       "id": "placeholder_rootwrap_gloves",
       "name": "Rootwrap Gloves",
-      "description": "A placeholder recipe for gatherer's gloves.",
+      "description": "A recipe for gatherer's gloves.",
       "level": 3,
       "cost": [
         {
@@ -392,7 +392,7 @@
     {
       "id": "placeholder_mud_boots",
       "name": "Mud Boots",
-      "description": "A placeholder recipe for reliable boots.",
+      "description": "A recipe for reliable boots.",
       "level": 1,
       "cost": [
         {
@@ -423,7 +423,7 @@
     {
       "id": "placeholder_gravesoil_treads",
       "name": "Gravesoil Treads",
-      "description": "A placeholder recipe for weighted boots.",
+      "description": "A recipe for weighted boots.",
       "level": 2,
       "cost": [
         {
@@ -454,7 +454,7 @@
     {
       "id": "placeholder_pathfinder_boots",
       "name": "Pathfinder Boots",
-      "description": "A placeholder recipe for fast travel boots.",
+      "description": "A recipe for fast travel boots.",
       "level": 3,
       "cost": [
         {
@@ -490,7 +490,7 @@
     {
       "id": "placeholder_gilded_band",
       "name": "Gilded Band",
-      "description": "A placeholder recipe for a simple ring.",
+      "description": "A recipe for a simple ring.",
       "level": 1,
       "cost": [
         {
@@ -517,7 +517,7 @@
     {
       "id": "placeholder_crypt_wreath",
       "name": "Crypt Wreath",
-      "description": "A placeholder recipe for a grave-metal ring.",
+      "description": "A recipe for a grave-metal ring.",
       "level": 2,
       "cost": [
         {
@@ -548,7 +548,7 @@
     {
       "id": "placeholder_veil_loop",
       "name": "Veil Loop",
-      "description": "A placeholder recipe for a strange luminous ring.",
+      "description": "A recipe for a strange luminous ring.",
       "level": 3,
       "cost": [
         {
@@ -583,7 +583,7 @@
     {
       "id": "placeholder_green_reliquary",
       "name": "Green Reliquary",
-      "description": "A placeholder recipe for a farming amulet.",
+      "description": "A recipe for a farming amulet.",
       "level": 2,
       "cost": [
         {
@@ -614,7 +614,7 @@
     {
       "id": "placeholder_duskglass_charm",
       "name": "Duskglass Charm",
-      "description": "A placeholder recipe for a balanced charm.",
+      "description": "A recipe for a balanced charm.",
       "level": 3,
       "cost": [
         {
@@ -649,7 +649,7 @@
     {
       "id": "placeholder_veil_cap",
       "name": "Veil Cap",
-      "description": "A placeholder recipe for a light veil cap.",
+      "description": "A recipe for a light veil cap.",
       "level": 1,
       "cost": [
         {
@@ -680,7 +680,7 @@
     {
       "id": "placeholder_bone_visor",
       "name": "Bone Visor",
-      "description": "A placeholder recipe for a grim bone visor.",
+      "description": "A recipe for a grim bone visor.",
       "level": 2,
       "cost": [
         {
@@ -711,7 +711,7 @@
     {
       "id": "placeholder_lantern_veil",
       "name": "Lantern Veil",
-      "description": "A placeholder recipe for a lantern-lit veil.",
+      "description": "A recipe for a lantern-lit veil.",
       "level": 3,
       "cost": [
         {
@@ -746,7 +746,7 @@
     {
       "id": "placeholder_mire_hat",
       "name": "Mire Hat",
-      "description": "A placeholder recipe for a swamp-worn hat.",
+      "description": "A recipe for a swamp-worn hat.",
       "level": 4,
       "cost": [
         {
@@ -795,23 +795,23 @@
         },
         {
           "item": "iron",
-          "amount": 220
+          "amount": 40
         },
         {
           "item": "bones",
-          "amount": 180
+          "amount": 36
         },
         {
           "item": "fabrics",
-          "amount": 260
+          "amount": 40
         },
         {
           "item": "ruby",
-          "amount": 120
+          "amount": 8
         },
         {
           "item": "quartz",
-          "amount": 340
+          "amount": 40
         }
       ],
       "result_equipment": {
@@ -879,23 +879,23 @@
         },
         {
           "item": "criomsonrock",
-          "amount": 240
+          "amount": 40
         },
         {
           "item": "herbs",
-          "amount": 210
+          "amount": 40
         },
         {
           "item": "trade_goods",
-          "amount": 300
+          "amount": 40
         },
         {
           "item": "diamond",
-          "amount": 110
+          "amount": 8
         },
         {
           "item": "onyx",
-          "amount": 360
+          "amount": 40
         }
       ],
       "result_equipment": {
@@ -963,23 +963,23 @@
         },
         {
           "item": "viridis",
-          "amount": 230
+          "amount": 40
         },
         {
           "item": "spices",
-          "amount": 190
+          "amount": 38
         },
         {
           "item": "fabrics",
-          "amount": 280
+          "amount": 40
         },
         {
           "item": "amethyst",
-          "amount": 130
+          "amount": 8
         },
         {
           "item": "firebrand",
-          "amount": 330
+          "amount": 40
         }
       ],
       "result_equipment": {
@@ -1047,23 +1047,23 @@
         },
         {
           "item": "lapis",
-          "amount": 250
+          "amount": 40
         },
         {
           "item": "bones",
-          "amount": 200
+          "amount": 40
         },
         {
           "item": "herbs",
-          "amount": 270
+          "amount": 40
         },
         {
           "item": "sapphire",
-          "amount": 140
+          "amount": 8
         },
         {
           "item": "venetus",
-          "amount": 350
+          "amount": 40
         }
       ],
       "result_equipment": {
@@ -1131,23 +1131,23 @@
         },
         {
           "item": "aureus",
-          "amount": 260
+          "amount": 40
         },
         {
           "item": "trade_goods",
-          "amount": 220
+          "amount": 40
         },
         {
           "item": "spices",
-          "amount": 290
+          "amount": 40
         },
         {
           "item": "emerald",
-          "amount": 150
+          "amount": 8
         },
         {
           "item": "voidcrystal",
-          "amount": 370
+          "amount": 8
         }
       ],
       "result_equipment": {
@@ -1215,23 +1215,23 @@
         },
         {
           "item": "iron",
-          "amount": 280
+          "amount": 40
         },
         {
           "item": "amber",
-          "amount": 230
+          "amount": 8
         },
         {
           "item": "quartz",
-          "amount": 310
+          "amount": 40
         },
         {
           "item": "ruby",
-          "amount": 160
+          "amount": 8
         },
         {
           "item": "fabrics",
-          "amount": 390
+          "amount": 40
         }
       ],
       "result_equipment": {

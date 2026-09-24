@@ -1,0 +1,166 @@
+{
+  "skills": [
+    {
+      "id": "bloodlust",
+      "class": "Attacker",
+      "level": 1,
+      "name": "Bloodlust",
+      "description": "+10% attack.",
+      "effects": [
+        {
+          "type": "stat_pct",
+          "stat": "attack",
+          "value": 10
+        }
+      ]
+    },
+    {
+      "id": "keen_edge",
+      "class": "Attacker",
+      "level": 4,
+      "name": "Keen Edge",
+      "description": "+8 critical chance.",
+      "effects": [
+        {
+          "type": "stat_flat",
+          "stat": "critical_chance",
+          "value": 8
+        }
+      ]
+    },
+    {
+      "id": "executioner",
+      "class": "Attacker",
+      "level": 8,
+      "name": "Executioner",
+      "description": "+50% damage against enemies below a quarter of their health.",
+      "effects": [
+        {
+          "type": "execute",
+          "threshold": 25,
+          "value": 50
+        }
+      ]
+    },
+    {
+      "id": "reaver",
+      "class": "Attacker",
+      "level": 12,
+      "name": "Reaver",
+      "description": "+25% critical damage.",
+      "effects": [
+        {
+          "type": "stat_pct",
+          "stat": "critical_damage",
+          "value": 25
+        }
+      ]
+    },
+    {
+      "id": "bulwark",
+      "class": "Defender",
+      "level": 1,
+      "name": "Bulwark",
+      "description": "+15% defense.",
+      "effects": [
+        {
+          "type": "stat_pct",
+          "stat": "defense",
+          "value": 15
+        }
+      ]
+    },
+    {
+      "id": "taunt",
+      "class": "Defender",
+      "level": 4,
+      "name": "Taunt",
+      "description": "Enemies are three times as likely to attack this hero.",
+      "effects": [
+        {
+          "type": "taunt",
+          "value": 200
+        }
+      ]
+    },
+    {
+      "id": "stalwart",
+      "class": "Defender",
+      "level": 8,
+      "name": "Stalwart",
+      "description": "+20% maximum health.",
+      "effects": [
+        {
+          "type": "stat_pct",
+          "stat": "health",
+          "value": 20
+        }
+      ]
+    },
+    {
+      "id": "shieldwall",
+      "class": "Defender",
+      "level": 12,
+      "name": "Shieldwall",
+      "description": "The whole party takes 10% less damage.",
+      "effects": [
+        {
+          "type": "party_damage_taken_pct",
+          "value": -10
+        }
+      ]
+    },
+    {
+      "id": "steady_nerves",
+      "class": "Supporter",
+      "level": 1,
+      "name": "Steady Nerves",
+      "description": "The party loses 25% less sanity on an expedition.",
+      "effects": [
+        {
+          "type": "party_sanity_loss_pct",
+          "value": -25
+        }
+      ]
+    },
+    {
+      "id": "field_medic",
+      "class": "Supporter",
+      "level": 4,
+      "name": "Field Medic",
+      "description": "After a victory, every standing hero recovers 15% of their maximum health.",
+      "effects": [
+        {
+          "type": "party_heal_after_battle_pct",
+          "value": 15
+        }
+      ]
+    },
+    {
+      "id": "quartermaster",
+      "class": "Supporter",
+      "level": 8,
+      "name": "Quartermaster",
+      "description": "The party brings home 25% more materials.",
+      "effects": [
+        {
+          "type": "party_loot_pct",
+          "value": 25
+        }
+      ]
+    },
+    {
+      "id": "lantern_rite",
+      "class": "Supporter",
+      "level": 12,
+      "name": "Lantern Rite",
+      "description": "Recovers twice as fast in the Triage and the Chapel.",
+      "effects": [
+        {
+          "type": "recovery_pct",
+          "value": 100
+        }
+      ]
+    }
+  ]
+}

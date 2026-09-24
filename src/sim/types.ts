@@ -63,7 +63,7 @@ export interface Hero {
   name: string;
   heroClass: string;
   level: number;
-  /** Lifetime experience. A level costs `level × 10` of it, and it is never spent. */
+  /** Lifetime experience; see `experienceCeiling`. It is never spent. */
   experience: number;
   /** Rolled once when the hero joins, so a ranged growth stays that hero's for good. */
   statGrowth: BaseStats;
@@ -74,6 +74,16 @@ export interface Hero {
   equipment: Record<EquipmentSlot, number | null>;
   /** The building plot this hero works, if any. */
   assignment: HeroAssignment | null;
+  /**
+   * Sanity ran out. A broken hero can do nothing but sit in the Chapel until
+   * their sanity is whole again.
+   */
+  broken: boolean;
+  /**
+   * Health ran out in a fight. A wounded hero can do nothing but lie in the
+   * Triage until their health is whole again.
+   */
+  wounded: boolean;
 }
 
 export interface BuildingSlot {
@@ -99,14 +109,11 @@ export interface SettlementDefinition {
 export const ZONE_STATES = ['fog', 'discovered', 'clearing', 'cleared', 'claimed'] as const;
 export type ZoneState = (typeof ZONE_STATES)[number];
 
-export interface ZoneRequirements {
-  level: number;
-  sanity: number;
-  attack: number;
-  defense: number;
-  farming: number;
-  mining: number;
-  lumbering: number;
+/** One enemy holding a zone: a roster entry, scaled by how far out the zone is. */
+export interface ZoneEnemy {
+  id: string;
+  /** Stat multiplier; 1 at the first ring. */
+  power: number;
 }
 
 export interface ClaimedReward {
@@ -128,7 +135,8 @@ export interface Zone {
   assignedHeroUids: number[];
   generatedName: string;
   biome: string;
-  requirements: ZoneRequirements;
+  /** What holds the zone. A party must beat them to clear it; they return whole after a defeat. */
+  enemies: ZoneEnemy[];
   sanityLoss: number;
   noSettlement: boolean;
   claimedReward: ClaimedReward | null;
@@ -210,17 +218,47 @@ export interface World {
   nextOfferId: number;
   /** State of the seeded generator every other roll comes from — see `rng.ts`. */
   rng: number;
+  /** Newest last, capped — see `log.ts`. */
+  log: LogEntry[];
+  nextLogId: number;
+  /** The tick the tavern slate last renewed itself on. */
+  recruitRefreshTick: number;
+  /** Real time the game was last saved, for catching up on the time away. 0 before the first save. */
+  savedAt: number;
 }
 
-/** What a finished clearing party brought home, for the toast. */
-export interface ZoneClearReport {
-  zoneKey: string;
-  zoneName: string;
-  heroNames: string[];
-  experience: number;
-  sanityLoss: number;
-  resources: ResourceMap;
-  items: ItemStack[];
-  equipmentNames: string[];
-  bonusRecruit: boolean;
+export type LogKind =
+  | 'victory'
+  | 'defeat'
+  | 'broken'
+  | 'restored'
+  | 'wounded'
+  | 'healed'
+  | 'level'
+  | 'recruit'
+  | 'slate'
+  | 'crafted'
+  | 'craft_failed'
+  | 'built'
+  | 'upgraded'
+  | 'dismantled'
+  | 'claimed'
+  | 'dismissed';
+
+/**
+ * A line in the event log.
+ *
+ * Stamped with the tick rather than a wall-clock time, because the simulation
+ * has no wall clock; the log turns ticks back into "how long ago" when it draws.
+ * Text is stored as an i18n key and its parameters, so it reads in whatever
+ * language the page is in.
+ */
+export interface LogEntry {
+  id: number;
+  tick: number;
+  kind: LogKind;
+  key: string;
+  params: Record<string, string | number>;
+  /** Further lines, each a key and its parameters: a battle's blow-by-blow, a loot list. */
+  details: Array<{ key: string; params: Record<string, string | number> }>;
 }

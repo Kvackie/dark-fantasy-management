@@ -3,11 +3,18 @@
  */
 
 import { t } from '@/i18n';
-import { experienceCeiling, getBuilding, getHeroDefinition } from '@/sim/config';
+import { classSkills, experienceCeiling, getBuilding, getHeroDefinition } from '@/sim/config';
 import { effectiveStats, effectiveWorkStats, findHero, heroWorldTask } from '@/sim/heroes';
 import { equipmentDefinitionOf } from '@/sim/inventory';
 import { settlementName, settlementSlots } from '@/sim/settlements';
-import { EQUIPMENT_SLOTS, STAT_KEYS, WORK_STAT_KEYS, type Hero, type World } from '@/sim/types';
+import {
+  EQUIPMENT_SLOTS,
+  STAT_KEYS,
+  WORK_STAT_KEYS,
+  type EquipmentDefinition,
+  type Hero,
+  type World,
+} from '@/sim/types';
 import {
   button,
   card,
@@ -38,6 +45,20 @@ export function heroStatus(world: World, hero: Hero): string {
   return t('hero.status_idle');
 }
 
+/** Broken and Wounded, as badges; nothing for a fit hero. */
+export function conditionBadges(hero: Hero): Node[] {
+  const out: Node[] = [];
+  if (hero.broken)
+    out.push(
+      el('span', { class: 'badge danger', text: t('hero.broken'), title: t('hero.broken_help') }),
+    );
+  if (hero.wounded)
+    out.push(
+      el('span', { class: 'badge danger', text: t('hero.wounded'), title: t('hero.wounded_help') }),
+    );
+  return out;
+}
+
 export function renderHeroes(ui: Ui): Node[] {
   const world = ui.sim.world;
   if (world.heroes.length === 0) return [muted(t('heroes.empty'))];
@@ -57,6 +78,7 @@ export function renderHeroes(ui: Ui): Node[] {
                 class: 'muted small',
                 text: t('recruit.meta', { level: hero.level, heroClass: hero.heroClass }),
               }),
+              ...conditionBadges(hero),
             ]),
           ]),
           meter(t('stat.health'), stats.current_health, stats.max_health, 'health'),
@@ -109,11 +131,7 @@ export function renderHero(ui: Ui): Node[] {
       body = equipmentTab(ui, hero);
       break;
     case 'skills':
-      body = [
-        heading(t('hero.tab_skills')),
-        muted(t('hero.skills_placeholder')),
-        muted(t('hero.no_skills')),
-      ];
+      body = skillsTab(hero);
       break;
     case 'lore':
       body = loreTab(ui, hero);
@@ -153,6 +171,16 @@ function infoTab(world: World, hero: Hero): Node[] {
         statRow(t('hero.level'), String(hero.level)),
         statRow(t('hero.experience'), `${hero.experience}/${experienceCeiling(hero.level)}`),
         statRow(t('hero.assignment'), heroStatus(world, hero)),
+        statRow(
+          t('hero.condition'),
+          hero.broken && hero.wounded
+            ? `${t('hero.broken')}, ${t('hero.wounded')}`
+            : hero.broken
+              ? t('hero.broken')
+              : hero.wounded
+                ? t('hero.wounded')
+                : t('hero.fit'),
+        ),
         statRow(t('hero.source'), t('hero.source_core')),
       ]),
       card([
@@ -171,20 +199,69 @@ function infoTab(world: World, hero: Hero): Node[] {
   ];
 }
 
-function bonusLines(bonuses: {
-  stats: Record<string, number | undefined>;
-  work_stats: Record<string, number | undefined>;
-}): Node[] {
+function skillsTab(hero: Hero): Node[] {
+  const skills = classSkills(hero.heroClass);
+  return [
+    heading(t('hero.tab_skills')),
+    muted(t('hero.skills_intro', { heroClass: hero.heroClass })),
+    el(
+      'ul',
+      { class: 'skill-list' },
+      skills.map((skill) => {
+        const unlocked = skill.level <= hero.level;
+        return el('li', { class: `skill${unlocked ? ' unlocked' : ''}` }, [
+          el('div', { class: 'skill-head' }, [
+            el('strong', { text: skill.name }),
+            el('span', {
+              class: 'badge',
+              text: unlocked ? t('hero.skill_learned') : t('hero.skill_at', { level: skill.level }),
+            }),
+          ]),
+          el('p', { class: 'small', text: skill.description }),
+        ]);
+      }),
+    ),
+  ];
+}
+
+/**
+ * Each stat the new piece touches or the worn one did, with the change swapping would make.
+ *
+ * "+8 (+3)" reads as: this piece gives 8, which is 3 more than what is on now.
+ */
+function comparisonLines(next: EquipmentDefinition, worn: EquipmentDefinition | null): Node[] {
   const lines: Node[] = [];
+  const row = (label: string, value: number, before: number, statId: string) => {
+    const delta = value - before;
+    const node = statRow(label, `+${value}`, statId);
+    if (worn && delta !== 0) {
+      node.append(
+        el('span', {
+          class: `delta ${delta > 0 ? 'up' : 'down'}`,
+          text: `(${delta > 0 ? '+' : ''}${delta})`,
+        }),
+      );
+    }
+    return node;
+  };
   for (const key of STAT_KEYS) {
-    const value = bonuses.stats[key];
-    if (value) lines.push(statRow(statName(key), `+${value}`, key));
+    const value = next.bonuses.stats[key] ?? 0;
+    const before = worn?.bonuses.stats[key] ?? 0;
+    if (value || before) lines.push(row(statName(key), value, before, key));
   }
   for (const key of WORK_STAT_KEYS) {
-    const value = bonuses.work_stats[key];
-    if (value) lines.push(statRow(t(`work.${key}`), `+${value}`, key));
+    const value = next.bonuses.work_stats[key] ?? 0;
+    const before = worn?.bonuses.work_stats[key] ?? 0;
+    if (value || before) lines.push(row(t(`work.${key}`), value, before, key));
   }
-  return lines.length ? lines : [muted(t('common.none'))];
+  if (lines.length === 0) return [muted(t('common.none'))];
+  const same =
+    worn !== null &&
+    STAT_KEYS.every((key) => (next.bonuses.stats[key] ?? 0) === (worn.bonuses.stats[key] ?? 0)) &&
+    WORK_STAT_KEYS.every(
+      (key) => (next.bonuses.work_stats[key] ?? 0) === (worn.bonuses.work_stats[key] ?? 0),
+    );
+  return same ? [...lines, muted(t('hero.same_as_worn'), 'small')] : lines;
 }
 
 function equipmentTab(ui: Ui, hero: Hero): Node[] {
@@ -266,6 +343,10 @@ function equipmentTab(ui: Ui, hero: Hero): Node[] {
     const owner =
       selected.equippedHeroUid !== null ? findHero(world, selected.equippedHeroUid) : null;
     const close = () => ui.set({ heroPiece: null });
+    const wornUid = hero.equipment[slot];
+    const wornPiece =
+      wornUid !== null ? world.equipment.find((entry) => entry.uid === wornUid) : undefined;
+    const wornDefinition = wornPiece ? equipmentDefinitionOf(wornPiece) : null;
     out.push(
       modal(
         definition.name,
@@ -274,10 +355,11 @@ function equipmentTab(ui: Ui, hero: Hero): Node[] {
             class: 'muted small',
             text: owner ? t('inventory.worn_by', { name: owner.name }) : t('inventory.stored'),
           }),
-          heading(t('hero.combat_bonuses'), 4),
-          ...bonusLines({ stats: definition.bonuses.stats, work_stats: {} }),
-          heading(t('hero.work_bonuses'), 4),
-          ...bonusLines({ stats: {}, work_stats: definition.bonuses.work_stats }),
+          heading(t('hero.bonuses'), 4),
+          wornDefinition && !wornHere
+            ? muted(t('hero.compared_to', { name: wornDefinition.name }), 'small')
+            : null,
+          ...comparisonLines(definition, wornHere ? null : wornDefinition),
         ],
         [
           wornHere
@@ -285,10 +367,17 @@ function equipmentTab(ui: Ui, hero: Hero): Node[] {
                 variant: 'ghost',
               })
             : null,
-          button(t('hero.equip'), () => ui.act(() => ui.sim.equip(hero.uid, slot, selected.uid)), {
-            variant: 'primary',
-            disabled: wornHere,
-          }),
+          button(
+            t('hero.equip'),
+            () => {
+              ui.act(() => ui.sim.equip(hero.uid, slot, selected.uid));
+              ui.set({ heroPiece: null });
+            },
+            {
+              variant: 'primary',
+              disabled: wornHere,
+            },
+          ),
         ],
         close,
       ),

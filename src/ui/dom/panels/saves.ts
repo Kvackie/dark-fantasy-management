@@ -19,7 +19,14 @@ export function renderSaves(ui: Ui): Node[] {
         variant: 'ghost',
         small: true,
       }),
+      button(t('save.export'), () => ui.exportSave(), {
+        variant: 'ghost',
+        small: true,
+        icon: 'export',
+      }),
+      importButton(ui),
     ]),
+    muted(t('save.export_hint'), 'small'),
   ];
   for (const slot of slots) {
     const summary = ui.saves.summary(slot);
@@ -135,6 +142,26 @@ export function renderDebug(ui: Ui): Node[] {
   ];
 }
 
+/** A button that opens a file picker and imports the chosen save into a new slot. */
+function importButton(ui: Ui): HTMLElement {
+  const input = el('input', {
+    type: 'file',
+    accept: 'application/json,.json',
+    class: 'visually-hidden',
+  });
+  input.addEventListener('change', () => {
+    const file = input.files?.[0];
+    if (file) ui.importSave(file);
+    input.value = '';
+  });
+  const trigger = button(t('save.import'), () => input.click(), {
+    variant: 'ghost',
+    small: true,
+    icon: 'import',
+  });
+  return el('span', { class: 'import-button' }, [trigger, input]);
+}
+
 /** The main menu: over everything at boot, and from the nav at any time. */
 export function renderMenu(ui: Ui, canResume: boolean): HTMLElement {
   const mode = ui.state.menu;
@@ -200,6 +227,7 @@ export function renderMenu(ui: Ui, canResume: boolean): HTMLElement {
       button(t('menu.new_game'), () => ui.startNewGame(), canResume ? {} : { variant: 'primary' }),
       button(t('menu.continue'), () => ui.loadSlot(last), { disabled: last <= 0 }),
       button(t('menu.load_save'), () => ui.set({ menu: 'saves' })),
+      importButton(ui),
     );
   }
 

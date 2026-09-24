@@ -15,7 +15,7 @@
  */
 
 import { formatClock, formatNumber, formatYield, t } from '@/i18n';
-import { getItemDefinition } from '@/sim/config';
+import { logSince } from '@/sim/log';
 import { isCraftingUnlocked } from '@/sim/crafting';
 import { yieldPreview } from '@/sim/production';
 import {
@@ -28,13 +28,24 @@ import {
 } from '@/sim/puzzles';
 import { isRecruitmentUnlocked } from '@/sim/recruitment';
 import type { Simulation } from '@/sim/sim';
-import { RESOURCE_ORDER, type ResourceMap, type ZoneClearReport } from '@/sim/types';
+import { RESOURCE_ORDER, type LogEntry, type ResourceMap } from '@/sim/types';
+import type { AwaySummary } from '@/sim/sim';
 import type { SaveManager } from '@/platform/save';
 import { bus, changed, type ScreenId } from '@/ui/bus';
 import { iconSvg } from '@/ui/icons';
 import { resourceColors } from '@/ui/theme';
-import { button, el, modal, resourceName } from './components';
-import { initialUiState, type ConfirmRequest, type Ui, type UiState } from './context';
+import { button, el, modal, resourceList, resourceName } from './components';
+import { detailText, entryTitle, renderLog } from './panels/log';
+import { isMuted, playFor, setMuted } from '@/ui/sound';
+import { normalizeWorld } from '@/platform/save';
+import type { World } from '@/sim/types';
+import {
+  RECRUIT_CLOCK,
+  initialUiState,
+  type ConfirmRequest,
+  type Ui,
+  type UiState,
+} from './context';
 import { renderCraft, renderForge } from './panels/craft';
 import { renderHero, renderHeroes } from './panels/heroes';
 import { renderInventory } from './panels/inventory';
@@ -55,6 +66,8 @@ export interface ShellDeps {
   onZoom: (factor: number) => void;
   onNewGame: () => void;
   onLoad: (slot: number) => void;
+  /** Start playing an imported save, in a slot of its own. */
+  onImport: (world: World) => void;
   onSave: (slot: number) => boolean;
 }
 
@@ -69,6 +82,7 @@ const NAV: Array<{ screen: ScreenId | 'menu'; icon: string; label: string }> = [
   { screen: 'inventory', icon: 'inventory', label: 'nav.inventory' },
   { screen: 'craft', icon: 'craft', label: 'nav.craft' },
   { screen: 'debug', icon: 'debug', label: 'nav.debug' },
+  { screen: 'log', icon: 'log', label: 'nav.log' },
   { screen: 'saves', icon: 'saves', label: 'nav.saves' },
   { screen: 'menu', icon: 'menu', label: 'nav.home' },
 ];
@@ -90,13 +104,17 @@ export class Shell implements Ui {
   private drawnRevision = -1;
   private yields: ResourceMap = {};
   private liveClocks: HTMLElement[] = [];
+  /** The newest log entry already toasted; older ones are history, not news. */
+  private lastLogSeen = 0;
   private liveForge: { feedback: HTMLElement | null; progress: HTMLElement | null } = {
     feedback: null,
     progress: null,
   };
   private forgeShape = '';
 
-  constructor(private deps: ShellDeps) {}
+  constructor(private deps: ShellDeps) {
+    this.lastLogSeen = deps.sim.world.nextLogId - 1;
+  }
 
   get sim(): Simulation {
     return this.deps.sim;
@@ -166,6 +184,37 @@ export class Shell implements Ui {
     if (slot > 0) this.deps.onLoad(slot);
   }
 
+  /** Download this game as a file — the only copy that survives clearing the browser's data. */
+  exportSave(): void {
+    const world = { ...this.sim.world, savedAt: Date.now() };
+    const blob = new Blob([JSON.stringify(world)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = el('a', {
+      href: url,
+      download: `dark-fantasy-settlement-${new Date().toISOString().slice(0, 10)}.json`,
+    });
+    document.body.append(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  importSave(file: File): void {
+    void file.text().then((text) => {
+      let world: World | null = null;
+      try {
+        world = normalizeWorld(JSON.parse(text));
+      } catch {
+        world = null;
+      }
+      if (!world) {
+        this.showToast(t('save.import_failed'), []);
+        return;
+      }
+      this.deps.onImport(world);
+    });
+  }
+
   saveTo(slot: number): void {
     const ok = this.deps.onSave(slot);
     this.showToast(ok ? t('save.saved', { slot }) : t('save.failed'), []);
@@ -217,7 +266,24 @@ export class Shell implements Ui {
       badge.style.setProperty('--resource', resourceColors[id] ?? '#e6ddd3');
       return badge;
     });
-    this.hud.append(el('div', { class: 'hud-resources' }, badges));
+    const sound = button(
+      '',
+      () => {
+        setMuted(!isMuted());
+        sound.innerHTML = iconSvg(isMuted() ? 'mute' : 'sound', 18);
+        sound.title = isMuted() ? t('hud.unmute') : t('hud.mute');
+      },
+      {
+        variant: 'ghost',
+        small: true,
+        icon: isMuted() ? 'mute' : 'sound',
+        title: isMuted() ? t('hud.unmute') : t('hud.mute'),
+      },
+    );
+    sound.classList.add('hud-sound');
+    this.hud.append(
+      el('div', { class: 'hud-row' }, [el('div', { class: 'hud-resources' }, badges), sound]),
+    );
   }
 
   // -- the world map ------------------------------------------------------------
@@ -262,7 +328,7 @@ export class Shell implements Ui {
       }
     }
 
-    for (const report of this.sim.takeReports()) this.toastReport(report);
+    this.toastNewEntries();
 
     if (this.sim.revision !== this.drawnRevision) this.render();
     this.updateHud();
@@ -291,7 +357,9 @@ export class Shell implements Ui {
     for (const node of this.liveClocks) {
       const key = node.dataset.clock;
       if (!key) continue;
-      const text = formatClock(this.sim.clearingSecondsLeft(key));
+      const seconds =
+        key === RECRUIT_CLOCK ? this.sim.secondsToFreeRefresh() : this.sim.clearingSecondsLeft(key);
+      const text = formatClock(seconds);
       if (node.textContent !== text) node.textContent = text;
     }
     const forge = this.state.forge;
@@ -353,6 +421,7 @@ export class Shell implements Ui {
 
     const overlay: Node[] = [];
     if (this.state.menu) overlay.push(renderMenu(this, this.activeSlot > 0));
+    if (this.state.away && !this.state.menu) overlay.push(this.renderAway(this.state.away));
     if (this.state.confirm) overlay.push(this.renderConfirm(this.state.confirm));
     this.patch(this.overlay, overlay);
     document.body.classList.toggle('menu-open', this.state.menu !== null);
@@ -425,6 +494,8 @@ export class Shell implements Ui {
         return renderForge(this);
       case 'saves':
         return withTitle('page.save_vault', renderSaves(this));
+      case 'log':
+        return withTitle('page.log', renderLog(this));
       case 'debug':
         return withTitle('page.debug', renderDebug(this));
     }
@@ -453,33 +524,77 @@ export class Shell implements Ui {
 
   // -- toasts -----------------------------------------------------------------
 
-  private toastReport(report: ZoneClearReport): void {
-    const lines: string[] = [];
-    if (report.heroNames.length)
-      lines.push(t('report.heroes', { names: report.heroNames.join(', ') }));
-    if (report.experience > 0) lines.push(t('report.xp', { amount: report.experience }));
-    if (report.sanityLoss > 0) lines.push(t('report.sanity', { amount: report.sanityLoss }));
-    const resources = Object.entries(report.resources)
-      .filter(([, amount]) => amount !== 0)
-      .map(([id, amount]) => `${resourceName(id)} ${amount}`);
-    if (resources.length) lines.push(t('report.resources', { list: resources.join(', ') }));
-    const items = report.items.map(
-      (stack) =>
-        `${getItemDefinition(stack.definitionId)?.name ?? stack.definitionId} ×${stack.quantity}`,
-    );
-    if (items.length) lines.push(t('report.items', { list: items.join(', ') }));
-    if (report.equipmentNames.length) {
-      lines.push(t('report.equipment', { list: report.equipmentNames.join(', ') }));
+  /** Log kinds worth interrupting the player for. */
+  private static readonly TOASTED = new Set<LogEntry['kind']>([
+    'victory',
+    'defeat',
+    'broken',
+    'wounded',
+    'restored',
+    'healed',
+    'level',
+    'slate',
+  ]);
+
+  /** Toast whatever the log gained since the last frame. */
+  private toastNewEntries(): void {
+    const fresh = logSince(this.sim.world, this.lastLogSeen);
+    if (fresh.length === 0) return;
+    this.lastLogSeen = fresh[fresh.length - 1]!.id;
+    for (const entry of fresh) {
+      if (!Shell.TOASTED.has(entry.kind)) continue;
+      const lines =
+        entry.kind === 'victory' || entry.kind === 'defeat' ? entry.details.map(detailText) : [];
+      this.showToast(entryTitle(entry), lines, entry.kind);
+      playFor(entry.kind);
     }
-    if (report.bonusRecruit) lines.push(t('report.recruit'));
-    this.showToast(t('report.title', { name: report.zoneName }), lines);
   }
 
-  private showToast(title: string, lines: string[]): void {
-    const node = el('div', { class: 'toast', role: 'status' }, [
-      el('strong', { text: title }),
-      ...lines.map((line) => el('span', { text: line })),
-    ]);
+  /** Show the welcome-back dialog, if the absence was long enough to be worth one. */
+  showAway(summary: AwaySummary): void {
+    if (summary.awayMs < 60_000) return;
+    this.set({ away: summary });
+  }
+
+  private renderAway(summary: AwaySummary): HTMLElement {
+    const close = () => this.set({ away: null });
+    const hours = Math.floor(summary.awayMs / 3_600_000);
+    const minutes = Math.floor((summary.awayMs % 3_600_000) / 60_000);
+    return modal(
+      t('away.title'),
+      [
+        el('p', { text: t('away.duration', { hours, minutes }) }),
+        summary.simulatedMs < summary.awayMs
+          ? el('p', {
+              class: 'muted small',
+              text: t('away.capped', { hours: Math.round(summary.simulatedMs / 3_600_000) }),
+            })
+          : null,
+        el('p', { class: 'label', text: t('away.gained') }),
+        resourceList(summary.resources, 'yield'),
+        el('p', { class: 'muted small', text: t('away.events', { count: summary.events }) }),
+      ],
+      [
+        button(
+          t('away.open_log'),
+          () => {
+            this.state.away = null;
+            this.go('log');
+          },
+          { variant: 'ghost' },
+        ),
+        button(t('common.close'), close, { variant: 'primary' }),
+      ],
+      close,
+    );
+  }
+
+  private showToast(title: string, lines: string[], kind = ''): void {
+    const node = el(
+      'div',
+      { class: `toast ${kind ? `toast-${kind}` : ''}`.trim(), role: 'status' },
+      [el('strong', { text: title }), ...lines.map((line) => el('span', { text: line }))],
+    );
     this.toasts.append(node);
     while (this.toasts.children.length > 3) this.toasts.firstElementChild?.remove();
     window.setTimeout(() => {

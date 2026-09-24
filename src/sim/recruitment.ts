@@ -10,6 +10,7 @@
 
 import { allHeroes, getHeroDefinition, recruitmentConfig, type HeroDefinition } from './config';
 import { createHeroFromOffer } from './heroes';
+import { addLog } from './log';
 import { spend } from './resources';
 import { randomInt } from './rng';
 import { buildingCensus } from './settlements';
@@ -171,6 +172,32 @@ export function refreshOffers(world: World): boolean {
   world.queuedBonusOffers = [];
   world.recruitOffers = drawOffers(world, recruitablePool(world), offerCapacity(world));
   world.recruitMarketInitialized = true;
+  world.recruitRefreshTick = world.tickCount;
+  return true;
+}
+
+/** How often the slate renews itself for free: 150 ticks, five minutes. */
+export const RECRUIT_REFRESH_TICKS = 150;
+
+export function ticksToFreeRefresh(world: World): number {
+  return Math.max(0, world.recruitRefreshTick + RECRUIT_REFRESH_TICKS - world.tickCount);
+}
+
+/**
+ * Renew the slate on its own every few minutes.
+ *
+ * Heroes a cleared zone sent are kept — they were a reward, not a draw — and
+ * the ordinary offers are replaced. Paying for a refresh restarts the clock.
+ */
+export function autoRefreshOffers(world: World): boolean {
+  if (!isRecruitmentUnlocked(world) || ticksToFreeRefresh(world) > 0) return false;
+  const bonus = world.recruitOffers.filter((offer) => offer.source === 'zone_bonus');
+  const excluded = bonus.map((offer) => offer.definitionId);
+  const count = Math.max(0, offerCapacity(world));
+  world.recruitOffers = [...drawOffers(world, recruitablePool(world), count, excluded), ...bonus];
+  world.recruitMarketInitialized = true;
+  world.recruitRefreshTick = world.tickCount;
+  addLog(world, 'slate', 'log.slate', {});
   return true;
 }
 

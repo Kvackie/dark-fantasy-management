@@ -8,12 +8,35 @@
  * which is how the rest of the game knows to save and redraw.
  */
 
-import { TICK_MS, SPECIAL_BUILDING_EFFECTS, allEquipment, allHeroes, allItems } from './config';
+import {
+  TICK_MS,
+  allEquipment,
+  allHeroes,
+  allItems,
+  buildingEffect,
+  getBuilding,
+  getRecipe,
+} from './config';
 import { completeCraft } from './crafting';
-import { createHero, effectiveStats, findHero, grantExperience } from './heroes';
-import { addEquipment, addItem, equip, stripHero, unequip } from './inventory';
+import { createHero, effectiveStats, findHero, grantExperience, updateCondition } from './heroes';
+import {
+  addEquipment,
+  addItem,
+  equip,
+  equipmentDefinitionOf,
+  stripHero,
+  unequip,
+} from './inventory';
+import { addLog } from './log';
 import { settlementProduction } from './production';
-import { reconcileMarket, recruitFromOffer, refreshOffers, rollWeighted } from './recruitment';
+import {
+  autoRefreshOffers,
+  reconcileMarket,
+  recruitFromOffer,
+  refreshOffers,
+  rollWeighted,
+  ticksToFreeRefresh,
+} from './recruitment';
 import { addResources } from './resources';
 import { randomInt } from './rng';
 import {
@@ -23,16 +46,18 @@ import {
   dismantle,
   settlementDefinition,
   settlementSlots,
+  slotAt,
   unassignHero,
   upgrade,
 } from './settlements';
+import { effectTotal } from './skills';
 import {
   TRACKED_RESOURCES,
   type EquipmentInstance,
   type EquipmentSlot,
   type Hero,
+  type ResourceMap,
   type World,
-  type ZoneClearReport,
 } from './types';
 import {
   claimZone,
@@ -43,20 +68,30 @@ import {
 } from './zones';
 
 /**
- * How much missed time a returning tab may catch up on.
+ * The most time a single catch-up will run.
  *
- * A browser stops the frame loop in a background tab, so without catch-up a
- * settlement would sit frozen while the player is in another tab — unlike the
- * desktop build, which kept ticking when it lost focus. An hour covers that
- * without turning a reopened save into a week of instant production.
+ * A closed tab or a reopened save is caught up on the time it missed, as if
+ * the settlement had carried on without the player. Eight hours covers a night
+ * away; past that the settlement simply waits, which keeps a save opened after
+ * a month from being a month of instant production — and keeps the catch-up
+ * itself quick.
  */
-export const MAX_CATCH_UP_MS = 60 * 60 * 1000;
+export const MAX_CATCH_UP_MS = 8 * 60 * 60 * 1000;
+
+/** What happened while the player was away, for the welcome-back dialog. */
+export interface AwaySummary {
+  awayMs: number;
+  /** How much of that was simulated; less than `awayMs` past the cap. */
+  simulatedMs: number;
+  ticks: number;
+  resources: ResourceMap;
+  /** Log entries written while away. */
+  events: number;
+}
 
 export class Simulation {
   /** Bumped on every change, so observers can tell cheaply whether to redraw or save. */
   revision = 0;
-  /** Parties home since the shell last looked, for the toast. */
-  private reports: ZoneClearReport[] = [];
 
   constructor(public world: World) {
     reconcileMarket(this.world, true);
@@ -82,6 +117,21 @@ export class Simulation {
     return ticks;
   }
 
+  /** Run the time since the game was last saved, and say what it came to. */
+  catchUp(now: number): AwaySummary {
+    const awayMs = this.world.savedAt > 0 ? Math.max(0, now - this.world.savedAt) : 0;
+    const simulatedMs = Math.min(awayMs, MAX_CATCH_UP_MS);
+    const before = { ...this.world.resources };
+    const firstLog = this.world.nextLogId;
+    const ticks = this.advanceBy(simulatedMs);
+    const resources: ResourceMap = {};
+    for (const id of TRACKED_RESOURCES) {
+      const delta = this.world.resources[id] - before[id];
+      if (delta !== 0) resources[id] = delta;
+    }
+    return { awayMs, simulatedMs, ticks, resources, events: this.world.nextLogId - firstLog };
+  }
+
   /** Milliseconds until the next tick lands. */
   get msToNextTick(): number {
     return Math.max(0, TICK_MS - this.world.tickProgressMs);
@@ -94,59 +144,95 @@ export class Simulation {
     return (Math.max(0, zone.ticksRemaining - 1) * TICK_MS + this.msToNextTick) / 1000;
   }
 
+  /** Seconds until the tavern slate renews itself. */
+  secondsToFreeRefresh(): number {
+    const ticks = ticksToFreeRefresh(this.world);
+    return (Math.max(0, ticks - 1) * TICK_MS + this.msToNextTick) / 1000;
+  }
+
   processTick(): void {
     const world = this.world;
     world.tickCount += 1;
-    /*
-     * The Triage's gold is taken by `tickSpecialBuildings`, per patient actually
-     * treated. The production preview shows it as a cost too, and the Godot build
-     * charged it from both places — every patient cost double what the panel
-     * said. It is left out of the production step here so it is charged once.
-     */
+    // The Triage's gold is taken per patient actually treated, in `tickSpecialBuildings`.
     addResources(world, settlementProduction(world, false));
     tickClaimedRewards(world);
     this.tickSpecialBuildings();
-    this.reports.push(...tickZones(world));
+    tickZones(world);
+    autoRefreshOffers(world);
     this.revision += 1;
   }
 
-  /** The Triage heals, the Barracks trains. */
+  /** Log a hero's recovery or collapse, if their condition just changed. */
+  private checkCondition(hero: Hero): void {
+    for (const change of updateCondition(this.world, hero)) {
+      addLog(this.world, change, `log.${change}`, { name: hero.name });
+    }
+  }
+
+  /**
+   * The Triage heals health for gold, the Chapel restores sanity for nothing but
+   * time, and the Barracks trains. A patient leaves on their own once whole.
+   */
   private tickSpecialBuildings(): void {
     const world = this.world;
-    const { goldCostPerHero, healPerHero } = SPECIAL_BUILDING_EFFECTS.triage;
-    const { experiencePerHero } = SPECIAL_BUILDING_EFFECTS.barracks;
     for (const settlementId of world.ownedSettlementIds) {
       settlementSlots(world, settlementId).forEach((slot, index) => {
-        if (slot.buildingId === 'triage') {
-          for (const hero of assignedHeroes(world, settlementId, index)) {
+        const building = getBuilding(slot.buildingId);
+        if (!building) return;
+        const staff = assignedHeroes(world, settlementId, index);
+        if (building.id === 'triage') {
+          const heal = buildingEffect(
+            building,
+            'heal_health_per_hero',
+            'heal_per_level',
+            slot.level,
+          );
+          const cost = buildingEffect(building, 'gold_per_hero', '', slot.level);
+          for (const hero of staff) {
             const stats = effectiveStats(world, hero);
             if (stats.current_health >= stats.max_health) {
               hero.assignment = null;
+              this.checkCondition(hero);
               continue;
             }
             // No gold, no treatment — for this patient and everyone after them.
-            if (goldCostPerHero <= 0 || world.resources.gold < goldCostPerHero) break;
-            world.resources.gold -= goldCostPerHero;
-            hero.stats.current_health = Math.min(
-              hero.stats.current_health + healPerHero,
-              stats.max_health,
-            );
-            if (stats.current_health + healPerHero >= stats.max_health) hero.assignment = null;
+            if (cost > 0 && world.resources.gold < cost) break;
+            world.resources.gold -= cost;
+            const amount = Math.round(heal * (1 + effectTotal(hero, 'recovery_pct') / 100));
+            hero.stats.current_health = Math.min(stats.current_health + amount, stats.max_health);
+            if (hero.stats.current_health >= stats.max_health) hero.assignment = null;
+            this.checkCondition(hero);
           }
-        } else if (slot.buildingId === 'barracks' && experiencePerHero > 0) {
-          for (const hero of assignedHeroes(world, settlementId, index)) {
-            grantExperience(hero, experiencePerHero);
+        } else if (building.id === 'chapel') {
+          const restore = buildingEffect(
+            building,
+            'restore_sanity_per_hero',
+            'restore_per_level',
+            slot.level,
+          );
+          for (const hero of staff) {
+            const stats = effectiveStats(world, hero);
+            const amount = Math.round(restore * (1 + effectTotal(hero, 'recovery_pct') / 100));
+            hero.stats.current_sanity = Math.min(stats.current_sanity + amount, stats.max_sanity);
+            if (hero.stats.current_sanity >= stats.max_sanity) hero.assignment = null;
+            this.checkCondition(hero);
+          }
+        } else if (building.id === 'barracks') {
+          const xp = buildingEffect(
+            building,
+            'experience_per_hero',
+            'experience_per_level',
+            slot.level,
+          );
+          if (xp <= 0) return;
+          for (const hero of staff) {
+            if (grantExperience(hero, xp) > 0) {
+              addLog(world, 'level', 'log.level', { name: hero.name, level: hero.level });
+            }
           }
         }
       });
     }
-  }
-
-  /** Reports of parties that came home, oldest first. Taking them empties the list. */
-  takeReports(): ZoneClearReport[] {
-    const out = this.reports;
-    this.reports = [];
-    return out;
   }
 
   // -- settlements ------------------------------------------------------------
@@ -160,18 +246,43 @@ export class Simulation {
     return this.touch(true);
   }
 
-  build(index: number, buildingId: string): boolean {
-    return this.afterSettlementChange(
-      build(this.world, this.world.activeSettlementId, index, buildingId),
+  private buildingName(index: number): string {
+    return (
+      getBuilding(slotAt(this.world, this.world.activeSettlementId, index)?.buildingId ?? null)
+        ?.name ?? ''
     );
   }
 
+  build(index: number, buildingId: string): boolean {
+    const ok = build(this.world, this.world.activeSettlementId, index, buildingId);
+    if (ok) this.logSettlement('built', 'log.built', index);
+    return this.afterSettlementChange(ok);
+  }
+
   upgrade(index: number): boolean {
-    return this.afterSettlementChange(upgrade(this.world, this.world.activeSettlementId, index));
+    const ok = upgrade(this.world, this.world.activeSettlementId, index);
+    if (ok) this.logSettlement('upgraded', 'log.upgraded', index);
+    return this.afterSettlementChange(ok);
   }
 
   dismantle(index: number): boolean {
-    return this.afterSettlementChange(dismantle(this.world, this.world.activeSettlementId, index));
+    const name = this.buildingName(index);
+    const ok = dismantle(this.world, this.world.activeSettlementId, index);
+    if (ok) {
+      addLog(this.world, 'dismantled', 'log.dismantled', {
+        building: name,
+        settlement: settlementDefinition(this.world, this.world.activeSettlementId)?.name ?? '',
+      });
+    }
+    return this.afterSettlementChange(ok);
+  }
+
+  private logSettlement(kind: 'built' | 'upgraded', key: string, index: number): void {
+    addLog(this.world, kind, key, {
+      building: this.buildingName(index),
+      level: slotAt(this.world, this.world.activeSettlementId, index)?.level ?? 1,
+      settlement: settlementDefinition(this.world, this.world.activeSettlementId)?.name ?? '',
+    });
   }
 
   /** A new or lost tavern changes the recruit market, so it is squared up after any building change. */
@@ -198,7 +309,10 @@ export class Simulation {
   }
 
   recruit(offerId: number): Hero | null {
-    return this.touch(recruitFromOffer(this.world, offerId));
+    const hero = recruitFromOffer(this.world, offerId);
+    if (hero)
+      addLog(this.world, 'recruit', 'log.recruit', { name: hero.name, heroClass: hero.heroClass });
+    return this.touch(hero);
   }
 
   /** Let a hero go for good: off their plot, out of their party, out of their gear. */
@@ -209,6 +323,7 @@ export class Simulation {
     stripHero(this.world, hero);
     removeHeroFromZones(this.world, uid);
     this.world.heroes = this.world.heroes.filter((entry) => entry.uid !== uid);
+    addLog(this.world, 'dismissed', 'log.dismissed', { name: hero.name });
     return this.touch(true);
   }
 
@@ -231,6 +346,14 @@ export class Simulation {
     maxFailures: number,
   ): EquipmentInstance | null {
     const piece = completeCraft(this.world, recipeId, success, failures, maxFailures);
+    const recipe = getRecipe(recipeId);
+    if (piece) {
+      addLog(this.world, 'crafted', 'log.crafted', {
+        name: equipmentDefinitionOf(piece)?.name ?? recipe?.name ?? recipeId,
+      });
+    } else if (recipe) {
+      addLog(this.world, 'craft_failed', 'log.craft_failed', { name: recipe.name });
+    }
     // A failed craft still spent its materials, which is a change worth saving.
     this.revision += 1;
     return piece;
@@ -281,7 +404,11 @@ export class Simulation {
   }
 
   debugGrantHeroExperience(amount = 100): void {
-    for (const hero of this.world.heroes) grantExperience(hero, amount);
+    for (const hero of this.world.heroes) {
+      if (grantExperience(hero, amount) > 0) {
+        addLog(this.world, 'level', 'log.level', { name: hero.name, level: hero.level });
+      }
+    }
     this.touch(this.world.heroes.length > 0);
   }
 

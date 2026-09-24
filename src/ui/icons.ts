@@ -49,6 +49,13 @@ const ICONS: Record<string, string> = {
     '<circle cx="12" cy="12" r="3.5"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/>',
   saves: '<path d="M6 3h9l4 4v14H6Z"/><path d="M15 3v4h4M9 12h7M9 16h7"/>',
   menu: '<path d="M4 7h16M4 12h16M4 17h16"/>',
+  log: '<path d="M7 3h10a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z"/><path d="M9 8h6M9 12h6M9 16h4"/>',
+  sound: '<path d="M4 9h4l5-4v14l-5-4H4Z"/><path d="M16 9a4 4 0 0 1 0 6M18.5 6.5a8 8 0 0 1 0 11"/>',
+  mute: '<path d="M4 9h4l5-4v14l-5-4H4Z"/><path d="M17 9l4 6M21 9l-4 6"/>',
+  export: '<path d="M12 4v11M8 8l4-4 4 4"/><path d="M5 14v5h14v-5"/>',
+  import: '<path d="M12 4v11M8 11l4 4 4-4"/><path d="M5 14v5h14v-5"/>',
+  chapel:
+    '<path d="M12 2v5M10 4h4"/><path d="M6 21V11l6-4 6 4v10Z"/><path d="M10 21v-5a2 2 0 0 1 4 0v5"/>',
   close: '<path d="M6 6l12 12M18 6L6 18"/>',
   plus: '<path d="M12 5v14M5 12h14"/>',
   minus: '<path d="M5 12h14"/>',

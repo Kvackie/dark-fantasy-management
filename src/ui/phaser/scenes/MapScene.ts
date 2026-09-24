@@ -93,8 +93,18 @@ export class MapScene extends Phaser.Scene {
     return worldConfig.zoneSize + worldConfig.zoneGap;
   }
 
+  /**
+   * Drag to pan, wheel to zoom, tap to open — and on a touch screen, two
+   * fingers to pinch. A pinch takes over from any drag in progress and cancels
+   * the tap, so lifting the fingers never opens a zone by accident.
+   */
   private enableInput(): void {
+    this.input.addPointer(1);
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+      if (this.pinchPointers().length >= 2) {
+        this.startPinch();
+        return;
+      }
       const cam = this.cameras.main;
       this.press = {
         x: pointer.x,
@@ -105,6 +115,10 @@ export class MapScene extends Phaser.Scene {
       };
     });
     this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
+      if (this.pinch) {
+        this.updatePinch();
+        return;
+      }
       if (!this.press || !pointer.isDown) return;
       const dx = pointer.x - this.press.x;
       const dy = pointer.y - this.press.y;
@@ -116,6 +130,12 @@ export class MapScene extends Phaser.Scene {
       cam.scrollY = this.press.scrollY - dy / cam.zoom;
     });
     const release = (pointer: Phaser.Input.Pointer) => {
+      if (this.pinch) {
+        // The pinch ends when either finger lifts; what is left must not read as a tap.
+        if (this.pinchPointers().length < 2) this.pinch = null;
+        this.press = null;
+        return;
+      }
       const press = this.press;
       this.press = null;
       if (!press || press.dragging) return;
@@ -125,6 +145,7 @@ export class MapScene extends Phaser.Scene {
     this.input.on('pointerup', release);
     this.input.on('pointerupoutside', () => {
       this.press = null;
+      if (this.pinchPointers().length < 2) this.pinch = null;
     });
     this.input.on(
       'wheel',
@@ -132,6 +153,36 @@ export class MapScene extends Phaser.Scene {
         this.zoomAt(dy > 0 ? 1 / ZOOM_STEP : ZOOM_STEP, pointer.x, pointer.y);
       },
     );
+  }
+
+  private pinch: { distance: number; zoom: number } | null = null;
+
+  private pinchPointers(): Phaser.Input.Pointer[] {
+    return [this.input.pointer1, this.input.pointer2].filter((p): p is Phaser.Input.Pointer =>
+      Boolean(p?.isDown),
+    );
+  }
+
+  private startPinch(): void {
+    const [a, b] = this.pinchPointers();
+    if (!a || !b) return;
+    this.press = null;
+    this.pinch = {
+      distance: Math.max(1, Math.hypot(a.x - b.x, a.y - b.y)),
+      zoom: this.cameras.main.zoom,
+    };
+  }
+
+  private updatePinch(): void {
+    const [a, b] = this.pinchPointers();
+    if (!a || !b || !this.pinch) return;
+    const distance = Math.max(1, Math.hypot(a.x - b.x, a.y - b.y));
+    const target = Phaser.Math.Clamp(
+      (this.pinch.zoom * distance) / this.pinch.distance,
+      ZOOM_MIN,
+      ZOOM_MAX,
+    );
+    this.zoomAt(target / this.cameras.main.zoom, (a.x + b.x) / 2, (a.y + b.y) / 2);
   }
 
   /** Which zone is under a screen point, if the point is on a tile rather than in a gap. */

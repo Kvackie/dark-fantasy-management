@@ -13,7 +13,7 @@
 import {
   GATHERING_LODGE_GOLD_BONUS_PER_HERO,
   RESOURCE_WORK_STAT,
-  SPECIAL_BUILDING_EFFECTS,
+  buildingEffect,
   WORK_STAT_PRODUCTION_BONUS_PER_POINT,
   getBuilding,
 } from './config';
@@ -29,7 +29,7 @@ export function slotProduction(world: World, settlementId: string, index: number
 
   // The Triage makes nothing; it costs gold for each patient it holds.
   if (building.id === 'triage') {
-    const cost = SPECIAL_BUILDING_EFFECTS.triage.goldCostPerHero;
+    const cost = buildingEffect(building, 'gold_per_hero', '', slot.level);
     return staff.length > 0 && cost > 0 ? { gold: -cost * staff.length } : {};
   }
 

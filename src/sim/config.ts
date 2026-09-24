@@ -11,6 +11,8 @@ import settlementsJson from '@/data/settlements.json';
 import worldJson from '@/data/world.json';
 import recruitmentJson from '@/data/recruitment.json';
 import heroesJson from '@/data/heroes.json';
+import enemiesJson from '@/data/enemies.json';
+import skillsJson from '@/data/skills.json';
 import itemsJson from '@/data/items.json';
 import equipmentJson from '@/data/equipment.json';
 import recipesJson from '@/data/crafting_recipes.json';
@@ -69,11 +71,6 @@ export const DEFAULT_HERO_WORK_STAT_GROWTH: WorkStats = { farming: 1, mining: 1,
 
 export const HERO_CLASSES = ['Attacker', 'Defender', 'Supporter'] as const;
 
-export const SPECIAL_BUILDING_EFFECTS = {
-  triage: { goldCostPerHero: 3, healPerHero: 3 },
-  barracks: { experiencePerHero: 1 },
-} as const;
-
 /** Which work stat speeds up which resource. */
 export const RESOURCE_WORK_STAT: Record<string, WorkStatKey> = {
   food: 'farming',
@@ -84,9 +81,19 @@ export const RESOURCE_WORK_STAT: Record<string, WorkStatKey> = {
 export const WORK_STAT_PRODUCTION_BONUS_PER_POINT = 0.03;
 export const GATHERING_LODGE_GOLD_BONUS_PER_HERO = 0.1;
 
-/** Experience needed to leave a level: ten per level, cumulative. */
+/**
+ * Lifetime experience needed to leave a level: 10 to leave the first, then 20,
+ * 30, 40 more for each after it. A curve rather than a flat ten a level, so a
+ * Barracks trains a recruit quickly and a veteran slowly.
+ */
 export function experienceCeiling(level: number): number {
-  return Math.max(1, level) * 10;
+  const l = Math.max(1, level);
+  return 5 * l * (l + 1);
+}
+
+/** The lifetime experience a hero has on first reaching `level`. */
+export function experienceForLevel(level: number): number {
+  return level <= 1 ? 0 : experienceCeiling(level - 1);
 }
 
 // -- helpers ------------------------------------------------------------------
@@ -180,6 +187,21 @@ export interface BuildingDefinition {
   workerSlots: number;
   assignmentRequirements: Partial<Record<WorkStatKey, number>>;
   maxLevel: number;
+  /** Numbers for what the special buildings do — the Triage, Barracks and Chapel. */
+  effects: Record<string, number>;
+}
+
+/** A special building's effect at a level: its base, plus a step per level after the first, rounded down. */
+export function buildingEffect(
+  building: BuildingDefinition | null,
+  base: string,
+  perLevel: string,
+  level: number,
+): number {
+  if (!building) return 0;
+  const value =
+    (building.effects[base] ?? 0) + Math.max(0, level - 1) * (building.effects[perLevel] ?? 0);
+  return Math.floor(value);
 }
 
 const buildings: BuildingDefinition[] = asArray(asRecord(buildingsJson).buildings).flatMap(
@@ -206,6 +228,9 @@ const buildings: BuildingDefinition[] = asArray(asRecord(buildingsJson).building
         workerSlots: Math.max(0, int(record.worker_slots)),
         assignmentRequirements: requirements,
         maxLevel: Math.max(1, int(record.max_level, 1)),
+        effects: Object.fromEntries(
+          Object.entries(asRecord(record.effects)).map(([key, value]) => [key, Number(value) || 0]),
+        ),
       },
     ];
   },
@@ -301,7 +326,6 @@ export interface ZoneOverride {
   claim_cost?: ResourceMap;
   settlement_id?: string;
   settlement_name?: string;
-  requirements?: Record<string, number>;
 }
 
 export interface WorldConfig {
@@ -312,12 +336,20 @@ export interface WorldConfig {
   maxClearingParty: number;
   clearRequirements: {
     safeRadius: number;
-    attackBase: number;
-    attackGrowth: number;
-    defenseBase: number;
-    defenseGrowth: number;
     sanityLossBase: number;
     sanityLossGrowth: number;
+  };
+  enemyGroups: {
+    baseCount: number;
+    /** One more enemy for every this many rings out. */
+    countPerRings: number;
+    /** Chance in 100 of one more on top. */
+    extraCountChance: number;
+    maxCount: number;
+    /** Stat multiplier added per ring beyond the first. */
+    powerPerRing: number;
+    /** `[fromRing, toRing, tiers]`: which enemy tiers hold zones in that band. */
+    tierRings: Array<[number, number, number[]]>;
   };
   clearRewards: { experienceBase: number; experienceGrowth: number; tables: RewardTable[] };
   zoneSize: number;
@@ -363,6 +395,7 @@ function readClaimedReward(value: unknown): SpecialBiome['claimed_reward'] | und
 const worldRecord = asRecord(asRecord(worldJson).config);
 const requirementRecord = asRecord(worldRecord.clear_requirements);
 const rewardRecord = asRecord(worldRecord.clear_rewards);
+const groupRecord = asRecord(worldRecord.enemy_groups);
 const claimRecord = asRecord(worldRecord.claim_cost);
 const nameRecord = asRecord(worldRecord.name_generation);
 
@@ -374,12 +407,19 @@ export const worldConfig: WorldConfig = {
   maxClearingParty: Math.max(1, int(worldRecord.max_clearing_party, 3)),
   clearRequirements: {
     safeRadius: Math.max(0, int(requirementRecord.safe_radius, 2)),
-    attackBase: int(requirementRecord.attack_base, 0),
-    attackGrowth: int(requirementRecord.attack_growth, 3),
-    defenseBase: int(requirementRecord.defense_base, 0),
-    defenseGrowth: int(requirementRecord.defense_growth, 2),
     sanityLossBase: int(requirementRecord.sanity_loss_base, 0),
     sanityLossGrowth: int(requirementRecord.sanity_loss_growth, 1),
+  },
+  enemyGroups: {
+    baseCount: Math.max(1, int(groupRecord.base_count, 1)),
+    countPerRings: Math.max(1, int(groupRecord.count_per_rings, 2)),
+    extraCountChance: Math.max(0, Math.min(100, int(groupRecord.extra_count_chance, 50))),
+    maxCount: Math.max(1, int(groupRecord.max_count, 5)),
+    powerPerRing: Number(groupRecord.power_per_ring ?? 0.15) || 0,
+    tierRings: asArray(groupRecord.tier_rings).map((band) => {
+      const [from, to, tiers] = asArray(band);
+      return [int(from, 0), int(to, 999), asArray(tiers).map((tier) => int(tier, 1))];
+    }),
   },
   clearRewards: {
     experienceBase: int(rewardRecord.experience_base, 2),
@@ -440,7 +480,6 @@ export const worldConfig: WorldConfig = {
       if (typeof record.settlement_name === 'string') {
         override.settlement_name = record.settlement_name.trim();
       }
-      if (record.requirements !== undefined) override.requirements = numberMap(record.requirements);
       return [key, override];
     }),
   ),
@@ -708,4 +747,117 @@ export function allRecipes(): readonly Recipe[] {
 
 export function getRecipe(id: string): Recipe | null {
   return recipeById.get(id) ?? null;
+}
+
+// -- enemies ------------------------------------------------------------------
+
+export interface EnemyDefinition {
+  id: string;
+  name: string;
+  tier: number;
+  biomes: string[];
+  stats: BaseStats;
+  /** Sanity each hero in the party loses for having faced this enemy. */
+  dread: number;
+  drops: RewardEntry[];
+}
+
+const enemies: EnemyDefinition[] = asArray(asRecord(enemiesJson).enemies).flatMap((entry) => {
+  const record = asRecord(entry);
+  const id = sanitizeId(str(record.id));
+  const name = str(record.name);
+  if (!id || !name) return [];
+  return [
+    {
+      id,
+      name,
+      tier: Math.max(1, int(record.tier, 1)),
+      biomes: asArray(record.biomes).map((biome) => String(biome)),
+      stats: readStatBlock(record.stats, DEFAULT_HERO_STATS),
+      dread: Math.max(0, int(record.dread, 1)),
+      drops: readRewardEntries(record.drops),
+    },
+  ];
+});
+
+const enemyById = new Map(enemies.map((e) => [e.id, e]));
+
+export function allEnemies(): readonly EnemyDefinition[] {
+  return enemies;
+}
+
+export function getEnemy(id: string): EnemyDefinition | null {
+  return enemyById.get(id) ?? null;
+}
+
+// -- skills -------------------------------------------------------------------
+
+export type SkillEffect =
+  | { type: 'stat_pct' | 'stat_flat'; stat: StatKey; value: number }
+  | { type: 'work_flat'; stat: WorkStatKey; value: number }
+  | { type: 'execute'; threshold: number; value: number }
+  | {
+      type:
+        | 'taunt'
+        | 'party_damage_taken_pct'
+        | 'party_sanity_loss_pct'
+        | 'party_heal_after_battle_pct'
+        | 'party_loot_pct'
+        | 'recovery_pct';
+      value: number;
+    };
+
+export interface SkillDefinition {
+  id: string;
+  heroClass: string;
+  /** The hero level that unlocks it. */
+  level: number;
+  name: string;
+  description: string;
+  effects: SkillEffect[];
+}
+
+const SKILL_EFFECT_TYPES = new Set([
+  'stat_pct',
+  'stat_flat',
+  'work_flat',
+  'execute',
+  'taunt',
+  'party_damage_taken_pct',
+  'party_sanity_loss_pct',
+  'party_heal_after_battle_pct',
+  'party_loot_pct',
+  'recovery_pct',
+]);
+
+const skills: SkillDefinition[] = asArray(asRecord(skillsJson).skills).flatMap((entry) => {
+  const record = asRecord(entry);
+  const id = sanitizeId(str(record.id));
+  const name = str(record.name);
+  if (!id || !name) return [];
+  const effects = asArray(record.effects).flatMap((value): SkillEffect[] => {
+    const effect = asRecord(value);
+    const type = str(effect.type);
+    if (!SKILL_EFFECT_TYPES.has(type)) return [];
+    return [{ ...effect, type, value: Number(effect.value) || 0 } as SkillEffect];
+  });
+  return [
+    {
+      id,
+      heroClass: normalizeHeroClass(str(record.class)),
+      level: Math.max(1, int(record.level, 1)),
+      name,
+      description: str(record.description),
+      effects,
+    },
+  ];
+});
+
+export function allSkills(): readonly SkillDefinition[] {
+  return skills;
+}
+
+/** A class's skills in unlock order. */
+export function classSkills(heroClass: string): SkillDefinition[] {
+  return skills.filter((skill) => skill.heroClass === heroClass).sort((a, b) => a.level - b.level);
 }

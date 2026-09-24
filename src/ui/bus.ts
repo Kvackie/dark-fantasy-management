@@ -17,6 +17,7 @@ export type ScreenId =
   | 'craft'
   | 'forge'
   | 'saves'
+  | 'log'
   | 'debug';
 
 export type GameEvent =

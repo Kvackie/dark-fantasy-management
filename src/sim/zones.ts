@@ -7,39 +7,45 @@
  * rise with distance from the origin, measured in rings (Chebyshev distance).
  *
  * Everything about a zone that is not a choice the player made — its biome, its
- * name, its claim cost, what it drops — is hashed from the world seed and its
- * coordinates, so the same seed draws the same map however it is explored.
+ * name, its claim cost, the enemies holding it — is hashed from the world seed
+ * and its coordinates, so the same seed draws the same map however it is
+ * explored. What a fight goes like, and what it drops, is rolled when it happens.
+ *
+ * Clearing a zone means beating what holds it: the party marches for the
+ * zone's clear time, then fights (see `combat.ts`). Win, and the zone is
+ * cleared and pays out; lose, and the party limps home with half the
+ * experience, more of its nerve gone, and the zone as it was.
  */
 
+import { battle, enemyFighter, heroFighter, winChance, type BattleResult } from './combat';
 import {
+  allEnemies,
   defaultSettlementId,
   getCoreSettlement,
+  getEnemy,
   getEquipmentDefinition,
+  getItemDefinition,
   worldConfig,
   type RewardEntry,
   type RewardTable,
 } from './config';
-import {
-  effectiveStats,
-  effectiveWorkStats,
-  findHero,
-  grantExperience,
-  isHeroIdle,
-} from './heroes';
+import { findHero, grantExperience, isHeroAvailable, updateCondition } from './heroes';
 import { addEquipment, addItem } from './inventory';
+import { addLog } from './log';
 import { seedZoneBonusOffer } from './recruitment';
 import { addResources, hasNonZero, spend } from './resources';
-import { coordIndex, coordRange, stringHash } from './rng';
+import { coordIndex, coordRange, nextRandom, randomInt, stringHash } from './rng';
 import { settlementSlots } from './settlements';
-import {
-  WORK_STAT_KEYS,
-  type ResourceMap,
-  type SettlementDefinition,
-  type World,
-  type Zone,
-  type ZoneClearReport,
-  type ZoneRequirements,
-  type ZoneState,
+import { partyEffect } from './skills';
+import type {
+  Hero,
+  LogEntry,
+  ResourceMap,
+  SettlementDefinition,
+  World,
+  Zone,
+  ZoneEnemy,
+  ZoneState,
 } from './types';
 
 export function zoneKey(x: number, y: number): string {
@@ -63,31 +69,41 @@ function dangerRings(x: number, y: number): number {
   return Math.max(0, zoneDistance(x, y) - worldConfig.clearRequirements.safeRadius);
 }
 
-export function normalizeRequirements(source: Partial<Record<string, number>>): ZoneRequirements {
-  const read = (key: string) => Math.max(0, Math.trunc(source[key] ?? 0));
-  return {
-    level: read('level'),
-    sanity: read('sanity'),
-    attack: read('attack'),
-    defense: read('defense'),
-    farming: read('farming'),
-    mining: read('mining'),
-    lumbering: read('lumbering'),
-  };
+/**
+ * The enemies holding a zone.
+ *
+ * More of them further out, and of harder tiers; which ones is down to the
+ * zone's biome. Their stats scale with distance, so a Bog Ghoul four rings out
+ * hits harder than one next door.
+ */
+export function generateEnemies(seed: number, x: number, y: number, biome: string): ZoneEnemy[] {
+  const distance = zoneDistance(x, y);
+  if (distance === 0) return [];
+  const config = worldConfig.enemyGroups;
+  const extra = coordRange(seed, x, y, 97, 1, 100) <= config.extraCountChance ? 1 : 0;
+  const count = Math.min(
+    config.maxCount,
+    config.baseCount + Math.floor((distance - 1) / config.countPerRings) + extra,
+  );
+  const band = config.tierRings.find(([from, to]) => distance >= from && distance <= to);
+  const tiers = band?.[2] ?? [1];
+  let pool = allEnemies().filter((e) => tiers.includes(e.tier) && e.biomes.includes(biome));
+  if (pool.length === 0) pool = allEnemies().filter((e) => tiers.includes(e.tier));
+  if (pool.length === 0) pool = [...allEnemies()];
+  const power = Math.round((1 + (distance - 1) * config.powerPerRing) * 100) / 100;
+  const out: ZoneEnemy[] = [];
+  for (let i = 0; i < count && pool.length > 0; i += 1) {
+    const pick = pool[coordIndex(seed, x, y, 101 + i, pool.length)];
+    if (pick) out.push({ id: pick.id, power });
+  }
+  return out;
 }
 
-export function generateRequirements(x: number, y: number): ZoneRequirements {
+/** Sanity each hero loses on an expedition: distance, and the dread of what they faced. */
+export function zoneSanityLoss(x: number, y: number, enemies: ZoneEnemy[]): number {
   const config = worldConfig.clearRequirements;
-  const rings = dangerRings(x, y);
-  return normalizeRequirements({
-    attack: config.attackBase + rings * config.attackGrowth,
-    defense: config.defenseBase + rings * config.defenseGrowth,
-  });
-}
-
-export function zoneSanityLoss(x: number, y: number): number {
-  const config = worldConfig.clearRequirements;
-  return Math.max(0, config.sanityLossBase + dangerRings(x, y) * config.sanityLossGrowth);
+  const dread = enemies.reduce((sum, enemy) => sum + (getEnemy(enemy.id)?.dread ?? 0), 0);
+  return Math.max(0, config.sanityLossBase + dangerRings(x, y) * config.sanityLossGrowth + dread);
 }
 
 export function zoneExperience(x: number, y: number): number {
@@ -104,18 +120,17 @@ export function rewardTable(x: number, y: number): RewardTable | null {
   );
 }
 
-function rewardSucceeds(seed: number, zone: Zone, entry: RewardEntry): boolean {
+function rewardSucceeds(world: World, entry: RewardEntry): boolean {
   const chance = Math.max(0, Math.min(100, entry.chance ?? 100));
   if (chance >= 100) return true;
   if (chance <= 0) return false;
-  const salt = stringHash(JSON.stringify(entry));
-  return coordRange(seed, zone.x, zone.y, salt, 1, 100) <= chance;
+  return nextRandom(world) * 100 < chance;
 }
 
-function rollQuantity(seed: number, zone: Zone, entry: RewardEntry, salt: number): number {
+function rollQuantity(world: World, entry: RewardEntry, multiplier = 1): number {
   const min = Math.max(0, entry.min ?? entry.amount ?? 0);
   const max = Math.max(min, entry.max ?? min);
-  return coordRange(seed, zone.x, zone.y, salt, min, max);
+  return Math.round(randomInt(world, min, max) * multiplier);
 }
 
 /** Pick a special biome by the roll, if one's spawn chance divides it. */
@@ -215,7 +230,6 @@ function applyOverride(zone: Zone): void {
   if (override.claimed_reward) zone.claimedReward = { ...override.claimed_reward };
   if (override.clear_duration !== undefined)
     zone.clearDuration = Math.max(0, override.clear_duration);
-  if (override.requirements) zone.requirements = normalizeRequirements(override.requirements);
   if (override.sanity_loss !== undefined) zone.sanityLoss = Math.max(0, override.sanity_loss);
   if (override.claim_cost) zone.claimCost = { ...override.claim_cost };
   if (override.settlement_id !== undefined) zone.settlementId = override.settlement_id;
@@ -234,8 +248,8 @@ export function createZone(world: World, x: number, y: number, state: ZoneState)
     assignedHeroUids: [],
     generatedName: '',
     biome: determineBiome(world.worldSeed, x, y),
-    requirements: generateRequirements(x, y),
-    sanityLoss: zoneSanityLoss(x, y),
+    enemies: [],
+    sanityLoss: 0,
     noSettlement: false,
     claimedReward: null,
     claimCost: {},
@@ -245,6 +259,9 @@ export function createZone(world: World, x: number, y: number, state: ZoneState)
   applyBiomeDefaults(zone);
   applyOverride(zone);
   applyBiomeDefaults(zone);
+  zone.enemies = generateEnemies(world.worldSeed, x, y, zone.biome);
+  const override = worldConfig.overrides[key]?.sanity_loss;
+  zone.sanityLoss = override ?? zoneSanityLoss(x, y, zone.enemies);
   return zone;
 }
 
@@ -284,6 +301,7 @@ export function initializeZones(world: World): void {
   world.zones = {};
   const start = createZone(world, 0, 0, 'claimed');
   start.biome = 'starting_zone';
+  start.enemies = [];
   start.settlementId = defaultSettlementId();
   start.settlementName = startingSettlementName();
   start.generatedName = start.settlementName;
@@ -294,58 +312,65 @@ export function initializeZones(world: World): void {
 // -- clearing -----------------------------------------------------------------
 
 export interface PartyPreview {
-  requirements: ZoneRequirements;
-  totals: ZoneRequirements;
-  meets: boolean;
-  /** Each unmet requirement as `[key, have, need]`. */
-  shortfalls: Array<[keyof ZoneRequirements, number, number]>;
+  party: Hero[];
+  /** Estimated share of battles this party wins, 0–1. */
+  winChance: number;
+  /** Sanity each member would lose on a victory. */
+  sanityLoss: number;
 }
 
-/** The party's summed stats against a zone's requirements. */
+function partyOf(
+  world: World,
+  uids: readonly number[],
+  limit = worldConfig.maxClearingParty,
+): Hero[] {
+  const party: Hero[] = [];
+  for (const uid of uids) {
+    if (party.length >= limit) break;
+    const hero = findHero(world, uid);
+    if (hero && !party.includes(hero)) party.push(hero);
+  }
+  return party;
+}
+
+function partySanityLoss(zone: Zone, party: Hero[]): number {
+  const reduction = partyEffect(party, 'party_sanity_loss_pct');
+  return Math.max(0, Math.round(zone.sanityLoss * (1 + reduction / 100)));
+}
+
+/**
+ * How a party would fare against a zone.
+ *
+ * The win chance comes from simulating the battle a couple of hundred times on
+ * a generator of its own, seeded from the zone and the party, so the estimate
+ * is steady while the dialog is open and costs the world's dice nothing.
+ */
 export function partyPreview(world: World, key: string, uids: readonly number[]): PartyPreview {
   const zone = world.zones[key];
-  const totals = normalizeRequirements({});
-  const requirements = zone ? zone.requirements : normalizeRequirements({});
-  const seen = new Set<number>();
-  for (const uid of uids) {
-    if (uid <= 0 || seen.has(uid)) continue;
-    seen.add(uid);
-    const hero = findHero(world, uid);
-    if (!hero) continue;
-    const stats = effectiveStats(world, hero);
-    const work = effectiveWorkStats(world, hero);
-    totals.level += Math.max(1, hero.level);
-    totals.sanity += Math.max(0, stats.current_sanity);
-    totals.attack += Math.max(0, stats.attack);
-    totals.defense += Math.max(0, stats.defense);
-    for (const workKey of WORK_STAT_KEYS) totals[workKey] += Math.max(0, work[workKey]);
-  }
-  const shortfalls: PartyPreview['shortfalls'] = [];
-  for (const requirementKey of Object.keys(requirements) as Array<keyof ZoneRequirements>) {
-    const need = requirements[requirementKey];
-    if (need > 0 && totals[requirementKey] < need) {
-      shortfalls.push([requirementKey, totals[requirementKey], need]);
-    }
-  }
-  return { requirements, totals, meets: zone !== undefined && shortfalls.length === 0, shortfalls };
+  const party = partyOf(world, uids);
+  if (!zone || party.length === 0)
+    return { party, winChance: 0, sanityLoss: zone?.sanityLoss ?? 0 };
+  const heroes = party.map((hero) => heroFighter(world, hero, party));
+  const enemies = zone.enemies.map(enemyFighter).filter((f) => f !== null);
+  const seed = stringHash(
+    `${zone.key}|${party.map((h) => `${h.uid}:${h.stats.current_health}`).join(',')}`,
+  );
+  return {
+    party,
+    winChance: winChance(heroes, enemies, seed),
+    sanityLoss: partySanityLoss(zone, party),
+  };
 }
 
-/** Send up to `maxClearingParty` idle heroes to clear a discovered zone. */
+/** Send up to `maxClearingParty` fit, idle heroes to clear a discovered zone. */
 export function startClearing(world: World, key: string, uids: readonly number[]): boolean {
   const zone = world.zones[key];
   if (!zone || zone.state !== 'discovered') return false;
-  const party: number[] = [];
-  for (const uid of uids) {
-    if (party.length >= worldConfig.maxClearingParty) break;
-    if (uid <= 0 || party.includes(uid)) continue;
-    const hero = findHero(world, uid);
-    if (hero && isHeroIdle(world, hero)) party.push(uid);
-  }
+  const party = partyOf(world, uids).filter((hero) => isHeroAvailable(world, hero));
   if (party.length === 0) return false;
-  if (!partyPreview(world, key, party).meets) return false;
   const duration = clearDurationFor(key);
   zone.state = 'clearing';
-  zone.assignedHeroUids = party;
+  zone.assignedHeroUids = party.map((hero) => hero.uid);
   zone.ticksRemaining = duration;
   zone.clearDuration = duration;
   return true;
@@ -380,76 +405,151 @@ export function ensureClaimCost(zone: Zone, seed: number): ResourceMap {
   return generateClaimCost(seed, zone.x, zone.y);
 }
 
-/** Pay a returning party: experience and sanity loss for the heroes, loot for the stores. */
-function resolveClearRewards(world: World, zone: Zone, party: number[]): ZoneClearReport {
-  const experience = zoneExperience(zone.x, zone.y);
-  const sanityLoss = Math.max(0, zone.sanityLoss);
-  const heroNames: string[] = [];
-  for (const uid of party) {
-    const hero = findHero(world, uid);
-    if (!hero) continue;
-    hero.stats.current_sanity = Math.max(0, hero.stats.current_sanity - sanityLoss);
-    grantExperience(hero, experience);
-    heroNames.push(hero.name);
-  }
+type Detail = LogEntry['details'][number];
 
-  const seed = world.worldSeed;
+/** Roll a zone's loot table and its enemies' drops into the stores. */
+function rollLoot(world: World, zone: Zone, multiplier: number): Detail[] {
   const table = rewardTable(zone.x, zone.y);
   const resources: ResourceMap = {};
-  const items: ZoneClearReport['items'] = [];
-  const equipmentNames: string[] = [];
+  const items = new Map<string, number>();
+  const equipment: string[] = [];
   for (const entry of table?.resources ?? []) {
-    if (!entry.resource || !rewardSucceeds(seed, zone, entry)) continue;
-    const quantity = rollQuantity(seed, zone, entry, stringHash(entry.resource));
+    if (!entry.resource || !rewardSucceeds(world, entry)) continue;
+    const quantity = rollQuantity(world, entry);
     if (quantity > 0) resources[entry.resource] = (resources[entry.resource] ?? 0) + quantity;
   }
-  for (const entry of table?.items ?? []) {
-    if (!entry.definition_id || !rewardSucceeds(seed, zone, entry)) continue;
-    const quantity = rollQuantity(seed, zone, entry, stringHash(entry.definition_id));
+  const itemEntries = [
+    ...(table?.items ?? []),
+    ...zone.enemies.flatMap((enemy) => getEnemy(enemy.id)?.drops ?? []),
+  ];
+  for (const entry of itemEntries) {
+    if (!entry.definition_id || !rewardSucceeds(world, entry)) continue;
+    const quantity = rollQuantity(world, entry, multiplier);
     if (quantity > 0 && addItem(world, entry.definition_id, quantity)) {
-      items.push({ definitionId: entry.definition_id, quantity });
+      items.set(entry.definition_id, (items.get(entry.definition_id) ?? 0) + quantity);
     }
   }
   for (const entry of table?.equipment ?? []) {
-    if (!entry.definition_id || !rewardSucceeds(seed, zone, entry)) continue;
+    if (!entry.definition_id || !rewardSucceeds(world, entry)) continue;
     if (addEquipment(world, entry.definition_id)) {
-      equipmentNames.push(getEquipmentDefinition(entry.definition_id)?.name ?? entry.definition_id);
+      equipment.push(getEquipmentDefinition(entry.definition_id)?.name ?? entry.definition_id);
     }
   }
   addResources(world, resources);
 
-  const bonus = seedZoneBonusOffer(world);
-  return {
-    zoneKey: zone.key,
-    zoneName: zone.generatedName,
-    heroNames,
-    experience,
-    sanityLoss,
-    resources,
-    items,
-    equipmentNames,
-    bonusRecruit: bonus !== null,
-  };
+  const details: Detail[] = [];
+  const resourceList = Object.entries(resources).map(([id, amount]) => `${id}:${amount}`);
+  if (resourceList.length)
+    details.push({ key: 'log.detail.resources', params: { list: resourceList.join(',') } });
+  const itemList = [...items].map(([id, qty]) => `${getItemDefinition(id)?.name ?? id} ×${qty}`);
+  if (itemList.length)
+    details.push({ key: 'log.detail.items', params: { list: itemList.join(', ') } });
+  if (equipment.length)
+    details.push({ key: 'log.detail.equipment', params: { list: equipment.join(', ') } });
+  return details;
 }
 
-/** One tick of every clearing party. Returns a report for each party that finished. */
-export function tickZones(world: World): ZoneClearReport[] {
-  const reports: ZoneClearReport[] = [];
+/** The fight at the end of a march, and everything that follows from it. */
+function resolveExpedition(world: World, zone: Zone, party: Hero[]): void {
+  const heroes = party.map((hero) => heroFighter(world, hero, party));
+  const enemies = zone.enemies.map(enemyFighter).filter((f) => f !== null);
+  const result: BattleResult = battle(() => nextRandom(world), heroes, enemies);
+  const victory = enemies.length === 0 || result.victory;
+  const details: Detail[] = [];
+
+  const faced = zone.enemies.map((enemy) => getEnemy(enemy.id)?.name ?? enemy.id);
+  if (faced.length)
+    details.push({
+      key: 'log.detail.faced',
+      params: { list: faced.join(', '), rounds: result.rounds },
+    });
+
+  for (const report of result.fighters) {
+    if (report.side !== 'hero') continue;
+    const hero = party.find((member) => member.uid === report.heroUid);
+    if (!hero) continue;
+    hero.stats.current_health = report.healthLeft;
+    details.push({
+      key: report.fell ? 'log.detail.hero_fell' : 'log.detail.hero',
+      params: {
+        name: hero.name,
+        dealt: report.damageDealt,
+        taken: report.damageTaken,
+        crits: report.crits,
+      },
+    });
+  }
+
+  if (victory) {
+    const heal = partyEffect(party, 'party_heal_after_battle_pct');
+    if (heal > 0) {
+      for (const hero of party) {
+        if (hero.stats.current_health <= 0) continue;
+        const max = heroFighter(world, hero, party).maxHealth;
+        hero.stats.current_health = Math.min(
+          max,
+          hero.stats.current_health + Math.round((max * heal) / 100),
+        );
+      }
+    }
+  }
+
+  const slain = result.fighters.filter((f) => f.side === 'enemy' && f.fell).length;
+  const tierXp = zone.enemies.reduce((sum, enemy) => sum + (getEnemy(enemy.id)?.tier ?? 1), 0) * 2;
+  const fullXp =
+    zoneExperience(zone.x, zone.y) +
+    (victory ? tierXp : Math.round((tierXp * slain) / Math.max(1, zone.enemies.length)));
+  const experience = victory ? fullXp : Math.floor(fullXp / 2);
+  const sanityLoss = Math.round(partySanityLoss(zone, party) * (victory ? 1 : 1.5));
+  details.push({ key: 'log.detail.xp', params: { amount: experience } });
+  if (sanityLoss > 0) details.push({ key: 'log.detail.sanity', params: { amount: sanityLoss } });
+
+  for (const hero of party) {
+    hero.stats.current_sanity = Math.max(0, hero.stats.current_sanity - sanityLoss);
+    const levels = grantExperience(hero, experience);
+    if (levels > 0) addLog(world, 'level', 'log.level', { name: hero.name, level: hero.level });
+  }
+
+  if (victory) {
+    zone.state = 'cleared';
+    zone.generatedName = ensureZoneName(zone, world.worldSeed);
+    zone.claimCost = ensureClaimCost(zone, world.worldSeed);
+    const loot = partyEffect(party, 'party_loot_pct');
+    details.push(...rollLoot(world, zone, 1 + loot / 100));
+    if (seedZoneBonusOffer(world)) details.push({ key: 'log.detail.recruit', params: {} });
+    addLog(world, 'victory', 'log.victory', { zone: zone.generatedName, key: zone.key }, details);
+  } else {
+    zone.state = 'discovered';
+    const name = ensureZoneName(zone, world.worldSeed);
+    addLog(world, 'defeat', 'log.defeat', { zone: name, key: zone.key }, details);
+  }
+
+  for (const hero of party) {
+    for (const change of updateCondition(world, hero)) {
+      addLog(world, change, `log.${change}`, { name: hero.name });
+    }
+  }
+}
+
+/** One tick of every clearing party: a step of the march, and the battle at the end of it. */
+export function tickZones(world: World): void {
   let changed = false;
   for (const zone of Object.values(world.zones)) {
     if (zone.state !== 'clearing') continue;
     changed = true;
     zone.ticksRemaining = Math.max(0, zone.ticksRemaining - 1);
     if (zone.ticksRemaining > 0) continue;
-    const party = zone.assignedHeroUids;
-    zone.state = 'cleared';
+    const party = zone.assignedHeroUids
+      .map((uid) => findHero(world, uid))
+      .filter((hero): hero is Hero => hero !== null);
     zone.assignedHeroUids = [];
-    zone.generatedName = ensureZoneName(zone, world.worldSeed);
-    zone.claimCost = ensureClaimCost(zone, world.worldSeed);
-    reports.push(resolveClearRewards(world, zone, party));
+    if (party.length === 0) {
+      zone.state = 'discovered';
+      continue;
+    }
+    resolveExpedition(world, zone, party);
   }
   if (changed) applyVisibility(world);
-  return reports;
 }
 
 // -- claiming -----------------------------------------------------------------
@@ -487,6 +587,9 @@ export function claimZone(world: World, key: string): boolean {
   if (!zone || zone.state !== 'cleared') return false;
   if (!spend(world, zone.claimCost)) return false;
   zone.state = 'claimed';
+  addLog(world, 'claimed', zone.noSettlement ? 'log.claimed_area' : 'log.claimed', {
+    zone: zone.generatedName || zone.key,
+  });
   if (!zone.settlementId) zone.settlementId = generatedSettlementId(zone.x, zone.y);
   if (!zone.settlementName) {
     zone.settlementName = zone.generatedName || generateZoneName(world.worldSeed, zone.x, zone.y);

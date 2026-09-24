@@ -9,7 +9,7 @@ import {
   getCoreSettlement,
   type BuildingDefinition,
 } from './config';
-import { effectiveWorkStats, heroWorldTask, isHeroIdle, needsTriage } from './heroes';
+import { effectiveWorkStats, heroWorldTask, isHeroIdle, needsChapel, needsTriage } from './heroes';
 import { mergeResources, scaleResources, scaledCost, spend, addResources } from './resources';
 import type { BuildingSlot, Hero, ResourceMap, SettlementDefinition, World } from './types';
 
@@ -141,19 +141,24 @@ export function meetsAssignmentRequirements(
 }
 
 /**
- * Heroes who could be put to work on a plot now.
+ * Whether a hero may work a building at all, leaving capacity aside.
  *
- * Idle, strong enough in the building's work stat, and — for the Triage —
- * actually hurt.
+ * The Triage takes anyone hurt and the Chapel anyone shaken — wounded and
+ * broken heroes included, since that is what those buildings are for. Anywhere
+ * else wants a fit hero strong enough in the building's work stat.
  */
+export function mayWork(world: World, hero: Hero, building: BuildingDefinition): boolean {
+  if (building.id === 'triage') return needsTriage(world, hero);
+  if (building.id === 'chapel') return needsChapel(world, hero);
+  if (hero.broken || hero.wounded) return false;
+  return meetsAssignmentRequirements(world, hero, building);
+}
+
+/** Heroes who could be put to work on a plot now: idle, and allowed there. */
 export function eligibleHeroes(world: World, settlementId: string, index: number): Hero[] {
   const building = buildingAt(world, settlementId, index);
   if (!building) return [];
-  return world.heroes.filter((hero) => {
-    if (!isHeroIdle(world, hero)) return false;
-    if (building.id === 'triage' && !needsTriage(world, hero)) return false;
-    return meetsAssignmentRequirements(world, hero, building);
-  });
+  return world.heroes.filter((hero) => isHeroIdle(world, hero) && mayWork(world, hero, building));
 }
 
 /**
@@ -165,7 +170,7 @@ export function eligibleHeroes(world: World, settlementId: string, index: number
 export function assignHero(world: World, hero: Hero, settlementId: string, index: number): boolean {
   const building = buildingAt(world, settlementId, index);
   if (!building) return false;
-  if (building.id === 'triage' && !needsTriage(world, hero)) return false;
+  if (!mayWork(world, hero, building)) return false;
   const here = hero.assignment?.settlementId === settlementId && hero.assignment.slot === index;
   if (here) return true;
   if (assignedHeroes(world, settlementId, index).length >= building.workerSlots) return false;
