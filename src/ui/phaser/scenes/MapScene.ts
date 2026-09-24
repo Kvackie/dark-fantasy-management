@@ -10,7 +10,9 @@
  * into one Graphics object on top. The whole map is redrawn only when the world
  * changes; between ticks only the countdowns and the mist move.
  *
- * Icons are from game-icons.net (Lorc, Delapouite), CC BY 3.0.
+ * Icons are from game-icons.net (Lorc, Delapouite), CC BY 3.0. They are bundled
+ * into the code rather than fetched, so a missing file fails the build instead
+ * of leaving the map without markers.
  */
 
 import Phaser from 'phaser';
@@ -21,6 +23,11 @@ import type { Zone } from '@/sim/types';
 import { bus } from '@/ui/bus';
 import { settings } from '@/ui/settings';
 import { biomeColors, palette, zoneStateColors } from '@/ui/theme';
+import castleSvg from '../icons/castle.svg?raw';
+import swordsSvg from '../icons/crossed-swords.svg?raw';
+import crystalSvg from '../icons/crystal-cluster.svg?raw';
+import skullSvg from '../icons/skull-crossed-bones.svg?raw';
+import flagSvg from '../icons/tower-flag.svg?raw';
 import { MIST_KEY, createTerrainTextures, terrainKey, terrainVariant } from '../terrain';
 
 const ZOOM_MIN = 0.25;
@@ -31,12 +38,13 @@ const TAP_SLOP = 8;
 /** How far the mist layers reach from home, in zones. */
 const MIST_REACH = 80;
 
+/** Each marker's SVG source. */
 const ICONS = {
-  castle: 'castle',
-  swords: 'crossed-swords',
-  crystal: 'crystal-cluster',
-  skull: 'skull-crossed-bones',
-  flag: 'tower-flag',
+  castle: castleSvg,
+  swords: swordsSvg,
+  crystal: crystalSvg,
+  skull: skullSvg,
+  flag: flagSvg,
 } as const;
 type IconId = keyof typeof ICONS;
 
@@ -122,11 +130,18 @@ export class MapScene extends Phaser.Scene {
     this.selected = data.selected;
   }
 
+  /**
+   * The loader wants a URL, so each bundled SVG gets a blob URL for the length
+   * of the load. Should one still fail, its zones simply show no marker: the
+   * icons are looked up by `textures.exists` before use.
+   */
   preload(): void {
-    for (const [id, file] of Object.entries(ICONS)) {
-      // Relative, so the game works from a Pages subpath.
-      this.load.svg(`icon-${id}`, `icons/${file}.svg`, { width: 96, height: 96 });
-    }
+    const urls = Object.entries(ICONS).map(([id, svg]) => {
+      const url = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }));
+      this.load.svg(`icon-${id}`, url, { width: 96, height: 96 });
+      return url;
+    });
+    this.load.once(Phaser.Loader.Events.COMPLETE, () => urls.forEach(URL.revokeObjectURL));
   }
 
   create(): void {

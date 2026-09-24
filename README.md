@@ -93,7 +93,7 @@ steps them each frame and feeds them button presses (or Space and the arrow keys
 
 The same list is on the main menu under **Credits**.
 
-- **Map icons** (`public/icons/`) from [game-icons.net](https://game-icons.net), licensed under
+- **Map icons** (`src/ui/phaser/icons/`) from [game-icons.net](https://game-icons.net), licensed under
   [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/): castle, crossed swords, crystal
   cluster, and skull and crossbones by Lorc; tower flag by Delapouite. Their background square is
   removed and they are recoloured on the map.
