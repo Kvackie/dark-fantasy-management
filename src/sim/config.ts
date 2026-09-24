@@ -35,7 +35,6 @@ import {
 // -- rules that live in code in the original, not in data ---------------------
 
 export const TICK_MS = 2000;
-export const AUTOSAVE_INTERVAL_MS = 12_000;
 export const DEFAULT_PLOT_COUNT = 8;
 export const DEFAULT_MAX_BUILDING_LEVEL = 5;
 

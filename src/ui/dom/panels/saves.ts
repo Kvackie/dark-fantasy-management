@@ -5,6 +5,7 @@
 import { formatDate, t } from '@/i18n';
 import { button, card, el, heading, muted } from '../components';
 import type { Ui } from '../context';
+import { renderSettings } from './settings';
 
 function slotName(ui: Ui, slot: number): string {
   return ui.saves.summary(slot).name || t('save.slot_default_name', { slot });
@@ -219,6 +220,11 @@ export function renderMenu(ui: Ui, canResume: boolean): HTMLElement {
       );
     }
     body.push(button(t('common.back'), () => ui.set({ menu: 'root' }), { variant: 'ghost' }));
+  } else if (mode === 'settings') {
+    body.push(
+      ...renderSettings(ui),
+      button(t('common.back'), () => ui.set({ menu: 'root' }), { variant: 'ghost' }),
+    );
   } else if (mode === 'credits') {
     body.push(
       ...renderCredits(),
@@ -233,6 +239,7 @@ export function renderMenu(ui: Ui, canResume: boolean): HTMLElement {
       button(t('menu.continue'), () => ui.loadSlot(last), { disabled: last <= 0 }),
       button(t('menu.load_save'), () => ui.set({ menu: 'saves' })),
       importButton(ui),
+      button(t('menu.settings'), () => ui.set({ menu: 'settings' })),
       button(t('menu.credits'), () => ui.set({ menu: 'credits' }), { variant: 'ghost' }),
     );
   }
@@ -247,7 +254,9 @@ export function renderMenu(ui: Ui, canResume: boolean): HTMLElement {
             ? t('menu.load_save')
             : mode === 'credits'
               ? t('menu.credits')
-              : t('game.tagline'),
+              : mode === 'settings'
+                ? t('menu.settings')
+                : t('game.tagline'),
       }),
       el('div', { class: 'menu-body' }, body),
     ]),

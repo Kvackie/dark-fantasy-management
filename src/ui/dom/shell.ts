@@ -36,6 +36,7 @@ import { iconSvg } from '@/ui/icons';
 import { resourceColors } from '@/ui/theme';
 import { button, el, modal, resourceList, resourceName } from './components';
 import { detailText, entryTitle, renderLog } from './panels/log';
+import { onSettingsChange, settings } from '@/ui/settings';
 import { isMuted, playFor, setMuted } from '@/ui/sound';
 import { normalizeWorld } from '@/platform/save';
 import type { World } from '@/sim/types';
@@ -52,6 +53,7 @@ import { renderInventory } from './panels/inventory';
 import { renderOverview } from './panels/overview';
 import { renderRecruit } from './panels/recruit';
 import { renderDebug, renderMenu, renderSaves } from './panels/saves';
+import { renderSettings } from './panels/settings';
 import { renderSettlement } from './panels/settlement';
 import { renderWorld } from './panels/world';
 
@@ -68,6 +70,8 @@ export interface ShellDeps {
   onLoad: (slot: number) => void;
   /** Start playing an imported save, in a slot of its own. */
   onImport: (world: World) => void;
+  /** Delete every save and preference, then reload into a fresh start. */
+  onWipe: () => void;
   onSave: (slot: number) => boolean;
 }
 
@@ -84,6 +88,7 @@ const NAV: Array<{ screen: ScreenId | 'menu'; icon: string; label: string }> = [
   { screen: 'debug', icon: 'debug', label: 'nav.debug' },
   { screen: 'log', icon: 'log', label: 'nav.log' },
   { screen: 'saves', icon: 'saves', label: 'nav.saves' },
+  { screen: 'settings', icon: 'settings', label: 'nav.settings' },
   { screen: 'menu', icon: 'menu', label: 'nav.home' },
 ];
 
@@ -229,6 +234,10 @@ export class Shell implements Ui {
     this.deps.onZoom(factor);
   }
 
+  wipeAll(): void {
+    this.deps.onWipe();
+  }
+
   // -- mounting ---------------------------------------------------------------
 
   mount(root: HTMLElement, stage: HTMLElement): void {
@@ -270,8 +279,7 @@ export class Shell implements Ui {
       '',
       () => {
         setMuted(!isMuted());
-        sound.innerHTML = iconSvg(isMuted() ? 'mute' : 'sound', 18);
-        sound.title = isMuted() ? t('hud.unmute') : t('hud.mute');
+        this.render();
       },
       {
         variant: 'ghost',
@@ -281,6 +289,11 @@ export class Shell implements Ui {
       },
     );
     sound.classList.add('hud-sound');
+    // The Settings page can flip sound too; keep the button's face in step.
+    onSettingsChange(() => {
+      sound.innerHTML = iconSvg(isMuted() ? 'mute' : 'sound', 18);
+      sound.title = isMuted() ? t('hud.unmute') : t('hud.mute');
+    });
     this.hud.append(
       el('div', { class: 'hud-row' }, [el('div', { class: 'hud-resources' }, badges), sound]),
     );
@@ -416,7 +429,9 @@ export class Shell implements Ui {
     // A field being typed into is left alone: rebuilding it would drop the caret.
     const active = document.activeElement;
     const editing =
-      active instanceof HTMLInputElement && active.type === 'text' && this.page.contains(active);
+      active instanceof HTMLInputElement &&
+      (active.type === 'text' || active.type === 'range') &&
+      this.page.contains(active);
     if (!editing && this.patch(this.page, this.renderScreen())) this.collectLive();
 
     const overlay: Node[] = [];
@@ -444,6 +459,7 @@ export class Shell implements Ui {
     const screen = this.state.screen;
     if (screen === 'recruit' && !isRecruitmentUnlocked(world)) this.go('heroes');
     else if (screen === 'craft' && !isCraftingUnlocked(world)) this.go('heroes');
+    else if (screen === 'debug' && !settings().showDebug) this.go('world');
   }
 
   private renderNav(): Node[] {
@@ -451,6 +467,7 @@ export class Shell implements Ui {
     return NAV.filter((item) => {
       if (item.screen === 'recruit') return isRecruitmentUnlocked(world);
       if (item.screen === 'craft') return isCraftingUnlocked(world);
+      if (item.screen === 'debug') return settings().showDebug;
       return true;
     }).map((item) => {
       const current =
@@ -498,6 +515,8 @@ export class Shell implements Ui {
         return withTitle('page.log', renderLog(this));
       case 'debug':
         return withTitle('page.debug', renderDebug(this));
+      case 'settings':
+        return withTitle('page.settings', renderSettings(this));
     }
   }
 
@@ -545,14 +564,14 @@ export class Shell implements Ui {
       if (!Shell.TOASTED.has(entry.kind)) continue;
       const lines =
         entry.kind === 'victory' || entry.kind === 'defeat' ? entry.details.map(detailText) : [];
-      this.showToast(entryTitle(entry), lines, entry.kind);
+      if (settings().toasts) this.showToast(entryTitle(entry), lines, entry.kind);
       playFor(entry.kind);
     }
   }
 
   /** Show the welcome-back dialog, if the absence was long enough to be worth one. */
   showAway(summary: AwaySummary): void {
-    if (summary.awayMs < 60_000) return;
+    if (summary.awayMs < 60_000 || !settings().awaySummary) return;
     this.set({ away: summary });
   }
 

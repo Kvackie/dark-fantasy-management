@@ -57,6 +57,8 @@ const ICONS: Record<string, string> = {
   chapel:
     '<path d="M12 2v5M10 4h4"/><path d="M6 21V11l6-4 6 4v10Z"/><path d="M10 21v-5a2 2 0 0 1 4 0v5"/>',
   close: '<path d="M6 6l12 12M18 6L6 18"/>',
+  settings:
+    '<path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/>',
   plus: '<path d="M12 5v14M5 12h14"/>',
   minus: '<path d="M5 12h14"/>',
   target: '<circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2"/>',

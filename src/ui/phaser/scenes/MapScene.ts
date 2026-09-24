@@ -19,6 +19,7 @@ import { worldConfig } from '@/sim/config';
 import type { Simulation } from '@/sim/sim';
 import type { Zone } from '@/sim/types';
 import { bus } from '@/ui/bus';
+import { settings } from '@/ui/settings';
 import { biomeColors, palette, zoneStateColors } from '@/ui/theme';
 import { MIST_KEY, createTerrainTextures, terrainKey, terrainVariant } from '../terrain';
 
@@ -303,7 +304,7 @@ export class MapScene extends Phaser.Scene {
 
   override update(_time: number, delta: number): void {
     this.redraw(false);
-    this.driftMist(delta);
+    if (settings().mist) this.driftMist(delta);
     this.sinceClock += delta;
     if (this.sinceClock >= 250) {
       this.sinceClock = 0;

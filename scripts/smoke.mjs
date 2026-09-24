@@ -39,6 +39,9 @@ try {
   await page.getByRole('button', { name: 'Credits' }).click();
   await page.getByText('game-icons.net').first().waitFor();
   await page.getByRole('button', { name: 'Back', exact: true }).click();
+  await page.locator('.menu-panel').getByRole('button', { name: 'Settings' }).click();
+  await page.getByText('Drifting mist').waitFor();
+  await page.getByRole('button', { name: 'Back', exact: true }).click();
   await page.getByRole('button', { name: 'New Game' }).click();
   const canvas = page.locator('#stage canvas');
   await canvas.waitFor();
@@ -53,7 +56,15 @@ try {
   await page.mouse.click(box.x + box.width / 2 + step * zoom, box.y + box.height / 2);
   await page.getByRole('button', { name: 'Begin Clearing' }).waitFor({ timeout: 5000 });
 
-  for (const screen of ['Settlements', 'Heroes', 'Inventory', 'Log', 'Saves', 'World']) {
+  for (const screen of [
+    'Settlements',
+    'Heroes',
+    'Inventory',
+    'Log',
+    'Saves',
+    'Settings',
+    'World',
+  ]) {
     await page.locator('nav .nav-item', { hasText: screen }).click();
     await page.waitForTimeout(150);
   }

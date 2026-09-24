@@ -53,7 +53,7 @@ export interface UiState {
   forge: ForgeState | null;
   confirm: ConfirmRequest | null;
   /** The main menu overlay, or null while playing. */
-  menu: 'root' | 'saves' | 'credits' | null;
+  menu: 'root' | 'saves' | 'credits' | 'settings' | null;
   /** The welcome-back summary after time away. */
   away: AwaySummary | null;
 }
@@ -99,6 +99,8 @@ export interface Ui {
   saveTo(slot: number): void;
   exportSave(): void;
   importSave(file: File): void;
+  /** Delete every save and preference on this browser, then start over. */
+  wipeAll(): void;
   recenterMap(): void;
   zoomMap(factor: number): void;
 }

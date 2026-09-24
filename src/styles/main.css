@@ -1430,3 +1430,62 @@ button.item-tile {
 .toast span {
   color: var(--text-dim);
 }
+
+/* -- settings ---------------------------------------------------------------- */
+
+.settings {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  max-width: 640px;
+}
+.settings-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.settings-section > h3 {
+  margin: 0 0 2px;
+}
+.setting-hint {
+  margin: 2px 0 0;
+}
+.setting-level {
+  display: grid;
+  grid-template-columns: 5.5em minmax(0, 1fr) 3.2em;
+  align-items: center;
+  gap: 12px;
+  min-height: var(--tap);
+  padding: 6px 10px;
+  background: #161112;
+  border: 1px solid #4f3f36;
+  border-radius: 8px;
+}
+.setting-level label {
+  font-weight: 600;
+}
+.setting-level input[type='range'] {
+  width: 100%;
+  min-width: 0;
+  accent-color: #b88a58;
+}
+.setting-value {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-dim);
+}
+.setting-choice {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  background: #161112;
+  border: 1px solid #4f3f36;
+  border-radius: 8px;
+}
+.setting-choice .setting-hint {
+  margin: 0;
+}
+.menu-body .settings {
+  max-width: none;
+}

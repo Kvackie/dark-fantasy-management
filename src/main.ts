@@ -10,11 +10,11 @@
 import './styles/main.css';
 import { SaveManager } from '@/platform/save';
 import { createStorage } from '@/platform/storage';
-import { AUTOSAVE_INTERVAL_MS } from '@/sim/config';
 import { Simulation } from '@/sim/sim';
 import { createWorld } from '@/sim/state';
 import { Shell, type ShellDeps } from '@/ui/dom/shell';
 import { createGame, type GameHandle } from '@/ui/phaser/game';
+import { resetSettings, settings } from '@/ui/settings';
 import { unlockAudio } from '@/ui/sound';
 
 const BOOT_KEY = 'dark-fantasy-settlement.boot';
@@ -80,6 +80,18 @@ const deps: ShellDeps = {
     world.savedAt = Date.now();
     if (saves.save(slot, world)) reboot(slot);
   },
+  onWipe: () => {
+    // Detach from the slot first, so the save on the way out has nowhere to write.
+    deps.activeSlot = 0;
+    for (const slot of saves.slots()) saves.delete(slot);
+    resetSettings();
+    try {
+      sessionStorage.removeItem(BOOT_KEY);
+    } catch {
+      // Nothing to forget.
+    }
+    window.location.reload();
+  },
   onSave: (slot) => {
     sim.world.savedAt = Date.now();
     const ok = saves.save(slot, sim.world);
@@ -120,7 +132,7 @@ function frame(now: number): void {
   // Time only runs in a game that has a slot to keep it in.
   if (deps.activeSlot > 0) sim.advanceBy(delta);
   shell.tick(delta / 1000);
-  if (now - lastSave >= AUTOSAVE_INTERVAL_MS) {
+  if (now - lastSave >= settings().autosaveSeconds * 1000) {
     lastSave = now;
     persist();
   }

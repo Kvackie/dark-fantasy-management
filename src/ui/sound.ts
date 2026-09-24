@@ -6,41 +6,40 @@
  * That keeps the download small and sidesteps licensing entirely.
  *
  * Browsers only allow audio to start from a user gesture, so the context is
- * created on the first press anywhere on the page. The mute setting is kept in
- * localStorage; losing it is harmless.
+ * created on the first press anywhere on the page. Music and effects each have
+ * their own bus under the master, so the Settings page can level them apart.
  */
 
 import type { LogKind } from '@/sim/types';
+import { onSettingsChange, settings, updateSettings, type Settings } from '@/ui/settings';
 
-const MUTE_KEY = 'dark-fantasy-settlement.muted';
+const MASTER_LEVEL = 0.6;
 
 let context: AudioContext | null = null;
 let master: GainNode | null = null;
+let musicBus: GainNode | null = null;
+let effectsBus: GainNode | null = null;
 let ambience: { stop: () => void } | null = null;
-let muted = readMuted();
-
-function readMuted(): boolean {
-  try {
-    return localStorage.getItem(MUTE_KEY) === '1';
-  } catch {
-    return false;
-  }
-}
 
 export function isMuted(): boolean {
-  return muted;
+  return !settings().sound;
 }
 
 export function setMuted(value: boolean): void {
-  muted = value;
-  try {
-    localStorage.setItem(MUTE_KEY, value ? '1' : '0');
-  } catch {
-    // A preference that cannot be stored lasts for this visit only.
-  }
-  if (master && context) master.gain.setTargetAtTime(value ? 0 : 0.6, context.currentTime, 0.05);
-  if (!value) startAmbience();
+  updateSettings({ sound: !value });
 }
+
+/** Follow the settings: levels glide rather than jump, and the drone starts once it is wanted. */
+function applyLevels(current: Readonly<Settings>): void {
+  if (!context || !master || !musicBus || !effectsBus) return;
+  const now = context.currentTime;
+  master.gain.setTargetAtTime(current.sound ? MASTER_LEVEL : 0, now, 0.05);
+  musicBus.gain.setTargetAtTime(current.music / 100, now, 0.05);
+  effectsBus.gain.setTargetAtTime(current.effects / 100, now, 0.05);
+  startAmbience();
+}
+
+onSettingsChange(applyLevels);
 
 /** Create the audio graph on the first user gesture. Safe to call repeatedly. */
 export function unlockAudio(): void {
@@ -58,13 +57,20 @@ export function unlockAudio(): void {
     return;
   }
   master = context.createGain();
-  master.gain.value = muted ? 0 : 0.6;
+  master.gain.value = settings().sound ? MASTER_LEVEL : 0;
   master.connect(context.destination);
+  musicBus = context.createGain();
+  musicBus.gain.value = settings().music / 100;
+  musicBus.connect(master);
+  effectsBus = context.createGain();
+  effectsBus.gain.value = settings().effects / 100;
+  effectsBus.connect(master);
   startAmbience();
 }
 
 function startAmbience(): void {
-  if (!context || !master || ambience || muted) return;
+  const wanted = settings().sound && settings().music > 0;
+  if (!context || !musicBus || ambience || !wanted) return;
   const ctx = context;
   const gain = ctx.createGain();
   gain.gain.value = 0;
@@ -86,7 +92,7 @@ function startAmbience(): void {
     osc.start();
     return osc;
   });
-  filter.connect(gain).connect(master);
+  filter.connect(gain).connect(musicBus);
   lfo.start();
   ambience = {
     stop: () => {
@@ -106,7 +112,7 @@ function tone(
   volume: number,
   slideTo?: number,
 ): void {
-  if (!context || !master) return;
+  if (!context || !effectsBus) return;
   const osc = context.createOscillator();
   const gain = context.createGain();
   osc.type = type;
@@ -115,13 +121,13 @@ function tone(
   gain.gain.setValueAtTime(0.0001, start);
   gain.gain.exponentialRampToValueAtTime(volume, start + 0.01);
   gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
-  osc.connect(gain).connect(master);
+  osc.connect(gain).connect(effectsBus);
   osc.start(start);
   osc.stop(start + duration + 0.05);
 }
 
 function noise(start: number, duration: number, volume: number, cutoff: number): void {
-  if (!context || !master) return;
+  if (!context || !effectsBus) return;
   const length = Math.floor(context.sampleRate * duration);
   const buffer = context.createBuffer(1, length, context.sampleRate);
   const data = buffer.getChannelData(0);
@@ -133,12 +139,12 @@ function noise(start: number, duration: number, volume: number, cutoff: number):
   filter.frequency.value = cutoff;
   const gain = context.createGain();
   gain.gain.value = volume;
-  source.connect(filter).connect(gain).connect(master);
+  source.connect(filter).connect(gain).connect(effectsBus);
   source.start(start);
 }
 
 export function play(effect: Effect): void {
-  if (muted || !context) return;
+  if (!context || !settings().sound || settings().effects === 0) return;
   const now = context.currentTime;
   switch (effect) {
     case 'click':

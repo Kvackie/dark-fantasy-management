@@ -89,6 +89,11 @@ last save are simulated and summarised. Every notable event also goes to the Log
 start-up, and the fog is two layers of drifting, tileable mist. Sound is synthesised with Web Audio
 (`ui/sound.ts`), so there are no audio files.
 
+**Preferences are not game state.** The Settings screen (sound and music levels, pop-up notices,
+the welcome-back summary, drifting mist, autosave interval, the Debug screen) keeps its values in
+`ui/settings.ts`, in localStorage apart from the save slots, so they are the same in every game on
+that browser. It can also reset them, or delete every save and setting at once.
+
 **The forge puzzles** are small state machines in `sim/puzzles.ts` with no renderer: the shell
 steps them each frame and feeds them button presses (or Space and the arrow keys), and
 `ForgeScene` only draws what it reads back. That keeps their timing rules under test.

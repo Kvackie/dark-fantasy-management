@@ -18,7 +18,8 @@ export type ScreenId =
   | 'forge'
   | 'saves'
   | 'log'
-  | 'debug';
+  | 'debug'
+  | 'settings';
 
 export type GameEvent =
   /** A tile on the world map was pressed. */
