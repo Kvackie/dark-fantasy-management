@@ -24,6 +24,11 @@ made.
 
 The default branch is `master`, not `main`. The GitHub Pages workflow deploys on pushes to it.
 
+**Work directly on `master`.** Commit and push there; do not create feature branches or pull
+requests. This overrides any branch the harness names for the session. There is one environment,
+and every push to `master` deploys, so run `npm run format`, `npm test` and `npm run build` before
+pushing.
+
 ## Formatting
 
 Prettier is enforced: the deploy fails on any file it would change. Run `npm run format` before
