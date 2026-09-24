@@ -239,6 +239,20 @@ export function renderMenu(ui: Ui, canResume: boolean): HTMLElement {
         text: mode === 'saves' ? t('menu.load_save') : t('game.tagline'),
       }),
       el('div', { class: 'menu-body' }, body),
+      credits(),
     ]),
+  ]);
+}
+
+/** The map icons are CC BY 3.0, which asks for credit where they are used. */
+function credits(): HTMLElement {
+  const link = (href: string, text: string) =>
+    el('a', { href, text, target: '_blank', rel: 'noopener noreferrer' });
+  return el('p', { class: 'muted small menu-credits' }, [
+    t('menu.credits_icons'),
+    ' ',
+    link('https://game-icons.net', 'game-icons.net'),
+    ' · ',
+    link('https://creativecommons.org/licenses/by/3.0/', 'CC BY 3.0'),
   ]);
 }
