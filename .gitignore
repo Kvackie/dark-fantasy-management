@@ -1,34 +1,10 @@
-.godot/
-/addons/
-/assets/
+node_modules/
+dist/
+*.local
+coverage/
+.vite/
+*.tsbuildinfo
+*.save.json
 
-# Godot export outputs
-/build/
-/dist/
-
-# Mono/.NET
-/.mono/
-/data_*/
-*.csproj
-*.sln
-
-# IDE and OS files
-.vscode/
-.idea/
-*.swp
-*.tmp
-Thumbs.db
-.DS_Store
-
-# AI assistant local files
-opencode.json
-.opencode/
-.aider*
-.cursor/
-.roo/
+# Agent-local files
 .claude/
-
-# Local project notes
-AGENTS.md
-NOTES.md
-AUDIT.md

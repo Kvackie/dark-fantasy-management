@@ -1,0 +1,1678 @@
+{
+  "equipment": [
+    {
+      "id": "amulet_1",
+      "name": "Green Reliquary Pendant",
+      "slot": "amulet",
+      "icon_path": "res://assets/equipment/amulet/amulet_1.png",
+      "bonuses": {
+        "stats": {
+          "sanity": 15
+        },
+        "work_stats": {
+          "farming": 3
+        }
+      }
+    },
+    {
+      "id": "amulet_10",
+      "name": "Duskglass Charm",
+      "slot": "amulet",
+      "icon_path": "res://assets/equipment/amulet/amulet_10.png",
+      "bonuses": {
+        "stats": {
+          "health": 5,
+          "sanity": 4,
+          "critical_chance": 3,
+          "defense": 3
+        },
+        "work_stats": {
+          "farming": 10
+        }
+      }
+    },
+    {
+      "id": "amulet_11",
+      "name": "Veilroot Talisman",
+      "slot": "amulet",
+      "icon_path": "res://assets/equipment/amulet/amulet_11.png",
+      "bonuses": {
+        "stats": {
+          "sanity": 10,
+          "critical_damage": 5
+        },
+        "work_stats": {
+          "mining": 5
+        }
+      }
+    },
+    {
+      "id": "amulet_12",
+      "name": "Pale Martyr Locket",
+      "slot": "amulet",
+      "icon_path": "res://assets/equipment/amulet/amulet_12.png",
+      "bonuses": {
+        "stats": {
+          "attack": 6,
+          "sanity": 5,
+          "critical_chance": 4
+        },
+        "work_stats": {
+          "lumbering": 7
+        }
+      }
+    },
+    {
+      "id": "amulet_13",
+      "name": "Raven Oath Pendant",
+      "slot": "amulet",
+      "icon_path": "res://assets/equipment/amulet/amulet_13.png",
+      "bonuses": {
+        "stats": {
+          "sanity": 15
+        },
+        "work_stats": {
+          "farming": 3
+        }
+      }
+    },
+    {
+      "id": "amulet_14",
+      "name": "Sable Saint Charm",
+      "slot": "amulet",
+      "icon_path": "res://assets/equipment/amulet/amulet_14.png",
+      "bonuses": {
+        "stats": {
+          "critical_chance": 9,
+          "sanity": 6
+        },
+        "work_stats": {
+          "mining": 5
+        }
+      }
+    },
+    {
+      "id": "amulet_15",
+      "name": "Iron Sepulcher Amulet",
+      "slot": "amulet",
+      "icon_path": "res://assets/equipment/amulet/amulet_15.png",
+      "bonuses": {
+        "stats": {
+          "critical_damage": 8,
+          "sanity": 4,
+          "defense": 3
+        },
+        "work_stats": {
+          "lumbering": 7
+        }
+      }
+    },
+    {
+      "id": "amulet_16",
+      "name": "Nightwarden Talisman",
+      "slot": "amulet",
+      "icon_path": "res://assets/equipment/amulet/amulet_16.png",
+      "bonuses": {
+        "stats": {
+          "health": 5,
+          "sanity": 4,
+          "critical_chance": 3,
+          "defense": 3
+        },
+        "work_stats": {
+          "farming": 10
+        }
+      }
+    },
+    {
+      "id": "amulet_17",
+      "name": "Embergrave Reliquary",
+      "slot": "amulet",
+      "icon_path": "res://assets/equipment/amulet/amulet_17.png",
+      "bonuses": {
+        "stats": {
+          "sanity": 10,
+          "critical_damage": 5
+        },
+        "work_stats": {
+          "mining": 5
+        }
+      }
+    },
+    {
+      "id": "amulet_18",
+      "name": "Wraithcall Pendant",
+      "slot": "amulet",
+      "icon_path": "res://assets/equipment/amulet/amulet_18.png",
+      "bonuses": {
+        "stats": {
+          "attack": 6,
+          "sanity": 5,
+          "critical_chance": 4
+        },
+        "work_stats": {
+          "lumbering": 7
+        }
+      }
+    },
+    {
+      "id": "amulet_2",
+      "name": "Grave Saint Locket",
+      "slot": "amulet",
+      "icon_path": "res://assets/equipment/amulet/amulet_2.png",
+      "bonuses": {
+        "stats": {
+          "critical_chance": 9,
+          "sanity": 6
+        },
+        "work_stats": {
+          "mining": 5
+        }
+      }
+    },
+    {
+      "id": "amulet_3",
+      "name": "Ashen Thorn Amulet",
+      "slot": "amulet",
+      "icon_path": "res://assets/equipment/amulet/amulet_3.png",
+      "bonuses": {
+        "stats": {
+          "critical_damage": 8,
+          "sanity": 4,
+          "defense": 3
+        },
+        "work_stats": {
+          "lumbering": 7
+        }
+      }
+    },
+    {
+      "id": "amulet_4",
+      "name": "Witchbone Charm",
+      "slot": "amulet",
+      "icon_path": "res://assets/equipment/amulet/amulet_4.png",
+      "bonuses": {
+        "stats": {
+          "health": 5,
+          "sanity": 4,
+          "critical_chance": 3,
+          "defense": 3
+        },
+        "work_stats": {
+          "farming": 10
+        }
+      }
+    },
+    {
+      "id": "amulet_5",
+      "name": "Hollow Moon Talisman",
+      "slot": "amulet",
+      "icon_path": "res://assets/equipment/amulet/amulet_5.png",
+      "bonuses": {
+        "stats": {
+          "sanity": 10,
+          "critical_damage": 5
+        },
+        "work_stats": {
+          "mining": 5
+        }
+      }
+    },
+    {
+      "id": "amulet_6",
+      "name": "Bloodwax Reliquary",
+      "slot": "amulet",
+      "icon_path": "res://assets/equipment/amulet/amulet_6.png",
+      "bonuses": {
+        "stats": {
+          "attack": 6,
+          "sanity": 5,
+          "critical_chance": 4
+        },
+        "work_stats": {
+          "lumbering": 7
+        }
+      }
+    },
+    {
+      "id": "amulet_7",
+      "name": "Cryptsilver Pendant",
+      "slot": "amulet",
+      "icon_path": "res://assets/equipment/amulet/amulet_7.png",
+      "bonuses": {
+        "stats": {
+          "sanity": 15
+        },
+        "work_stats": {
+          "farming": 3
+        }
+      }
+    },
+    {
+      "id": "amulet_8",
+      "name": "Mourning Star Amulet",
+      "slot": "amulet",
+      "icon_path": "res://assets/equipment/amulet/amulet_8.png",
+      "bonuses": {
+        "stats": {
+          "critical_chance": 9,
+          "sanity": 6
+        },
+        "work_stats": {
+          "mining": 5
+        }
+      }
+    },
+    {
+      "id": "amulet_9",
+      "name": "Ebon Prayer Token",
+      "slot": "amulet",
+      "icon_path": "res://assets/equipment/amulet/amulet_9.png",
+      "bonuses": {
+        "stats": {
+          "critical_damage": 8,
+          "sanity": 4,
+          "defense": 3
+        },
+        "work_stats": {
+          "lumbering": 7
+        }
+      }
+    },
+    {
+      "id": "boots_1",
+      "name": "Grave March Boots",
+      "slot": "boots",
+      "icon_path": "res://assets/equipment/boots/boots_1.png",
+      "bonuses": {
+        "stats": {
+          "defense": 15
+        },
+        "work_stats": {
+          "lumbering": 3
+        }
+      }
+    },
+    {
+      "id": "boots_10",
+      "name": "Ravenstep Greaves",
+      "slot": "boots",
+      "icon_path": "res://assets/equipment/boots/boots_10.png",
+      "bonuses": {
+        "stats": {
+          "health": 5,
+          "defense": 4,
+          "attack": 3,
+          "sanity": 3
+        },
+        "work_stats": {
+          "lumbering": 10
+        }
+      }
+    },
+    {
+      "id": "boots_11",
+      "name": "Pale Road Boots",
+      "slot": "boots",
+      "icon_path": "res://assets/equipment/boots/boots_11.png",
+      "bonuses": {
+        "stats": {
+          "attack": 9,
+          "defense": 6
+        },
+        "work_stats": {
+          "mining": 5
+        }
+      }
+    },
+    {
+      "id": "boots_12",
+      "name": "Carrion Marchers",
+      "slot": "boots",
+      "icon_path": "res://assets/equipment/boots/boots_12.png",
+      "bonuses": {
+        "stats": {
+          "health": 7,
+          "sanity": 5,
+          "defense": 3
+        },
+        "work_stats": {
+          "farming": 7
+        }
+      }
+    },
+    {
+      "id": "boots_13",
+      "name": "Sable Path Sabatons",
+      "slot": "boots",
+      "icon_path": "res://assets/equipment/boots/boots_13.png",
+      "bonuses": {
+        "stats": {
+          "defense": 15
+        },
+        "work_stats": {
+          "lumbering": 3
+        }
+      }
+    },
+    {
+      "id": "boots_14",
+      "name": "Hollowroot Boots",
+      "slot": "boots",
+      "icon_path": "res://assets/equipment/boots/boots_14.png",
+      "bonuses": {
+        "stats": {
+          "health": 8,
+          "defense": 7
+        },
+        "work_stats": {
+          "farming": 5
+        }
+      }
+    },
+    {
+      "id": "boots_15",
+      "name": "Embertrail Greaves",
+      "slot": "boots",
+      "icon_path": "res://assets/equipment/boots/boots_15.png",
+      "bonuses": {
+        "stats": {
+          "defense": 6,
+          "sanity": 5,
+          "health": 4
+        },
+        "work_stats": {
+          "mining": 7
+        }
+      }
+    },
+    {
+      "id": "boots_16",
+      "name": "Nightsoil Treads",
+      "slot": "boots",
+      "icon_path": "res://assets/equipment/boots/boots_16.png",
+      "bonuses": {
+        "stats": {
+          "health": 5,
+          "defense": 4,
+          "attack": 3,
+          "sanity": 3
+        },
+        "work_stats": {
+          "lumbering": 10
+        }
+      }
+    },
+    {
+      "id": "boots_17",
+      "name": "Witchfen Boots",
+      "slot": "boots",
+      "icon_path": "res://assets/equipment/boots/boots_17.png",
+      "bonuses": {
+        "stats": {
+          "attack": 9,
+          "defense": 6
+        },
+        "work_stats": {
+          "mining": 5
+        }
+      }
+    },
+    {
+      "id": "boots_18",
+      "name": "Sepulcher Sabatons",
+      "slot": "boots",
+      "icon_path": "res://assets/equipment/boots/boots_18.png",
+      "bonuses": {
+        "stats": {
+          "health": 7,
+          "sanity": 5,
+          "defense": 3
+        },
+        "work_stats": {
+          "farming": 7
+        }
+      }
+    },
+    {
+      "id": "boots_2",
+      "name": "Mirestalker Greaves",
+      "slot": "boots",
+      "icon_path": "res://assets/equipment/boots/boots_2.png",
+      "bonuses": {
+        "stats": {
+          "health": 8,
+          "defense": 7
+        },
+        "work_stats": {
+          "farming": 5
+        }
+      }
+    },
+    {
+      "id": "boots_3",
+      "name": "Ashen Road Sabatons",
+      "slot": "boots",
+      "icon_path": "res://assets/equipment/boots/boots_3.png",
+      "bonuses": {
+        "stats": {
+          "defense": 6,
+          "sanity": 5,
+          "health": 4
+        },
+        "work_stats": {
+          "mining": 7
+        }
+      }
+    },
+    {
+      "id": "boots_4",
+      "name": "Black Pilgrim Boots",
+      "slot": "boots",
+      "icon_path": "res://assets/equipment/boots/boots_4.png",
+      "bonuses": {
+        "stats": {
+          "health": 5,
+          "defense": 4,
+          "attack": 3,
+          "sanity": 3
+        },
+        "work_stats": {
+          "lumbering": 10
+        }
+      }
+    },
+    {
+      "id": "boots_5",
+      "name": "Cryptmud Treads",
+      "slot": "boots",
+      "icon_path": "res://assets/equipment/boots/boots_5.png",
+      "bonuses": {
+        "stats": {
+          "attack": 9,
+          "defense": 6
+        },
+        "work_stats": {
+          "mining": 5
+        }
+      }
+    },
+    {
+      "id": "boots_6",
+      "name": "Ironheel Warboots",
+      "slot": "boots",
+      "icon_path": "res://assets/equipment/boots/boots_6.png",
+      "bonuses": {
+        "stats": {
+          "health": 7,
+          "sanity": 5,
+          "defense": 3
+        },
+        "work_stats": {
+          "farming": 7
+        }
+      }
+    },
+    {
+      "id": "boots_7",
+      "name": "Bogwarden Boots",
+      "slot": "boots",
+      "icon_path": "res://assets/equipment/boots/boots_7.png",
+      "bonuses": {
+        "stats": {
+          "defense": 15
+        },
+        "work_stats": {
+          "lumbering": 3
+        }
+      }
+    },
+    {
+      "id": "boots_8",
+      "name": "Duskstrider Sabatons",
+      "slot": "boots",
+      "icon_path": "res://assets/equipment/boots/boots_8.png",
+      "bonuses": {
+        "stats": {
+          "health": 8,
+          "defense": 7
+        },
+        "work_stats": {
+          "farming": 5
+        }
+      }
+    },
+    {
+      "id": "boots_9",
+      "name": "Thornfield Boots",
+      "slot": "boots",
+      "icon_path": "res://assets/equipment/boots/boots_9.png",
+      "bonuses": {
+        "stats": {
+          "defense": 6,
+          "sanity": 5,
+          "health": 4
+        },
+        "work_stats": {
+          "mining": 7
+        }
+      }
+    },
+    {
+      "id": "chest_1",
+      "name": "Black Barrow Cuirass",
+      "slot": "chest",
+      "icon_path": "res://assets/equipment/chest/chest_1.png",
+      "bonuses": {
+        "stats": {
+          "health": 15
+        },
+        "work_stats": {
+          "lumbering": 3
+        }
+      }
+    },
+    {
+      "id": "chest_10",
+      "name": "Pale Martyr Vestments",
+      "slot": "chest",
+      "icon_path": "res://assets/equipment/chest/chest_10.png",
+      "bonuses": {
+        "stats": {
+          "health": 5,
+          "defense": 4,
+          "attack": 4,
+          "sanity": 2
+        },
+        "work_stats": {
+          "lumbering": 10
+        }
+      }
+    },
+    {
+      "id": "chest_11",
+      "name": "Bloodrust Hauberk",
+      "slot": "chest",
+      "icon_path": "res://assets/equipment/chest/chest_11.png",
+      "bonuses": {
+        "stats": {
+          "defense": 10,
+          "health": 5
+        },
+        "work_stats": {
+          "mining": 5
+        }
+      }
+    },
+    {
+      "id": "chest_12",
+      "name": "Sable Warplate",
+      "slot": "chest",
+      "icon_path": "res://assets/equipment/chest/chest_12.png",
+      "bonuses": {
+        "stats": {
+          "attack": 6,
+          "defense": 5,
+          "health": 4
+        },
+        "work_stats": {
+          "farming": 7
+        }
+      }
+    },
+    {
+      "id": "chest_13",
+      "name": "Thornwrought Harness",
+      "slot": "chest",
+      "icon_path": "res://assets/equipment/chest/chest_13.png",
+      "bonuses": {
+        "stats": {
+          "health": 15
+        },
+        "work_stats": {
+          "lumbering": 3
+        }
+      }
+    },
+    {
+      "id": "chest_14",
+      "name": "Embergrave Cuirass",
+      "slot": "chest",
+      "icon_path": "res://assets/equipment/chest/chest_14.png",
+      "bonuses": {
+        "stats": {
+          "health": 9,
+          "defense": 6
+        },
+        "work_stats": {
+          "mining": 5
+        }
+      }
+    },
+    {
+      "id": "chest_15",
+      "name": "Nightfall Brigandine",
+      "slot": "chest",
+      "icon_path": "res://assets/equipment/chest/chest_15.png",
+      "bonuses": {
+        "stats": {
+          "defense": 7,
+          "health": 5,
+          "sanity": 3
+        },
+        "work_stats": {
+          "farming": 7
+        }
+      }
+    },
+    {
+      "id": "chest_16",
+      "name": "Witchbane Mail",
+      "slot": "chest",
+      "icon_path": "res://assets/equipment/chest/chest_16.png",
+      "bonuses": {
+        "stats": {
+          "health": 5,
+          "defense": 4,
+          "attack": 4,
+          "sanity": 2
+        },
+        "work_stats": {
+          "lumbering": 10
+        }
+      }
+    },
+    {
+      "id": "chest_17",
+      "name": "Sepulcher Plate",
+      "slot": "chest",
+      "icon_path": "res://assets/equipment/chest/chest_17.png",
+      "bonuses": {
+        "stats": {
+          "defense": 10,
+          "health": 5
+        },
+        "work_stats": {
+          "mining": 5
+        }
+      }
+    },
+    {
+      "id": "chest_18",
+      "name": "Ebon Pilgrim Coat",
+      "slot": "chest",
+      "icon_path": "res://assets/equipment/chest/chest_18.png",
+      "bonuses": {
+        "stats": {
+          "attack": 6,
+          "defense": 5,
+          "health": 4
+        },
+        "work_stats": {
+          "farming": 7
+        }
+      }
+    },
+    {
+      "id": "chest_2",
+      "name": "Gravebound Hauberk",
+      "slot": "chest",
+      "icon_path": "res://assets/equipment/chest/chest_2.png",
+      "bonuses": {
+        "stats": {
+          "health": 9,
+          "defense": 6
+        },
+        "work_stats": {
+          "mining": 5
+        }
+      }
+    },
+    {
+      "id": "chest_3",
+      "name": "Ashen Knight Harness",
+      "slot": "chest",
+      "icon_path": "res://assets/equipment/chest/chest_3.png",
+      "bonuses": {
+        "stats": {
+          "defense": 7,
+          "health": 5,
+          "sanity": 3
+        },
+        "work_stats": {
+          "farming": 7
+        }
+      }
+    },
+    {
+      "id": "chest_4",
+      "name": "Cryptwarden Plate",
+      "slot": "chest",
+      "icon_path": "res://assets/equipment/chest/chest_4.png",
+      "bonuses": {
+        "stats": {
+          "health": 5,
+          "defense": 4,
+          "attack": 4,
+          "sanity": 2
+        },
+        "work_stats": {
+          "lumbering": 10
+        }
+      }
+    },
+    {
+      "id": "chest_5",
+      "name": "Mourning Mail",
+      "slot": "chest",
+      "icon_path": "res://assets/equipment/chest/chest_5.png",
+      "bonuses": {
+        "stats": {
+          "defense": 10,
+          "health": 5
+        },
+        "work_stats": {
+          "mining": 5
+        }
+      }
+    },
+    {
+      "id": "chest_6",
+      "name": "Iron Saint Brigandine",
+      "slot": "chest",
+      "icon_path": "res://assets/equipment/chest/chest_6.png",
+      "bonuses": {
+        "stats": {
+          "attack": 6,
+          "defense": 5,
+          "health": 4
+        },
+        "work_stats": {
+          "farming": 7
+        }
+      }
+    },
+    {
+      "id": "chest_7",
+      "name": "Hollow Oath Cuirass",
+      "slot": "chest",
+      "icon_path": "res://assets/equipment/chest/chest_7.png",
+      "bonuses": {
+        "stats": {
+          "health": 15
+        },
+        "work_stats": {
+          "lumbering": 3
+        }
+      }
+    },
+    {
+      "id": "chest_8",
+      "name": "Duskforged Breastplate",
+      "slot": "chest",
+      "icon_path": "res://assets/equipment/chest/chest_8.png",
+      "bonuses": {
+        "stats": {
+          "health": 9,
+          "defense": 6
+        },
+        "work_stats": {
+          "mining": 5
+        }
+      }
+    },
+    {
+      "id": "chest_9",
+      "name": "Raven Guard Armor",
+      "slot": "chest",
+      "icon_path": "res://assets/equipment/chest/chest_9.png",
+      "bonuses": {
+        "stats": {
+          "defense": 7,
+          "health": 5,
+          "sanity": 3
+        },
+        "work_stats": {
+          "farming": 7
+        }
+      }
+    },
+    {
+      "id": "gloves_1",
+      "name": "Gravehand Gauntlets",
+      "slot": "gloves",
+      "icon_path": "res://assets/equipment/gloves/gloves_1.png",
+      "bonuses": {
+        "stats": {
+          "attack": 15
+        },
+        "work_stats": {
+          "mining": 3
+        }
+      }
+    },
+    {
+      "id": "gloves_10",
+      "name": "Bloodwax Handwraps",
+      "slot": "gloves",
+      "icon_path": "res://assets/equipment/gloves/gloves_10.png",
+      "bonuses": {
+        "stats": {
+          "attack": 5,
+          "critical_chance": 4,
+          "critical_damage": 3,
+          "defense": 3
+        },
+        "work_stats": {
+          "mining": 10
+        }
+      }
+    },
+    {
+      "id": "gloves_11",
+      "name": "Sable Work Gauntlets",
+      "slot": "gloves",
+      "icon_path": "res://assets/equipment/gloves/gloves_11.png",
+      "bonuses": {
+        "stats": {
+          "critical_damage": 10,
+          "attack": 5
+        },
+        "work_stats": {
+          "lumbering": 5
+        }
+      }
+    },
+    {
+      "id": "gloves_12",
+      "name": "Thornbite Gloves",
+      "slot": "gloves",
+      "icon_path": "res://assets/equipment/gloves/gloves_12.png",
+      "bonuses": {
+        "stats": {
+          "attack": 6,
+          "health": 5,
+          "defense": 4
+        },
+        "work_stats": {
+          "farming": 7
+        }
+      }
+    },
+    {
+      "id": "gloves_13",
+      "name": "Embergrip Fists",
+      "slot": "gloves",
+      "icon_path": "res://assets/equipment/gloves/gloves_13.png",
+      "bonuses": {
+        "stats": {
+          "attack": 15
+        },
+        "work_stats": {
+          "mining": 3
+        }
+      }
+    },
+    {
+      "id": "gloves_14",
+      "name": "Nightwarden Gloves",
+      "slot": "gloves",
+      "icon_path": "res://assets/equipment/gloves/gloves_14.png",
+      "bonuses": {
+        "stats": {
+          "attack": 9,
+          "critical_chance": 6
+        },
+        "work_stats": {
+          "lumbering": 5
+        }
+      }
+    },
+    {
+      "id": "gloves_15",
+      "name": "Witchbone Grips",
+      "slot": "gloves",
+      "icon_path": "res://assets/equipment/gloves/gloves_15.png",
+      "bonuses": {
+        "stats": {
+          "attack": 7,
+          "critical_damage": 5,
+          "defense": 3
+        },
+        "work_stats": {
+          "farming": 7
+        }
+      }
+    },
+    {
+      "id": "gloves_16",
+      "name": "Sepulcher Gauntlets",
+      "slot": "gloves",
+      "icon_path": "res://assets/equipment/gloves/gloves_16.png",
+      "bonuses": {
+        "stats": {
+          "attack": 5,
+          "critical_chance": 4,
+          "critical_damage": 3,
+          "defense": 3
+        },
+        "work_stats": {
+          "mining": 10
+        }
+      }
+    },
+    {
+      "id": "gloves_17",
+      "name": "Hollow Palm Wraps",
+      "slot": "gloves",
+      "icon_path": "res://assets/equipment/gloves/gloves_17.png",
+      "bonuses": {
+        "stats": {
+          "critical_damage": 10,
+          "attack": 5
+        },
+        "work_stats": {
+          "lumbering": 5
+        }
+      }
+    },
+    {
+      "id": "gloves_18",
+      "name": "Ebon Claw Gloves",
+      "slot": "gloves",
+      "icon_path": "res://assets/equipment/gloves/gloves_18.png",
+      "bonuses": {
+        "stats": {
+          "attack": 6,
+          "health": 5,
+          "defense": 4
+        },
+        "work_stats": {
+          "farming": 7
+        }
+      }
+    },
+    {
+      "id": "gloves_2",
+      "name": "Ashen Grip Gloves",
+      "slot": "gloves",
+      "icon_path": "res://assets/equipment/gloves/gloves_2.png",
+      "bonuses": {
+        "stats": {
+          "attack": 9,
+          "critical_chance": 6
+        },
+        "work_stats": {
+          "lumbering": 5
+        }
+      }
+    },
+    {
+      "id": "gloves_3",
+      "name": "Cryptiron Fists",
+      "slot": "gloves",
+      "icon_path": "res://assets/equipment/gloves/gloves_3.png",
+      "bonuses": {
+        "stats": {
+          "attack": 7,
+          "critical_damage": 5,
+          "defense": 3
+        },
+        "work_stats": {
+          "farming": 7
+        }
+      }
+    },
+    {
+      "id": "gloves_4",
+      "name": "Black Pilgrim Wraps",
+      "slot": "gloves",
+      "icon_path": "res://assets/equipment/gloves/gloves_4.png",
+      "bonuses": {
+        "stats": {
+          "attack": 5,
+          "critical_chance": 4,
+          "critical_damage": 3,
+          "defense": 3
+        },
+        "work_stats": {
+          "mining": 10
+        }
+      }
+    },
+    {
+      "id": "gloves_5",
+      "name": "Mireclaw Gloves",
+      "slot": "gloves",
+      "icon_path": "res://assets/equipment/gloves/gloves_5.png",
+      "bonuses": {
+        "stats": {
+          "critical_damage": 10,
+          "attack": 5
+        },
+        "work_stats": {
+          "lumbering": 5
+        }
+      }
+    },
+    {
+      "id": "gloves_6",
+      "name": "Iron Saint Gauntlets",
+      "slot": "gloves",
+      "icon_path": "res://assets/equipment/gloves/gloves_6.png",
+      "bonuses": {
+        "stats": {
+          "attack": 6,
+          "health": 5,
+          "defense": 4
+        },
+        "work_stats": {
+          "farming": 7
+        }
+      }
+    },
+    {
+      "id": "gloves_7",
+      "name": "Duskgrip Bracers",
+      "slot": "gloves",
+      "icon_path": "res://assets/equipment/gloves/gloves_7.png",
+      "bonuses": {
+        "stats": {
+          "attack": 15
+        },
+        "work_stats": {
+          "mining": 3
+        }
+      }
+    },
+    {
+      "id": "gloves_8",
+      "name": "Raven Talon Gloves",
+      "slot": "gloves",
+      "icon_path": "res://assets/equipment/gloves/gloves_8.png",
+      "bonuses": {
+        "stats": {
+          "attack": 9,
+          "critical_chance": 6
+        },
+        "work_stats": {
+          "lumbering": 5
+        }
+      }
+    },
+    {
+      "id": "gloves_9",
+      "name": "Pale Knuckle Guards",
+      "slot": "gloves",
+      "icon_path": "res://assets/equipment/gloves/gloves_9.png",
+      "bonuses": {
+        "stats": {
+          "attack": 7,
+          "critical_damage": 5,
+          "defense": 3
+        },
+        "work_stats": {
+          "farming": 7
+        }
+      }
+    },
+    {
+      "id": "head_1",
+      "name": "Gravehood Cowl",
+      "slot": "head",
+      "icon_path": "res://assets/equipment/head/head_1.png",
+      "bonuses": {
+        "stats": {
+          "sanity": 15
+        },
+        "work_stats": {
+          "farming": 3
+        }
+      }
+    },
+    {
+      "id": "head_10",
+      "name": "Bloodrust Barbute",
+      "slot": "head",
+      "icon_path": "res://assets/equipment/head/head_10.png",
+      "bonuses": {
+        "stats": {
+          "sanity": 5,
+          "defense": 4,
+          "health": 3,
+          "critical_chance": 3
+        },
+        "work_stats": {
+          "farming": 10
+        }
+      }
+    },
+    {
+      "id": "head_11",
+      "name": "Sable Watch Helm",
+      "slot": "head",
+      "icon_path": "res://assets/equipment/head/head_11.png",
+      "bonuses": {
+        "stats": {
+          "critical_damage": 10,
+          "sanity": 5
+        },
+        "work_stats": {
+          "mining": 5
+        }
+      }
+    },
+    {
+      "id": "head_12",
+      "name": "Thornhalo Circlet",
+      "slot": "head",
+      "icon_path": "res://assets/equipment/head/head_12.png",
+      "bonuses": {
+        "stats": {
+          "attack": 6,
+          "sanity": 5,
+          "defense": 4
+        },
+        "work_stats": {
+          "lumbering": 7
+        }
+      }
+    },
+    {
+      "id": "head_13",
+      "name": "Embergrave Helm",
+      "slot": "head",
+      "icon_path": "res://assets/equipment/head/head_13.png",
+      "bonuses": {
+        "stats": {
+          "sanity": 15
+        },
+        "work_stats": {
+          "farming": 3
+        }
+      }
+    },
+    {
+      "id": "head_14",
+      "name": "Nightwarden Hood",
+      "slot": "head",
+      "icon_path": "res://assets/equipment/head/head_14.png",
+      "bonuses": {
+        "stats": {
+          "sanity": 9,
+          "defense": 6
+        },
+        "work_stats": {
+          "mining": 5
+        }
+      }
+    },
+    {
+      "id": "head_15",
+      "name": "Witchbane Mask",
+      "slot": "head",
+      "icon_path": "res://assets/equipment/head/head_15.png",
+      "bonuses": {
+        "stats": {
+          "critical_chance": 6,
+          "sanity": 5,
+          "defense": 4
+        },
+        "work_stats": {
+          "lumbering": 7
+        }
+      }
+    },
+    {
+      "id": "head_16",
+      "name": "Sepulcher Crown",
+      "slot": "head",
+      "icon_path": "res://assets/equipment/head/head_16.png",
+      "bonuses": {
+        "stats": {
+          "sanity": 5,
+          "defense": 4,
+          "health": 3,
+          "critical_chance": 3
+        },
+        "work_stats": {
+          "farming": 10
+        }
+      }
+    },
+    {
+      "id": "head_17",
+      "name": "Hollow Saint Coif",
+      "slot": "head",
+      "icon_path": "res://assets/equipment/head/head_17.png",
+      "bonuses": {
+        "stats": {
+          "critical_damage": 10,
+          "sanity": 5
+        },
+        "work_stats": {
+          "mining": 5
+        }
+      }
+    },
+    {
+      "id": "head_18",
+      "name": "Ebon Prophet Hood",
+      "slot": "head",
+      "icon_path": "res://assets/equipment/head/head_18.png",
+      "bonuses": {
+        "stats": {
+          "attack": 6,
+          "sanity": 5,
+          "defense": 4
+        },
+        "work_stats": {
+          "lumbering": 7
+        }
+      }
+    },
+    {
+      "id": "head_2",
+      "name": "Ashen Visor",
+      "slot": "head",
+      "icon_path": "res://assets/equipment/head/head_2.png",
+      "bonuses": {
+        "stats": {
+          "sanity": 9,
+          "defense": 6
+        },
+        "work_stats": {
+          "mining": 5
+        }
+      }
+    },
+    {
+      "id": "head_3",
+      "name": "Cryptwarden Helm",
+      "slot": "head",
+      "icon_path": "res://assets/equipment/head/head_3.png",
+      "bonuses": {
+        "stats": {
+          "critical_chance": 6,
+          "sanity": 5,
+          "defense": 4
+        },
+        "work_stats": {
+          "lumbering": 7
+        }
+      }
+    },
+    {
+      "id": "head_4",
+      "name": "Black Pilgrim Hood",
+      "slot": "head",
+      "icon_path": "res://assets/equipment/head/head_4.png",
+      "bonuses": {
+        "stats": {
+          "sanity": 5,
+          "defense": 4,
+          "health": 3,
+          "critical_chance": 3
+        },
+        "work_stats": {
+          "farming": 10
+        }
+      }
+    },
+    {
+      "id": "head_5",
+      "name": "Mirewatch Mask",
+      "slot": "head",
+      "icon_path": "res://assets/equipment/head/head_5.png",
+      "bonuses": {
+        "stats": {
+          "critical_damage": 10,
+          "sanity": 5
+        },
+        "work_stats": {
+          "mining": 5
+        }
+      }
+    },
+    {
+      "id": "head_6",
+      "name": "Iron Saint Sallet",
+      "slot": "head",
+      "icon_path": "res://assets/equipment/head/head_6.png",
+      "bonuses": {
+        "stats": {
+          "attack": 6,
+          "sanity": 5,
+          "defense": 4
+        },
+        "work_stats": {
+          "lumbering": 7
+        }
+      }
+    },
+    {
+      "id": "head_7",
+      "name": "Duskveil Coif",
+      "slot": "head",
+      "icon_path": "res://assets/equipment/head/head_7.png",
+      "bonuses": {
+        "stats": {
+          "sanity": 15
+        },
+        "work_stats": {
+          "farming": 3
+        }
+      }
+    },
+    {
+      "id": "head_8",
+      "name": "Raven Crown Helm",
+      "slot": "head",
+      "icon_path": "res://assets/equipment/head/head_8.png",
+      "bonuses": {
+        "stats": {
+          "sanity": 9,
+          "defense": 6
+        },
+        "work_stats": {
+          "mining": 5
+        }
+      }
+    },
+    {
+      "id": "head_9",
+      "name": "Pale Martyr Mask",
+      "slot": "head",
+      "icon_path": "res://assets/equipment/head/head_9.png",
+      "bonuses": {
+        "stats": {
+          "critical_chance": 6,
+          "sanity": 5,
+          "defense": 4
+        },
+        "work_stats": {
+          "lumbering": 7
+        }
+      }
+    },
+    {
+      "id": "ring_1",
+      "name": "Gravegold Band",
+      "slot": "ring",
+      "icon_path": "res://assets/equipment/ring/ring_1.png",
+      "bonuses": {
+        "stats": {
+          "critical_chance": 15
+        },
+        "work_stats": {
+          "mining": 3
+        }
+      }
+    },
+    {
+      "id": "ring_10",
+      "name": "Bloodwax Circle",
+      "slot": "ring",
+      "icon_path": "res://assets/equipment/ring/ring_10.png",
+      "bonuses": {
+        "stats": {
+          "attack": 5,
+          "sanity": 4,
+          "critical_damage": 3,
+          "critical_chance": 3
+        },
+        "work_stats": {
+          "mining": 10
+        }
+      }
+    },
+    {
+      "id": "ring_11",
+      "name": "Sable Pact Ring",
+      "slot": "ring",
+      "icon_path": "res://assets/equipment/ring/ring_11.png",
+      "bonuses": {
+        "stats": {
+          "sanity": 10,
+          "critical_chance": 5
+        },
+        "work_stats": {
+          "farming": 5
+        }
+      }
+    },
+    {
+      "id": "ring_12",
+      "name": "Thornbite Loop",
+      "slot": "ring",
+      "icon_path": "res://assets/equipment/ring/ring_12.png",
+      "bonuses": {
+        "stats": {
+          "attack": 6,
+          "critical_damage": 5,
+          "health": 4
+        },
+        "work_stats": {
+          "lumbering": 7
+        }
+      }
+    },
+    {
+      "id": "ring_13",
+      "name": "Embergrave Band",
+      "slot": "ring",
+      "icon_path": "res://assets/equipment/ring/ring_13.png",
+      "bonuses": {
+        "stats": {
+          "critical_chance": 15
+        },
+        "work_stats": {
+          "mining": 3
+        }
+      }
+    },
+    {
+      "id": "ring_14",
+      "name": "Nightwarden Seal",
+      "slot": "ring",
+      "icon_path": "res://assets/equipment/ring/ring_14.png",
+      "bonuses": {
+        "stats": {
+          "critical_damage": 9,
+          "critical_chance": 6
+        },
+        "work_stats": {
+          "farming": 5
+        }
+      }
+    },
+    {
+      "id": "ring_15",
+      "name": "Witchbone Ring",
+      "slot": "ring",
+      "icon_path": "res://assets/equipment/ring/ring_15.png",
+      "bonuses": {
+        "stats": {
+          "attack": 6,
+          "sanity": 5,
+          "critical_chance": 4
+        },
+        "work_stats": {
+          "lumbering": 7
+        }
+      }
+    },
+    {
+      "id": "ring_16",
+      "name": "Sepulcher Signet",
+      "slot": "ring",
+      "icon_path": "res://assets/equipment/ring/ring_16.png",
+      "bonuses": {
+        "stats": {
+          "attack": 5,
+          "sanity": 4,
+          "critical_damage": 3,
+          "critical_chance": 3
+        },
+        "work_stats": {
+          "mining": 10
+        }
+      }
+    },
+    {
+      "id": "ring_17",
+      "name": "Hollow Moon Band",
+      "slot": "ring",
+      "icon_path": "res://assets/equipment/ring/ring_17.png",
+      "bonuses": {
+        "stats": {
+          "sanity": 10,
+          "critical_chance": 5
+        },
+        "work_stats": {
+          "farming": 5
+        }
+      }
+    },
+    {
+      "id": "ring_18",
+      "name": "Ebon Prophet Ring",
+      "slot": "ring",
+      "icon_path": "res://assets/equipment/ring/ring_18.png",
+      "bonuses": {
+        "stats": {
+          "attack": 6,
+          "critical_damage": 5,
+          "health": 4
+        },
+        "work_stats": {
+          "lumbering": 7
+        }
+      }
+    },
+    {
+      "id": "ring_2",
+      "name": "Ashen Thorn Ring",
+      "slot": "ring",
+      "icon_path": "res://assets/equipment/ring/ring_2.png",
+      "bonuses": {
+        "stats": {
+          "critical_damage": 9,
+          "critical_chance": 6
+        },
+        "work_stats": {
+          "farming": 5
+        }
+      }
+    },
+    {
+      "id": "ring_3",
+      "name": "Cryptsilver Loop",
+      "slot": "ring",
+      "icon_path": "res://assets/equipment/ring/ring_3.png",
+      "bonuses": {
+        "stats": {
+          "attack": 6,
+          "sanity": 5,
+          "critical_chance": 4
+        },
+        "work_stats": {
+          "lumbering": 7
+        }
+      }
+    },
+    {
+      "id": "ring_4",
+      "name": "Black Reliquary Ring",
+      "slot": "ring",
+      "icon_path": "res://assets/equipment/ring/ring_4.png",
+      "bonuses": {
+        "stats": {
+          "attack": 5,
+          "sanity": 4,
+          "critical_damage": 3,
+          "critical_chance": 3
+        },
+        "work_stats": {
+          "mining": 10
+        }
+      }
+    },
+    {
+      "id": "ring_5",
+      "name": "Mireglass Signet",
+      "slot": "ring",
+      "icon_path": "res://assets/equipment/ring/ring_5.png",
+      "bonuses": {
+        "stats": {
+          "sanity": 10,
+          "critical_chance": 5
+        },
+        "work_stats": {
+          "farming": 5
+        }
+      }
+    },
+    {
+      "id": "ring_6",
+      "name": "Iron Saint Seal",
+      "slot": "ring",
+      "icon_path": "res://assets/equipment/ring/ring_6.png",
+      "bonuses": {
+        "stats": {
+          "attack": 6,
+          "critical_damage": 5,
+          "health": 4
+        },
+        "work_stats": {
+          "lumbering": 7
+        }
+      }
+    },
+    {
+      "id": "ring_7",
+      "name": "Duskblood Band",
+      "slot": "ring",
+      "icon_path": "res://assets/equipment/ring/ring_7.png",
+      "bonuses": {
+        "stats": {
+          "critical_chance": 15
+        },
+        "work_stats": {
+          "mining": 3
+        }
+      }
+    },
+    {
+      "id": "ring_8",
+      "name": "Raven Oath Ring",
+      "slot": "ring",
+      "icon_path": "res://assets/equipment/ring/ring_8.png",
+      "bonuses": {
+        "stats": {
+          "critical_damage": 9,
+          "critical_chance": 6
+        },
+        "work_stats": {
+          "farming": 5
+        }
+      }
+    },
+    {
+      "id": "ring_9",
+      "name": "Pale Martyr Signet",
+      "slot": "ring",
+      "icon_path": "res://assets/equipment/ring/ring_9.png",
+      "bonuses": {
+        "stats": {
+          "attack": 6,
+          "sanity": 5,
+          "critical_chance": 4
+        },
+        "work_stats": {
+          "lumbering": 7
+        }
+      }
+    }
+  ]
+}

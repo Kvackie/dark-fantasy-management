@@ -1,154 +1,67 @@
 # Dark Fantasy Settlement
 
-`Dark Fantasy Settlement` is a Godot 4 project for a dark-fantasy settlement builder with a light hero roster and world-expansion layer.
+A grim settlement builder for the browser. Raise a frontier town, staff it with heroes, and push
+back the fog. Built with **Vite + TypeScript + Phaser 4**, with DOM panels over the canvas, saves
+in `localStorage`, a Vitest suite, Prettier, and a GitHub Pages deploy — the same stack as Eternal
+Alchemy.
 
-The current game loop focuses on building structures, assigning heroes, processing production ticks, recruiting new heroes, and clearing nearby world zones to found additional settlements.
+Play it at **https://kvackie.github.io/dark-fantasy-management/**.
 
-## Web version
+It began as a Godot 4 prototype. The web version replaced it; the Godot project is in this
+repository's history up to commit `ca3b808`.
 
-`web/` is a browser recreation of this game in Vite + TypeScript + Phaser 4 (the Eternal Alchemy setup), deployed to GitHub Pages by `.github/workflows/pages.yml`. It reads the same `data/*.json` as the Godot project. See [`web/README.md`](web/README.md) for how to run it and what differs.
+## Running it
 
-## Overview
-
-- Build and upgrade structures on an 8-slot settlement grid.
-- Assign heroes to buildings to improve work output and unlock progression.
-- Gain resources every 2 seconds through the production tick system.
-- Expand across a fog-of-war world map by clearing and claiming zones.
-- Unlock recruitment through the Tavern and grow the hero roster.
-- Equip heroes and level them over time through passive progression systems.
-
-This is currently a management-first prototype. Combat stats and equipment exist, but there is no full combat loop yet.
-
-## Current Gameplay Loop
-
-1. Start in `The Hollow March` with a small pool of resources.
-2. Build resource and support buildings in the settlement grid.
-3. Assign heroes to production or utility buildings.
-4. Let ticks generate resources and apply building effects.
-5. Build a Tavern to unlock the recruit market.
-6. Clear nearby zones with idle heroes.
-7. Claim cleared zones to expand your settlements.
-
-## Main Systems
-
-### Settlement Management
-
-- The starting settlement has 8 building plots.
-- Buildings can be constructed, upgraded, and staffed.
-- Production and upkeep are driven by data in `data/buildings.json`.
-
-### Heroes
-
-- Heroes have classes, combat stats, work stats, XP, and equipment slots.
-- Work stats matter for assignment and economic progression.
-- Growth values can be fixed or randomized from ranges and are stored per hero.
-
-### World Expansion
-
-- The world uses a fog-of-war style zone map.
-- Zones move through `discovered -> clearing -> cleared -> claimed` states.
-- Claimed zones can become settlements or special reward areas.
-
-### Recruitment
-
-- Recruitment unlocks once at least one Tavern is built.
-- The recruit market offers heroes based on data-driven definitions.
-- Refresh costs and offer capacity are configured in `data/recruitment.json`.
-
-### Inventory and Equipment
-
-- Inventory data exists for items and equipment.
-- Equipment affects hero stats and supports the hero-detail loop.
-- Inventory items are present, but the main economy currently runs on `resources`.
-
-### Saves and Mods
-
-- Save slots are stored under `user://`.
-- The project supports content mods for heroes, items, and equipment.
-- Optional mod folders are loaded from:
-  - `user://mods/heroes`
-  - `user://mods/items`
-  - `user://mods/equipment`
-
-## Tech Stack
-
-- Engine: Godot `4.6`
-- Renderer: `GL Compatibility`
-- Target resolution: `1280x720`
-- Main scene: `res://scenes/main/main.tscn`
-
-## Autoloads
-
-The project depends on these autoloads defined in `project.godot`:
-
-- `GameManager`
-- `DataLoader`
-- `GameSession`
-- `ModBootstrap`
-
-`GameManager` expects the session autoload to be named exactly `GameSession`.
-
-## Project Structure
-
-```text
-assets/                UI, building, and resource art
-data/                  JSON-driven game content and tuning
-resources/themes/      Shared UI theme resources
-scenes/                Main UI, world view, and reusable widget scenes
-scripts/components/    Small gameplay components
-scripts/data/          Data loading and mod bootstrap
-scripts/game/          Runtime state and gameplay authority
-scripts/ui/            Main screens and page controllers
-scripts/widgets/       Reusable UI widgets
+```
+npm install
+npm run dev        # http://localhost:5173
 ```
 
-## Key Files
+| Script | Does |
+| --- | --- |
+| `npm run dev` | Dev server |
+| `npm run build` | Type check, then production bundle into `dist/` |
+| `npm run preview` | Serve the production bundle |
+| `npm test` | Run the simulation and balance suites |
+| `npm run typecheck` | Type check without building |
+| `npm run format` | Format every file with Prettier |
+| `npm run format:check` | Fail if any file is not formatted — the deploy runs this |
 
-- `project.godot`: project config, autoloads, display setup
-- `scripts/game/game_manager.gd`: main gameplay authority and signal hub
-- `scripts/game/game_session.gd`: runtime state, save handling, autosave
-- `scripts/game/world_zone_utils.gd`: pure world-zone generation and reward math helpers
-- `scripts/data/data_loader.gd`: loads core data and optional mods
-- `scripts/ui/main_screen.gd`: root UI shell and page navigation
-- `scripts/ui/main_screen_view_builders.gd`: main-menu, recruit, and debug page rendering helpers
-- `scripts/ui/main_screen_settlement_builders.gd`: settlement detail panel rendering helpers
-- `scripts/ui/main_screen_page_coordinator.gd`: scene-backed page screen cache and mount coordinator
-- `scripts/ui/world_screen.gd`: world-map interaction and clearing flow
-- `scripts/ui/hero_detail_view_builders.gd`: hero-detail presentation helpers for info and bonus sections
-- `data/buildings.json`: building definitions, costs, production, worker slots
-- `data/heroes.json`: hero roster definitions and stat baselines
-- `data/world.json`: zone generation, reveal rules, claim costs, special biomes
+## Deploying
 
-## Running The Project
+`.github/workflows/pages.yml` checks formatting, runs the tests, builds, and publishes `dist/` to
+GitHub Pages on every push to `master`. `vite.config.ts` sets `base: './'`, so every asset path is
+relative and the same build works at the project subpath or at a domain root.
 
-1. Open the project in Godot 4.6.
-2. Load `project.godot`.
-3. Run the main scene, or just press Play in the editor.
+The save lives in the browser, so it is per-browser and per-origin: the Pages copy and a local
+`npm run dev` copy are different games.
 
-The game starts from `res://scenes/main/main.tscn`.
+## How it's put together
 
-## Data-Driven Content
+The one structural rule: **the simulation never imports the engine.**
 
-Most of the game is configured through JSON files in `data/`:
+```
+src/
+  sim/        Pure TypeScript. Every rule in the game. No Phaser, no DOM, no wall clock.
+  data/       JSON. Every tunable number, so balance is diffable in git.
+  i18n/       Every user-facing string, keyed, in en.json.
+  ui/
+    phaser/   The world map and the forge.
+    dom/      The shell (resource bar, nav, dialogs, toasts, main menu) and one panel per screen.
+  platform/   Save slots over localStorage.
+```
 
-- `buildings.json`
-- `settlements.json`
-- `world.json`
-- `recruitment.json`
-- `heroes.json`
-- `items.json`
-- `equipment.json`
-- `ui_text.json`
+**Phaser draws what it is good at** — the pannable, zoomable zone map and the forge bar — and the
+DOM gets everything that is text and lists. The two halves talk only through the simulation and
+`ui/bus.ts`.
 
-This makes it easy to tune progression and add content without changing core game flow.
+**Time** runs in two-second ticks. The frame loop hands the simulation real elapsed milliseconds
+and it runs every tick they pay for.
 
-## Current Limitations
+**Randomness is seeded** and the generator's state is in the save. The map itself is hashed from
+the world seed and each zone's coordinates, so biomes, names and claim costs are fixed per world
+however it is explored.
 
-- No full combat gameplay loop yet.
-- Hero skills are placeholder UI.
-- Some systems are scaffolded ahead of full gameplay use.
-- Boot flow targets save slot `1` first.
-
-## Notes
-
-This repository is currently focused on clarity and iteration speed: small components, data-driven content, and a UI-first gameplay loop built around settlement growth and controlled expansion.
+**The forge puzzles** are small state machines in `sim/puzzles.ts` with no renderer: the shell
+steps them each frame and feeds them button presses (or Space and the arrow keys), and
+`ForgeScene` only draws what it reads back. That keeps their timing rules under test.

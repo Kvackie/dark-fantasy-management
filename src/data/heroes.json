@@ -1,0 +1,1022 @@
+{
+  "heroes": [
+    {
+      "id": "grave_forager",
+      "name": "Mara the Grave Forager",
+      "class": "Supporter",
+      "description": "Finds value in rot, ruins, and the things others fear to touch.",
+      "icon_path": "res://assets/heroes/icon/icon_1.png",
+      "recruitment_weight": 3,
+      "recruit_cost": [
+        {
+          "resource": "food",
+          "amount": 18,
+          "per_level": 2
+        },
+        {
+          "resource": "gold",
+          "min_amount": 20,
+          "max_amount": 28,
+          "per_level": 3
+        },
+        {
+          "resource": "gems",
+          "amount": 1
+        }
+      ],
+      "stats": {
+        "health": 82,
+        "sanity": 108,
+        "attack": 11,
+        "defense": 8,
+        "critical_chance": 9,
+        "critical_damage": 145
+      },
+      "work_stats": {
+        "farming": 4,
+        "mining": 1,
+        "lumbering": 2
+      },
+      "portrait_path": "res://assets/heroes/portrait/portrait_1.png"
+    },
+    {
+      "id": "ash_smith",
+      "name": "Orsik Ash-Smith",
+      "class": "Defender",
+      "description": "An exile who tempers iron with funeral embers.",
+      "icon_path": "res://assets/heroes/icon/icon_2.png",
+      "recruitment_weight": 2,
+      "recruit_cost": [
+        {
+          "resource": "food",
+          "amount": 16,
+          "per_level": 2
+        },
+        {
+          "resource": "gold",
+          "amount": 30,
+          "per_level": 4
+        },
+        {
+          "resource": "stone",
+          "min_amount": 8,
+          "max_amount": 14,
+          "per_level": 2
+        }
+      ],
+      "stats": {
+        "health": 118,
+        "sanity": 84,
+        "attack": 13,
+        "defense": 16,
+        "critical_chance": 5,
+        "critical_damage": 135
+      },
+      "work_stats": {
+        "farming": 1,
+        "mining": 4,
+        "lumbering": 1
+      },
+      "portrait_path": "res://assets/heroes/portrait/portrait_2.png"
+    },
+    {
+      "id": "briar_ranger",
+      "name": "Yselle Briar-Ranger",
+      "class": "Attacker",
+      "description": "Cuts cursed timber paths through hostile woods.",
+      "icon_path": "res://assets/heroes/icon/icon_3.png",
+      "recruitment_weight": 3,
+      "recruit_cost": [
+        {
+          "resource": "food",
+          "min_amount": 14,
+          "max_amount": 20,
+          "per_level": 2
+        },
+        {
+          "resource": "gold",
+          "amount": 26,
+          "per_level": 3
+        },
+        {
+          "resource": "wood",
+          "amount": 10,
+          "per_level": 1
+        }
+      ],
+      "stats": {
+        "health": 94,
+        "sanity": 90,
+        "attack": 18,
+        "defense": 9,
+        "critical_chance": 14,
+        "critical_damage": 160
+      },
+      "work_stats": {
+        "farming": 1,
+        "mining": 1,
+        "lumbering": 4
+      },
+      "portrait_path": "res://assets/heroes/portrait/portrait_3.png"
+    },
+    {
+      "id": "lantern_monk",
+      "name": "Sister Vael",
+      "class": "Supporter",
+      "description": "Keeps famine at bay with ritual discipline and grim patience.",
+      "icon_path": "res://assets/heroes/icon/icon_4.png",
+      "recruitment_weight": 2,
+      "recruit_cost": [
+        {
+          "resource": "food",
+          "amount": 22,
+          "per_level": 3
+        },
+        {
+          "resource": "gold",
+          "min_amount": 18,
+          "max_amount": 24,
+          "per_level": 2
+        },
+        {
+          "resource": "gems",
+          "amount": 1
+        }
+      ],
+      "stats": {
+        "health": 88,
+        "sanity": 112,
+        "attack": 10,
+        "defense": 10,
+        "critical_chance": 7,
+        "critical_damage": 140
+      },
+      "work_stats": {
+        "farming": 5,
+        "mining": 0,
+        "lumbering": 1
+      },
+      "portrait_path": "res://assets/heroes/portrait/portrait_4.png"
+    },
+    {
+      "id": "pit_delver",
+      "name": "Hurn Pit-Delver",
+      "class": "Defender",
+      "description": "Descends where rope and sanity stop being useful.",
+      "icon_path": "res://assets/heroes/icon/icon_5.png",
+      "recruitment_weight": 3,
+      "recruit_cost": [
+        {
+          "resource": "food",
+          "amount": 17,
+          "per_level": 2
+        },
+        {
+          "resource": "gold",
+          "amount": 24,
+          "per_level": 3
+        },
+        {
+          "resource": "stone",
+          "amount": 12,
+          "per_level": 2
+        }
+      ],
+      "stats": {
+        "health": 124,
+        "sanity": 76,
+        "attack": 14,
+        "defense": 18,
+        "critical_chance": 4,
+        "critical_damage": 130
+      },
+      "work_stats": {
+        "farming": 0,
+        "mining": 5,
+        "lumbering": 1
+      },
+      "portrait_path": "res://assets/heroes/portrait/portrait_5.png"
+    },
+    {
+      "id": "veil_host",
+      "name": "Lucan the Veil Host",
+      "class": "Supporter",
+      "description": "Turns fear into coin and drifters into labor.",
+      "icon_path": "res://assets/heroes/icon/icon_6.png",
+      "recruitment_weight": 2,
+      "recruit_cost": [
+        {
+          "resource": "food",
+          "amount": "12-18",
+          "per_level": 2
+        },
+        {
+          "resource": "gold",
+          "min_amount": 24,
+          "max_amount": 32,
+          "per_level": 3
+        },
+        {
+          "resource": "gems",
+          "amount": 1
+        }
+      ],
+      "stats": {
+        "health": 86,
+        "sanity": 100,
+        "attack": 12,
+        "defense": 9,
+        "critical_chance": 8,
+        "critical_damage": 150
+      },
+      "work_stats": {
+        "farming": 2,
+        "mining": 1,
+        "lumbering": 0
+      },
+      "portrait_path": "res://assets/heroes/portrait/portrait_6.png"
+    },
+    {
+      "id": "cinder_votary",
+      "name": "Edrin Cinder-Votary",
+      "class": "Supporter",
+      "description": "Carries old temple coals and whispers hymns to the hungry dead.",
+      "icon_path": "res://assets/heroes/icon/icon_7.png",
+      "recruitment_weight": 2,
+      "recruit_cost": [
+        {
+          "resource": "food",
+          "amount": 20,
+          "per_level": 2
+        },
+        {
+          "resource": "gold",
+          "amount": 22,
+          "per_level": 3
+        },
+        {
+          "resource": "gems",
+          "amount": 1
+        }
+      ],
+      "stats": {
+        "health": 90,
+        "sanity": 116,
+        "attack": 9,
+        "defense": 11,
+        "critical_chance": 6,
+        "critical_damage": 138
+      },
+      "work_stats": {
+        "farming": 4,
+        "mining": 0,
+        "lumbering": 2
+      },
+      "portrait_path": "res://assets/heroes/portrait/portrait_7.png"
+    },
+    {
+      "id": "blackwall_sentinel",
+      "name": "Brann Blackwall",
+      "class": "Defender",
+      "description": "A shield-bearer from a fallen keep who still obeys its final watch bell.",
+      "icon_path": "res://assets/heroes/icon/icon_8.png",
+      "recruitment_weight": 2,
+      "recruit_cost": [
+        {
+          "resource": "food",
+          "amount": 18,
+          "per_level": 2
+        },
+        {
+          "resource": "gold",
+          "amount": 34,
+          "per_level": 4
+        },
+        {
+          "resource": "stone",
+          "amount": 14,
+          "per_level": 2
+        }
+      ],
+      "stats": {
+        "health": 132,
+        "sanity": 78,
+        "attack": 12,
+        "defense": 20,
+        "critical_chance": 3,
+        "critical_damage": 128
+      },
+      "work_stats": {
+        "farming": 0,
+        "mining": 4,
+        "lumbering": 2
+      },
+      "portrait_path": "res://assets/heroes/portrait/portrait_8.png"
+    },
+    {
+      "id": "raven_cutthroat",
+      "name": "Nessa Raven-Cut",
+      "class": "Attacker",
+      "description": "A roadside killer who sells clean blades and dirtier promises.",
+      "icon_path": "res://assets/heroes/icon/icon_9.png",
+      "recruitment_weight": 3,
+      "recruit_cost": [
+        {
+          "resource": "food",
+          "min_amount": 12,
+          "max_amount": 18,
+          "per_level": 2
+        },
+        {
+          "resource": "gold",
+          "amount": 32,
+          "per_level": 3
+        },
+        {
+          "resource": "wood",
+          "amount": 8,
+          "per_level": 1
+        }
+      ],
+      "stats": {
+        "health": 86,
+        "sanity": 82,
+        "attack": 22,
+        "defense": 7,
+        "critical_chance": 18,
+        "critical_damage": 170
+      },
+      "work_stats": {
+        "farming": 1,
+        "mining": 1,
+        "lumbering": 3
+      },
+      "portrait_path": "res://assets/heroes/portrait/portrait_9.png"
+    },
+    {
+      "id": "mire_gravedigger",
+      "name": "Tollen Mire-Gravedigger",
+      "class": "Defender",
+      "description": "Digs graves in flooded soil and knows how to keep things buried.",
+      "icon_path": "res://assets/heroes/icon/icon_10.png",
+      "recruitment_weight": 3,
+      "recruit_cost": [
+        {
+          "resource": "food",
+          "amount": 19,
+          "per_level": 2
+        },
+        {
+          "resource": "gold",
+          "min_amount": 18,
+          "max_amount": 26,
+          "per_level": 3
+        },
+        {
+          "resource": "stone",
+          "amount": 10,
+          "per_level": 2
+        }
+      ],
+      "stats": {
+        "health": 126,
+        "sanity": 80,
+        "attack": 13,
+        "defense": 17,
+        "critical_chance": 5,
+        "critical_damage": 132
+      },
+      "work_stats": {
+        "farming": 1,
+        "mining": 5,
+        "lumbering": 0
+      },
+      "portrait_path": "res://assets/heroes/portrait/portrait_10.png"
+    },
+    {
+      "id": "bone_chirurgeon",
+      "name": "Veyra Bone-Chirurgeon",
+      "class": "Supporter",
+      "description": "Sets bones with silver pins and prays only after the screaming stops.",
+      "icon_path": "res://assets/heroes/icon/icon_11.png",
+      "recruitment_weight": 2,
+      "recruit_cost": [
+        {
+          "resource": "food",
+          "amount": 21,
+          "per_level": 2
+        },
+        {
+          "resource": "gold",
+          "amount": 28,
+          "per_level": 3
+        },
+        {
+          "resource": "gems",
+          "amount": 1
+        }
+      ],
+      "stats": {
+        "health": 92,
+        "sanity": 114,
+        "attack": 10,
+        "defense": 12,
+        "critical_chance": 7,
+        "critical_damage": 142
+      },
+      "work_stats": {
+        "farming": 3,
+        "mining": 2,
+        "lumbering": 1
+      },
+      "portrait_path": "res://assets/heroes/portrait/portrait_11.png"
+    },
+    {
+      "id": "gallows_archer",
+      "name": "Kestrel Gallows-Eye",
+      "class": "Attacker",
+      "description": "A condemned archer spared because the noose could not match her aim.",
+      "icon_path": "res://assets/heroes/icon/icon_12.png",
+      "recruitment_weight": 3,
+      "recruit_cost": [
+        {
+          "resource": "food",
+          "amount": 15,
+          "per_level": 2
+        },
+        {
+          "resource": "gold",
+          "amount": 30,
+          "per_level": 3
+        },
+        {
+          "resource": "wood",
+          "min_amount": 8,
+          "max_amount": 14,
+          "per_level": 1
+        }
+      ],
+      "stats": {
+        "health": 88,
+        "sanity": 88,
+        "attack": 20,
+        "defense": 8,
+        "critical_chance": 16,
+        "critical_damage": 166
+      },
+      "work_stats": {
+        "farming": 0,
+        "mining": 1,
+        "lumbering": 5
+      },
+      "portrait_path": "res://assets/heroes/portrait/portrait_12.png"
+    },
+    {
+      "id": "pale_tithekeeper",
+      "name": "Mordane Pale-Tithe",
+      "class": "Supporter",
+      "description": "Counts grain, coin, and sins with the same cold precision.",
+      "icon_path": "res://assets/heroes/icon/icon_13.png",
+      "recruitment_weight": 2,
+      "recruit_cost": [
+        {
+          "resource": "food",
+          "amount": 16,
+          "per_level": 2
+        },
+        {
+          "resource": "gold",
+          "min_amount": 30,
+          "max_amount": 38,
+          "per_level": 4
+        },
+        {
+          "resource": "gems",
+          "amount": 1
+        }
+      ],
+      "stats": {
+        "health": 84,
+        "sanity": 110,
+        "attack": 11,
+        "defense": 9,
+        "critical_chance": 10,
+        "critical_damage": 148
+      },
+      "work_stats": {
+        "farming": 4,
+        "mining": 1,
+        "lumbering": 1
+      },
+      "portrait_path": "res://assets/heroes/portrait/portrait_13.png"
+    },
+    {
+      "id": "iron_absolver",
+      "name": "Ser Avel Iron-Absolver",
+      "class": "Defender",
+      "description": "A penitent knight whose armor is chained shut until absolution is earned.",
+      "icon_path": "res://assets/heroes/icon/icon_14.png",
+      "recruitment_weight": 1,
+      "recruit_cost": [
+        {
+          "resource": "food",
+          "amount": 22,
+          "per_level": 3
+        },
+        {
+          "resource": "gold",
+          "amount": 42,
+          "per_level": 5
+        },
+        {
+          "resource": "stone",
+          "amount": 16,
+          "per_level": 2
+        }
+      ],
+      "stats": {
+        "health": 138,
+        "sanity": 82,
+        "attack": 15,
+        "defense": 21,
+        "critical_chance": 4,
+        "critical_damage": 135
+      },
+      "work_stats": {
+        "farming": 0,
+        "mining": 4,
+        "lumbering": 1
+      },
+      "portrait_path": "res://assets/heroes/portrait/portrait_14.png"
+    },
+    {
+      "id": "thorn_hexer",
+      "name": "Selka Thorn-Hexer",
+      "class": "Attacker",
+      "description": "Marks enemies with briar curses before cutting them down.",
+      "icon_path": "res://assets/heroes/icon/icon_15.png",
+      "recruitment_weight": 2,
+      "recruit_cost": [
+        {
+          "resource": "food",
+          "amount": 17,
+          "per_level": 2
+        },
+        {
+          "resource": "gold",
+          "amount": 34,
+          "per_level": 3
+        },
+        {
+          "resource": "gems",
+          "amount": 1
+        }
+      ],
+      "stats": {
+        "health": 90,
+        "sanity": 94,
+        "attack": 19,
+        "defense": 8,
+        "critical_chance": 15,
+        "critical_damage": 168
+      },
+      "work_stats": {
+        "farming": 2,
+        "mining": 0,
+        "lumbering": 4
+      },
+      "portrait_path": "res://assets/heroes/portrait/portrait_15.png"
+    },
+    {
+      "id": "crypt_candlemaker",
+      "name": "Orren Crypt-Candlemaker",
+      "class": "Supporter",
+      "description": "Makes candles from grave wax and swears each flame remembers a name.",
+      "icon_path": "res://assets/heroes/icon/icon_16.png",
+      "recruitment_weight": 3,
+      "recruit_cost": [
+        {
+          "resource": "food",
+          "min_amount": 15,
+          "max_amount": 21,
+          "per_level": 2
+        },
+        {
+          "resource": "gold",
+          "amount": 24,
+          "per_level": 3
+        },
+        {
+          "resource": "wood",
+          "amount": 6,
+          "per_level": 1
+        }
+      ],
+      "stats": {
+        "health": 86,
+        "sanity": 118,
+        "attack": 8,
+        "defense": 10,
+        "critical_chance": 8,
+        "critical_damage": 140
+      },
+      "work_stats": {
+        "farming": 5,
+        "mining": 0,
+        "lumbering": 2
+      },
+      "portrait_path": "res://assets/heroes/portrait/portrait_16.png"
+    },
+    {
+      "id": "red_mason",
+      "name": "Darik Red-Mason",
+      "class": "Defender",
+      "description": "Builds walls from battlefield stone and never asks what stained it red.",
+      "icon_path": "res://assets/heroes/icon/icon_17.png",
+      "recruitment_weight": 3,
+      "recruit_cost": [
+        {
+          "resource": "food",
+          "amount": 18,
+          "per_level": 2
+        },
+        {
+          "resource": "gold",
+          "amount": 26,
+          "per_level": 3
+        },
+        {
+          "resource": "stone",
+          "min_amount": 12,
+          "max_amount": 18,
+          "per_level": 2
+        }
+      ],
+      "stats": {
+        "health": 128,
+        "sanity": 78,
+        "attack": 12,
+        "defense": 19,
+        "critical_chance": 4,
+        "critical_damage": 130
+      },
+      "work_stats": {
+        "farming": 0,
+        "mining": 5,
+        "lumbering": 1
+      },
+      "portrait_path": "res://assets/heroes/portrait/portrait_17.png"
+    },
+    {
+      "id": "wolf_revenant",
+      "name": "Iria Wolf-Revenant",
+      "class": "Attacker",
+      "description": "Returned from a winter grave with frost in her lungs and hunger in her blade.",
+      "icon_path": "res://assets/heroes/icon/icon_18.png",
+      "recruitment_weight": 1,
+      "recruit_cost": [
+        {
+          "resource": "food",
+          "amount": 24,
+          "per_level": 3
+        },
+        {
+          "resource": "gold",
+          "amount": 44,
+          "per_level": 5
+        },
+        {
+          "resource": "gems",
+          "amount": 2
+        }
+      ],
+      "stats": {
+        "health": 102,
+        "sanity": 74,
+        "attack": 24,
+        "defense": 10,
+        "critical_chance": 17,
+        "critical_damage": 178
+      },
+      "work_stats": {
+        "farming": 0,
+        "mining": 1,
+        "lumbering": 4
+      },
+      "portrait_path": "res://assets/heroes/portrait/portrait_18.png"
+    },
+    {
+      "id": "sable_confessor",
+      "name": "Father Korr Sable-Confessor",
+      "class": "Supporter",
+      "description": "Draws secrets from the guilty and courage from the doomed.",
+      "icon_path": "res://assets/heroes/icon/icon_19.png",
+      "recruitment_weight": 2,
+      "recruit_cost": [
+        {
+          "resource": "food",
+          "amount": 19,
+          "per_level": 2
+        },
+        {
+          "resource": "gold",
+          "min_amount": 26,
+          "max_amount": 34,
+          "per_level": 3
+        },
+        {
+          "resource": "gems",
+          "amount": 1
+        }
+      ],
+      "stats": {
+        "health": 88,
+        "sanity": 120,
+        "attack": 9,
+        "defense": 11,
+        "critical_chance": 9,
+        "critical_damage": 145
+      },
+      "work_stats": {
+        "farming": 3,
+        "mining": 1,
+        "lumbering": 2
+      },
+      "portrait_path": "res://assets/heroes/portrait/portrait_19.png"
+    },
+    {
+      "id": "hollow_halberdier",
+      "name": "Maev Hollow-Halberd",
+      "class": "Defender",
+      "description": "A gate guard from a town that vanished, still standing watch for survivors.",
+      "icon_path": "res://assets/heroes/icon/icon_20.png",
+      "recruitment_weight": 2,
+      "recruit_cost": [
+        {
+          "resource": "food",
+          "amount": 20,
+          "per_level": 2
+        },
+        {
+          "resource": "gold",
+          "amount": 32,
+          "per_level": 4
+        },
+        {
+          "resource": "wood",
+          "amount": 10,
+          "per_level": 1
+        }
+      ],
+      "stats": {
+        "health": 122,
+        "sanity": 86,
+        "attack": 16,
+        "defense": 16,
+        "critical_chance": 5,
+        "critical_damage": 136
+      },
+      "work_stats": {
+        "farming": 1,
+        "mining": 2,
+        "lumbering": 3
+      },
+      "portrait_path": "res://assets/heroes/portrait/portrait_20.png"
+    },
+    {
+      "id": "nightsoil_alchemist",
+      "name": "Pella Nightsoil-Alchemist",
+      "class": "Supporter",
+      "description": "Turns filth, fungus, and forbidden salts into useful miracles.",
+      "icon_path": "res://assets/heroes/icon/icon_21.png",
+      "recruitment_weight": 3,
+      "recruit_cost": [
+        {
+          "resource": "food",
+          "amount": 14,
+          "per_level": 2
+        },
+        {
+          "resource": "gold",
+          "amount": 28,
+          "per_level": 3
+        },
+        {
+          "resource": "stone",
+          "amount": 8,
+          "per_level": 1
+        }
+      ],
+      "stats": {
+        "health": 80,
+        "sanity": 106,
+        "attack": 10,
+        "defense": 8,
+        "critical_chance": 11,
+        "critical_damage": 152
+      },
+      "work_stats": {
+        "farming": 5,
+        "mining": 1,
+        "lumbering": 0
+      },
+      "portrait_path": "res://assets/heroes/portrait/portrait_21.png"
+    },
+    {
+      "id": "dread_pikeman",
+      "name": "Garruk Dread-Pike",
+      "class": "Attacker",
+      "description": "Keeps enemies at spear length and friends farther still.",
+      "icon_path": "res://assets/heroes/icon/icon_22.png",
+      "recruitment_weight": 3,
+      "recruit_cost": [
+        {
+          "resource": "food",
+          "amount": 18,
+          "per_level": 2
+        },
+        {
+          "resource": "gold",
+          "amount": 30,
+          "per_level": 3
+        },
+        {
+          "resource": "wood",
+          "amount": 12,
+          "per_level": 1
+        }
+      ],
+      "stats": {
+        "health": 98,
+        "sanity": 84,
+        "attack": 21,
+        "defense": 11,
+        "critical_chance": 12,
+        "critical_damage": 162
+      },
+      "work_stats": {
+        "farming": 0,
+        "mining": 2,
+        "lumbering": 4
+      },
+      "portrait_path": "res://assets/heroes/portrait/portrait_22.png"
+    },
+    {
+      "id": "fen_shepherd",
+      "name": "Alma Fen-Shepherd",
+      "class": "Supporter",
+      "description": "Guides livestock through corpse-lights and knows which waters not to drink.",
+      "icon_path": "res://assets/heroes/icon/icon_23.png",
+      "recruitment_weight": 3,
+      "recruit_cost": [
+        {
+          "resource": "food",
+          "min_amount": 12,
+          "max_amount": 18,
+          "per_level": 2
+        },
+        {
+          "resource": "gold",
+          "amount": 20,
+          "per_level": 2
+        },
+        {
+          "resource": "wood",
+          "amount": 8,
+          "per_level": 1
+        }
+      ],
+      "stats": {
+        "health": 90,
+        "sanity": 104,
+        "attack": 9,
+        "defense": 9,
+        "critical_chance": 8,
+        "critical_damage": 142
+      },
+      "work_stats": {
+        "farming": 6,
+        "mining": 0,
+        "lumbering": 1
+      },
+      "portrait_path": "res://assets/heroes/portrait/portrait_23.png"
+    },
+    {
+      "id": "barrow_raider",
+      "name": "Sorn Barrow-Raider",
+      "class": "Attacker",
+      "description": "Looted royal tombs until something in the dark began following him.",
+      "icon_path": "res://assets/heroes/icon/icon_24.png",
+      "recruitment_weight": 2,
+      "recruit_cost": [
+        {
+          "resource": "food",
+          "amount": 16,
+          "per_level": 2
+        },
+        {
+          "resource": "gold",
+          "min_amount": 34,
+          "max_amount": 42,
+          "per_level": 4
+        },
+        {
+          "resource": "gems",
+          "amount": 1
+        }
+      ],
+      "stats": {
+        "health": 92,
+        "sanity": 82,
+        "attack": 23,
+        "defense": 8,
+        "critical_chance": 16,
+        "critical_damage": 172
+      },
+      "work_stats": {
+        "farming": 0,
+        "mining": 4,
+        "lumbering": 1
+      },
+      "portrait_path": "res://assets/heroes/portrait/portrait_24.png"
+    },
+    {
+      "id": "oathless_squire",
+      "name": "Tavia Oathless",
+      "class": "Defender",
+      "description": "A squire without a knight, a banner, or any patience left for commands.",
+      "icon_path": "res://assets/heroes/icon/icon_25.png",
+      "recruitment_weight": 3,
+      "recruit_cost": [
+        {
+          "resource": "food",
+          "amount": 17,
+          "per_level": 2
+        },
+        {
+          "resource": "gold",
+          "amount": 24,
+          "per_level": 3
+        },
+        {
+          "resource": "stone",
+          "amount": 10,
+          "per_level": 1
+        }
+      ],
+      "stats": {
+        "health": 116,
+        "sanity": 90,
+        "attack": 14,
+        "defense": 15,
+        "critical_chance": 6,
+        "critical_damage": 138
+      },
+      "work_stats": {
+        "farming": 1,
+        "mining": 3,
+        "lumbering": 2
+      },
+      "portrait_path": "res://assets/heroes/portrait/portrait_25.png"
+    },
+    {
+      "id": "ember_hunter",
+      "name": "Rusk Ember-Hunter",
+      "class": "Attacker",
+      "description": "Tracks beasts by ash scent and cooks nothing he kills.",
+      "icon_path": "res://assets/heroes/icon/icon_26.png",
+      "recruitment_weight": 3,
+      "recruit_cost": [
+        {
+          "resource": "food",
+          "amount": 15,
+          "per_level": 2
+        },
+        {
+          "resource": "gold",
+          "amount": 28,
+          "per_level": 3
+        },
+        {
+          "resource": "wood",
+          "amount": 14,
+          "per_level": 1
+        }
+      ],
+      "stats": {
+        "health": 96,
+        "sanity": 86,
+        "attack": 20,
+        "defense": 10,
+        "critical_chance": 13,
+        "critical_damage": 164
+      },
+      "work_stats": {
+        "farming": 1,
+        "mining": 0,
+        "lumbering": 5
+      },
+      "portrait_path": "res://assets/heroes/portrait/portrait_26.png"
+    }
+  ]
+}

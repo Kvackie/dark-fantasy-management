@@ -1,7 +1,7 @@
 # Working in this repo
 
-Project orientation lives in `README.md` (the Godot project) and `web/README.md` (the browser
-version). This file is only for things an agent would otherwise get wrong.
+Project orientation lives in `README.md`. This file is only for things an agent would otherwise get
+wrong.
 
 ## Commits and pull requests
 
@@ -26,5 +26,5 @@ The default branch is `master`, not `main`. The GitHub Pages workflow deploys on
 
 ## Formatting
 
-`web/` is formatted with Prettier and the deploy fails on any file it would change. Run
-`npm run format` in `web/` before committing.
+Prettier is enforced: the deploy fails on any file it would change. Run `npm run format` before
+committing.
