@@ -4,6 +4,10 @@
 
 The current game loop focuses on building structures, assigning heroes, processing production ticks, recruiting new heroes, and clearing nearby world zones to found additional settlements.
 
+## Web version
+
+`web/` is a browser recreation of this game in Vite + TypeScript + Phaser 4 (the Eternal Alchemy setup), deployed to GitHub Pages by `.github/workflows/pages.yml`. It reads the same `data/*.json` as the Godot project. See [`web/README.md`](web/README.md) for how to run it and what differs.
+
 ## Overview
 
 - Build and upgrade structures on an 8-slot settlement grid.
