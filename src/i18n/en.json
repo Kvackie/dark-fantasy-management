@@ -418,6 +418,5 @@
   "settings.wipe": "Delete all data",
   "settings.wipe_confirm": "Delete every save and setting?",
   "settings.wipe_warning": "Every save slot on this browser is deleted, settings are reset, and the game starts over. Exported save files are not affected. This cannot be undone.",
-  "version.label": "Version {version}",
-  "version.commit": "The commit this build was made from"
+  "version.label": "Version {version}"
 }

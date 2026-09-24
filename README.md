@@ -34,7 +34,7 @@ GitHub Pages on every push to `master`. `vite.config.ts` sets `base: './'`, so e
 relative and the same build works at the project subpath or at a domain root.
 
 The main menu and Settings show which build is running: the `version` from `package.json`, the
-commit it was built from (linked on GitHub) and the build date, all stamped in by `vite.config.ts`.
+commit it was built from and the build date, all stamped in by `vite.config.ts`.
 Raise the number in `package.json` when a release deserves one; the commit changes on every deploy
 by itself.
 
