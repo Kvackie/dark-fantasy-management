@@ -30,11 +30,11 @@ npm run dev        # http://localhost:5173
 
 ## Checks
 
-`.github/workflows/ci.yml` runs on every pull request into `master`: formatting, the tests, a
-type-checked build, then `npm run smoke`, which serves `dist/` and plays the opening in a real
-browser, failing on any page error, console error or missing file. Locally, run `npm run build`
-first; the browser comes from `npx playwright-core install chromium`, or set `CHROMIUM_PATH` to one
-you already have.
+The deploy workflow is the only one: it checks formatting, runs the tests and type-checks the build
+before publishing. `npm run smoke` is a local extra that serves `dist/` and plays the opening in a
+real browser, failing on any page error, console error or missing file. Run `npm run build` first;
+the browser comes from `npx playwright-core install chromium`, or set `CHROMIUM_PATH` to one you
+already have.
 
 ## Deploying
 
